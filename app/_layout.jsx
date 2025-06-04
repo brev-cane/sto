@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Slot, usePathname, useRouter } from 'expo-router';
+import { Slot, usePathname, useRouter, Stack } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ClerkProvider } from '@clerk/clerk-expo'
 import { tokenCache } from '@clerk/clerk-expo/token-cache'
@@ -43,7 +43,7 @@ export default function RootLayout() {
         </View>
       </View>
     </ClerkProvider>
-  );
+    );
 }
 
 const styles = StyleSheet.create({

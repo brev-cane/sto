@@ -1,8 +1,9 @@
+import { ClerkProvider } from '@clerk/clerk-expo';
+import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { Ionicons } from '@expo/vector-icons';
-import { Slot, usePathname, useRouter, Stack } from 'expo-router';
+import { Slot, usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ClerkProvider } from '@clerk/clerk-expo'
-import { tokenCache } from '@clerk/clerk-expo/token-cache'
+import COLORS from './components/colors';
 
 export default function RootLayout() {
   const pathname = usePathname();
@@ -12,10 +13,11 @@ export default function RootLayout() {
     { name: 'Home', icon: 'home', path: '/' },
     { name: 'Video', icon: 'videocam', path: '/video' },
     { name: 'Settings', icon: 'settings', path: '/settings' },
+    { name: 'Admin', icon: 'person', path: '/admin' },
   ];
 
   return (
-    <ClerkProvider tokenCache = {tokenCache}>
+    <ClerkProvider tokenCache={tokenCache}>
       <View style={styles.container}>
         <View style={styles.content}>
           <Slot />
@@ -32,9 +34,14 @@ export default function RootLayout() {
                 <Ionicons
                   name={item.icon}
                   size={24}
-                  color={isActive ? '#03DAC6' : 'gray'}
+                  color={isActive ? COLORS.primary : 'gray'}
                 />
-                <Text style={[styles.label, { color: isActive ? '#03DAC6' : 'gray' }]}>
+                <Text
+                  style={[
+                    styles.label,
+                    { color: isActive ? COLORS.primary : 'gray' },
+                  ]}
+                >
                   {item.name}
                 </Text>
               </Pressable>
@@ -43,7 +50,7 @@ export default function RootLayout() {
         </View>
       </View>
     </ClerkProvider>
-    );
+  );
 }
 
 const styles = StyleSheet.create({
@@ -57,9 +64,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 10,
-    backgroundColor: '#121212',
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: '#333',
+    borderTopColor: COLORS.secondary,
   },
   navItem: {
     alignItems: 'center',

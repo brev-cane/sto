@@ -2,15 +2,15 @@ import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import COLORS from '../components/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const assetId = require('../../assets/videos/example-vid.mp4'); // Adjust path as needed
+const assetId = require('../../assets/videos/example-vid.mp4');
 
 export default function VideoScreen() {
   const [countdown, setCountdown] = useState(5);
   const [videoReady, setVideoReady] = useState(false);
 
-  // Set up the player (but don't play immediately)
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = true;
   });
@@ -19,7 +19,6 @@ export default function VideoScreen() {
     isPlaying: player.playing,
   });
 
-  // Countdown effect
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -47,7 +46,7 @@ export default function VideoScreen() {
 const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -71,7 +70,7 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     fontSize: 72,
-    color: '#ffffff',
+    color: COLORS.text,
     fontWeight: 'bold',
   },
 });

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import COLORS from '../components/colors';
 
 export default function authScreen() {
   return (
@@ -11,7 +12,7 @@ export default function authScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
   },

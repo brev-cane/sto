@@ -1,11 +1,20 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 import COLORS from '../components/colors';
+import { useAdmin } from '../context/adminContext';
 
 export default function SettingsScreen() {
+  const { showAdmin, setShowAdmin } = useAdmin();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>⚙️ Settings</Text>
-      <Text style={styles.text}>This is the settings page.</Text>
+      <Text style={styles.text}>Toggle Admin Page:</Text>
+      <Switch
+        value={showAdmin}
+        onValueChange={setShowAdmin}
+        trackColor={{ false: '#767577', true: COLORS.primary }}
+        thumbColor={showAdmin ? COLORS.primary : '#f4f3f4'}
+      />
     </View>
   );
 }
@@ -26,5 +35,6 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     color: COLORS.text,
+    marginBottom: 10,
   },
 });

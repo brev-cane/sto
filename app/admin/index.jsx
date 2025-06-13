@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   picker: {
-    color: COLORS.text,
+    color: COLORS.background,
     height: 50,
     width: '100%',
   },

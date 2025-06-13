@@ -14,6 +14,13 @@ export default function HomePage() {
         <Text style = {styles.buttonText}>Sign in</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.button}
+        onPress={async () => {
+        await sendDemoNotification() }}>
+        <Text style={styles.buttonText}>Demo</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }

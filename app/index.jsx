@@ -1,26 +1,33 @@
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from './components/colors';
+import { registerForPushNotificationsAsync, sendDemoNotification } from './components/notifications';
 
 export default function HomePage() {
   const router = useRouter();
+
+  useEffect(() => {
+    registerForPushNotificationsAsync();
+  }, []);
+
   return (
     <View style={styles.container}>
       <Text style={styles.text}>🏠 Welcome to the Home Page!</Text>
 
       <TouchableOpacity
-        style = {styles.button}
+        style={styles.button}
         onPress={() => router.push('/home')}>
-        <Text style = {styles.buttonText}>Sign in</Text>
+        <Text style={styles.buttonText}>Sign in</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.button}
         onPress={async () => {
-        await sendDemoNotification() }}>
+          await sendDemoNotification();
+        }}>
         <Text style={styles.buttonText}>Demo</Text>
       </TouchableOpacity>
-
     </View>
   );
 }
@@ -43,10 +50,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
-},
-buttonText: {
+  },
+  buttonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-},
+  },
 });

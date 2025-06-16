@@ -3,6 +3,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import COLORS from '../components/colors';
+import { wasAccessedViaNotification } from '../components/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const assetId = require('../../assets/videos/example-vid.mp4');
@@ -10,6 +11,7 @@ const assetId = require('../../assets/videos/example-vid.mp4');
 export default function VideoScreen() {
   const [countdown, setCountdown] = useState(5);
   const [videoReady, setVideoReady] = useState(false);
+  const [allowed, setAllowed] = useState(false);
 
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = true;
@@ -20,6 +22,13 @@ export default function VideoScreen() {
   });
 
   useEffect(() => {
+    if (wasAccessedViaNotification()) {
+      setAllowed(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!allowed) return;
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -27,7 +36,15 @@ export default function VideoScreen() {
       setVideoReady(true);
       player.play();
     }
-  }, [countdown]);
+  }, [countdown, allowed]);
+
+  if (!allowed) {
+    return (
+      <View style={styles.contentContainer}>
+        <Text style={styles.restricted}>🔒 Access Denied. Please use the Demo notification to view this video.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.contentContainer}>
@@ -49,6 +66,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   videoWrapper: {
     width: screenWidth,
@@ -72,5 +90,10 @@ const styles = StyleSheet.create({
     fontSize: 72,
     color: COLORS.text,
     fontWeight: 'bold',
+  },
+  restricted: {
+    fontSize: 20,
+    color: COLORS.text,
+    textAlign: 'center',
   },
 });

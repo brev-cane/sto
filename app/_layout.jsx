@@ -1,10 +1,12 @@
 import { ClerkProvider } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { Slot, usePathname, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import COLORS from './components/colors';
-import { AdminProvider, useAdmin } from './context/adminContext'; // <-- new
+import { AdminProvider, useAdmin } from './context/adminContext';
 
 function LayoutContent() {
   const pathname = usePathname();
@@ -17,6 +19,17 @@ function LayoutContent() {
     { name: 'Settings', icon: 'settings', path: '/settings' },
     ...(showAdmin ? [{ name: 'Admin', icon: 'person', path: '/admin' }] : []),
   ];
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const route = response.notification.request.content.data.navigateTo;
+      if (route) {
+        router.push(route);
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
 
   return (
     <View style={styles.container}>

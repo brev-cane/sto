@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from './components/colors';
 import { registerForPushNotificationsAsync, sendDemoNotification } from './components/notifications';
 
@@ -28,6 +28,13 @@ export default function HomePage() {
         }}>
         <Text style={styles.buttonText}>Demo</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => Linking.openURL('https://yourblogwebsite.com')}>
+        <Text style={styles.buttonText}>Donations</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }

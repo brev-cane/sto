@@ -5,16 +5,18 @@ import * as Notifications from 'expo-notifications';
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import COLORS from './components/colors';
-import { AdminProvider, useAdmin } from './context/adminContext';
+import COLORS from '../../components/colors';
+import { AdminProvider, useAdmin } from '../../context/adminContext';
 
-function LayoutContent() {
+
+
+const Home = ({ navigation }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { showAdmin } = useAdmin();
 
   const navItems = [
-    { name: 'Home', icon: 'home', path: '/' },
+    { name: 'Home', icon: 'home', path: '/Home' },
     { name: 'Video', icon: 'videocam', path: '/video' },
     { name: 'Settings', icon: 'settings', path: '/settings' },
     ...(showAdmin ? [{ name: 'Admin', icon: 'person', path: '/admin' }] : []),
@@ -43,7 +45,7 @@ function LayoutContent() {
             <Pressable
               key={item.path}
               style={styles.navItem}
-              onPress={() => router.push(item.path)}
+              onPress={() => navigation.navigate(item.path)}
             >
               <Ionicons
                 name={item.icon}
@@ -90,12 +92,12 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function RootLayout() {
-  return (
-    <ClerkProvider tokenCache={tokenCache}>
-      <AdminProvider>
-        <LayoutContent />
-      </AdminProvider>
-    </ClerkProvider>
-  );
-}
+// export default function RootLayout() {
+//   return (
+//     <ClerkProvider tokenCache={tokenCache}>
+//       <AdminProvider>
+//         <LayoutContent />
+//       </AdminProvider>
+//     </ClerkProvider>
+//   );
+// }

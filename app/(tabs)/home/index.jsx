@@ -3,8 +3,13 @@ import { useEffect } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from '../../components/colors';
 import { registerForPushNotificationsAsync, sendDemoNotification } from '../../components/notifications';
+import { usePushNotifications } from './components/usePushNotifications';
 
 function Home() {
+  // usePushNotifications
+  const {expoPushToken, notification} = usePushNotifications()
+
+  const data = JSON.stringify(notification, undefined, 2);
     const router = useRouter();
   
     useEffect(() => {
@@ -13,7 +18,8 @@ function Home() {
   
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>🏠 Welcome to the Home Page!</Text>
+        <Text style={styles.text}>Token: {expoPushToken?.data ?? ""}</Text>
+        <Text style={styles.text}>{data}</Text>
   
         <TouchableOpacity
           style={styles.button}
@@ -25,7 +31,7 @@ function Home() {
   
         <TouchableOpacity
           style={styles.button}
-          onPress={() => Linking.openURL('https://yourblogwebsite.com')}>
+          onPress={() => Linking.openURL('https://placeholder.com')}>
           <Text style={styles.buttonText}>Donations</Text>
         </TouchableOpacity>
   

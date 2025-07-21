@@ -1,10 +1,10 @@
 const COLORS = {
-  background: '#121212',
-  primary: '#03DAC6',
-  secondary: '#1e1e1e',
-  text: '#ffffff',
-  accent: '#BB86FC',
-  error: '#CF6679',
+  background: '#002244',   // Deep blue background
+  primary: '#00338D',      // Royal Blue (primary)
+  secondary: '#1E1E1E',    // Dark gray
+  text: '#FFFFFF',         // White text
+  accent: '#C60C30',       // Bills Red
+  error: '#FF4C4C',        // Slightly brighter red for errors
   success: '#4CAF50',
   warning: '#FFC107',
 };

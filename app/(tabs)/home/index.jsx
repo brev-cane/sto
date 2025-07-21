@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from '../../components/colors';
 import { registerForPushNotificationsAsync, sendDemoNotification } from '../../components/notifications';
-import { usePushNotifications } from './components/usePushNotifications';
+import { usePushNotifications } from '../../components/usePushNotifications';
 
 function Home() {
   // usePushNotifications
@@ -18,8 +18,9 @@ function Home() {
   
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Token: {expoPushToken?.data ?? ""}</Text>
-        <Text style={styles.text}>{data}</Text>
+        {/* used for testing */}
+        {/* <Text style={styles.text}>Token: {expoPushToken?.data ?? ""}</Text>
+        <Text style={styles.text}>{data}</Text> */}
   
         <TouchableOpacity
           style={styles.button}

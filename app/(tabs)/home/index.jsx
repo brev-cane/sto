@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from '../../components/colors';
 import { registerForPushNotificationsAsync } from '../../components/notifications';
 import { usePushNotifications } from '../../components/usePushNotifications';
+
+const logoImage = require('../../../assets/images/light-logo.png');
 
 function Home({ navigation }) {
   const { expoPushToken, notification } = usePushNotifications();
@@ -17,6 +19,10 @@ function Home({ navigation }) {
         {/* <Text style={styles.text}>Token: {expoPushToken?.data ?? ""}</Text>
         <Text style={styles.text}>{data}</Text> */}
 
+      <View style={styles.logoContainer}>
+        <Image source={logoImage} style={styles.logo} resizeMode="contain" />
+      </View>
+
       <TouchableOpacity
         style={styles.button}
         onPress={() => navigation.navigate('Video')}
@@ -26,7 +32,7 @@ function Home({ navigation }) {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => Linking.openURL('https://placeholder.com')}
+        onPress={() => Linking.openURL('https://stadiumtakeover.com/charity/')}
       >
         <Text style={styles.buttonText}>Donations</Text>
       </TouchableOpacity>
@@ -40,8 +46,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingTop: 80,
+  },
+  logoContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 50,   
+  },
+  logo: {
+    width: 400,
+    height: 200,
   },
   button: {
     backgroundColor: COLORS.primary,
@@ -50,6 +66,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 10,
+    width: '55%',
   },
   buttonText: {
     color: '#fff',

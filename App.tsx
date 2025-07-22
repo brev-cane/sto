@@ -34,12 +34,12 @@ function InsideLayout({ navigation }: any) {
         headerStyle: {
           backgroundColor: COLORS.primary, 
         },
-        headerTitle: () => <LogoTitle />,
-        headerTitleContainerStyle: {
-          left: 0,
-          paddingLeft: 0,
-          marginLeft: -20,
-        },
+        // headerTitle: () => <LogoTitle />,
+        // headerTitleContainerStyle: {
+        //   left: 0,
+        //   paddingLeft: 0,
+        //   marginLeft: -20,
+        // },
         headerTintColor: COLORS.text, 
         headerRight: () => (
           <TouchableOpacity

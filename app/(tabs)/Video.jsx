@@ -3,7 +3,6 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 import COLORS from '../components/colors';
-import { wasAccessedViaNotification } from '../components/notifications';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const assetId = require('../../assets/videos/example-vid.mp4');
@@ -11,10 +10,9 @@ const assetId = require('../../assets/videos/example-vid.mp4');
 export default function VideoScreen() {
   const [countdown, setCountdown] = useState(5);
   const [videoReady, setVideoReady] = useState(false);
-  const [allowed, setAllowed] = useState(true);
 
   const player = useVideoPlayer(assetId, (player) => {
-    player.loop = true;
+    player.loop = false;
   });
 
   const { isPlaying } = useEvent(player, 'playingChange', {
@@ -22,13 +20,6 @@ export default function VideoScreen() {
   });
 
   useEffect(() => {
-    if (wasAccessedViaNotification()) {
-      setAllowed(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!allowed) return;
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
@@ -36,15 +27,7 @@ export default function VideoScreen() {
       setVideoReady(true);
       player.play();
     }
-  }, [countdown, allowed]);
-
-  if (!allowed) {
-    return (
-      <View style={styles.contentContainer}>
-        <Text style={styles.restricted}>🔒 Access Denied. Please use the Demo notification to view this video.</Text>
-      </View>
-    );
-  }
+  }, [countdown]);
 
   return (
     <View style={styles.contentContainer}>

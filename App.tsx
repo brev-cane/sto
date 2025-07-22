@@ -35,6 +35,11 @@ function InsideLayout({ navigation }: any) {
           backgroundColor: COLORS.primary, 
         },
         headerTitle: () => <LogoTitle />,
+        headerTitleContainerStyle: {
+          left: 0,
+          paddingLeft: 0,
+          marginLeft: -20,
+        },
         headerTintColor: COLORS.text, 
         headerRight: () => (
           <TouchableOpacity
@@ -59,7 +64,7 @@ function InsideLayout({ navigation }: any) {
         tabBarInactiveTintColor: 'white',
         tabBarStyle: {
           backgroundColor: COLORS.primary, 
-          height: 65,
+          height: 58,
           borderTopWidth: 0,
           borderTopColor: 'black',
         },
@@ -70,7 +75,14 @@ function InsideLayout({ navigation }: any) {
       })}
     >
       <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="Video" component={Video} />
+      <Tab.Screen
+        name="Video"
+        component={Video}
+        // option used to disable the video tab on the navbar
+        // options={{
+        //   tabBarButton: () => null
+        // }}
+      />
     </Tab.Navigator>
   );
 }

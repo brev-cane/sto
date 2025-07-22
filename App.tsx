@@ -22,7 +22,7 @@ const Tab = createBottomTabNavigator();
 
 const LogoTitle = () => (
   <Image
-    source={require('./assets/images/light-logo.png')} // Replace with your Bills logo image path
+    source={require('./assets/images/light-logo.png')} 
     style={{ width: 120, height: 35, resizeMode: 'contain' }}
   />
 );
@@ -32,10 +32,10 @@ function InsideLayout({ navigation }: any) {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerStyle: {
-          backgroundColor: COLORS.primary, // Bills Royal Blue
+          backgroundColor: COLORS.primary, 
         },
         headerTitle: () => <LogoTitle />,
-        headerTintColor: COLORS.text, // White text in header
+        headerTintColor: COLORS.text, 
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
@@ -55,10 +55,10 @@ function InsideLayout({ navigation }: any) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.accent, // Bills Red
+        tabBarActiveTintColor: COLORS.accent, 
         tabBarInactiveTintColor: 'white',
         tabBarStyle: {
-          backgroundColor: COLORS.primary, // Bills Royal Blue
+          backgroundColor: COLORS.primary, 
           height: 65,
           borderTopWidth: 0,
           borderTopColor: 'black',

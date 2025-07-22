@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import COLORS from '../../components/colors';
-import { registerForPushNotificationsAsync, sendDemoNotification } from '../../components/notifications';
+import { registerForPushNotificationsAsync } from '../../components/notifications';
 import { usePushNotifications } from '../../components/usePushNotifications';
 
 function Home() {
@@ -24,8 +24,8 @@ function Home() {
   
         <TouchableOpacity
           style={styles.button}
-          onPress={async () => {
-            await sendDemoNotification();
+          onPress={() => {
+            router.push('/(tabs)/Video')
           }}>
           <Text style={styles.buttonText}>Demo</Text>
         </TouchableOpacity>

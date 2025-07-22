@@ -11,7 +11,7 @@ const assetId = require('../../assets/videos/example-vid.mp4');
 export default function VideoScreen() {
   const [countdown, setCountdown] = useState(5);
   const [videoReady, setVideoReady] = useState(false);
-  const [allowed, setAllowed] = useState(false);
+  const [allowed, setAllowed] = useState(true);
 
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = true;

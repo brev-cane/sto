@@ -1,29 +1,40 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import React, { useEffect, useState } from 'react';
-import { FIREBASE_AUTH } from './FirebaseConfig';
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { onAuthStateChanged, User } from "firebase/auth";
+import React, { useEffect, useState } from "react";
+import { FIREBASE_AUTH } from "./FirebaseConfig";
 
 // Screens
-import Home from './app/(tabs)/home';
-import Login from './app/(tabs)/Login';
-import Settings from './app/(tabs)/Settings';
-import Video from './app/(tabs)/Video';
+import Home from "./app/(tabs)/home";
+import Login from "./app/(tabs)/Login";
+import Settings from "./app/(tabs)/Settings";
+import Video from "./app/(tabs)/Video";
 
 // UI
-import { Ionicons } from '@expo/vector-icons';
-import { Image, TouchableOpacity } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { Image, Platform, TouchableOpacity } from "react-native";
 
-import COLORS from './app/components/colors';
+import COLORS from "./app/components/colors";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const LogoTitle = () => (
   <Image
-    source={require('./assets/images/light-logo.png')} 
-    style={{ width: 120, height: 35, resizeMode: 'contain' }}
+    source={require("./assets/images/light-logo.png")}
+    style={{ width: 120, height: 35, resizeMode: "contain" }}
   />
 );
 
@@ -32,7 +43,7 @@ function InsideLayout({ navigation }: any) {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerStyle: {
-          backgroundColor: COLORS.primary, 
+          backgroundColor: COLORS.primary,
         },
         // headerTitle: () => <LogoTitle />,
         // headerTitleContainerStyle: {
@@ -40,36 +51,36 @@ function InsideLayout({ navigation }: any) {
         //   paddingLeft: 0,
         //   marginLeft: -20,
         // },
-        headerTintColor: COLORS.text, 
+        headerTintColor: COLORS.text,
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('Settings')}
+            onPress={() => navigation.navigate("Settings")}
             style={{ marginRight: 15 }}
           >
             <Ionicons name="settings-outline" size={24} color={COLORS.text} />
           </TouchableOpacity>
         ),
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
+          let iconName: keyof typeof Ionicons.glyphMap = "home-outline";
 
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Video') {
-            iconName = focused ? 'videocam' : 'videocam-outline';
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Video") {
+            iconName = focused ? "videocam" : "videocam-outline";
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.accent, 
-        tabBarInactiveTintColor: 'white',
+        tabBarActiveTintColor: COLORS.accent,
+        tabBarInactiveTintColor: "white",
         tabBarStyle: {
-          backgroundColor: COLORS.primary, 
+          backgroundColor: COLORS.primary,
           height: 58,
           borderTopWidth: 0,
-          borderTopColor: 'black',
+          borderTopColor: "black",
         },
         tabBarLabelStyle: {
-          fontWeight: '600',
+          fontWeight: "600",
           fontSize: 12,
         },
       })}
@@ -89,6 +100,40 @@ function InsideLayout({ navigation }: any) {
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const [channels, setChannels] = useState<Notifications.NotificationChannel[]>(
+    []
+  );
+  const [notification, setNotification] = useState<
+    Notifications.Notification | undefined
+  >(undefined);
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(
+      (token) => token && setExpoPushToken(token)
+    );
+
+    if (Platform.OS === "android") {
+      Notifications.getNotificationChannelsAsync().then((value) =>
+        setChannels(value ?? [])
+      );
+    }
+    const notificationListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        setNotification(notification);
+      }
+    );
+
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(response);
+      });
+
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (authUser) => {
@@ -112,4 +157,54 @@ export default function App() {
       </Stack.Navigator>
     </NavigationContainer>
   );
+}
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
+      name: "A channel is needed for the permissions prompt to appear",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF231F7C",
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") {
+      alert("Failed to get push token for push notification!");
+      return;
+    }
+    // Learn more about projectId:
+    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
+    // EAS projectId is used here.
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error("Project ID not found");
+      }
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })
+      ).data;
+      console.log(token);
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert("Must use physical device for Push Notifications");
+  }
+
+  return token;
 }

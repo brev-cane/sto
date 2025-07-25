@@ -109,9 +109,11 @@ export default function App() {
   >(undefined);
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(
-      (token) => token && setExpoPushToken(token)
-    );
+    registerForPushNotificationsAsync().then((token) => {
+      if (!token) return;
+      alert(token);
+      setExpoPushToken(token);
+    });
 
     if (Platform.OS === "android") {
       Notifications.getNotificationChannelsAsync().then((value) =>

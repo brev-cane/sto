@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "785465840386",
+    "project_id": "stadium-takeover-91571",
+    "storage_bucket": "stadium-takeover-91571.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:785465840386:android:27633c0f3cb0d5ba64281b",
+        "android_client_info": {
+          "package_name": "com.stadiumtakeover.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "785465840386-snpm73hlgtmkmn4im11m1ff02vkqo1ul.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.stadiumtakeover.app",
+            "certificate_hash": "dc7410d0c1efb1fa3aa15ce08ebba65b2deba5cc"
+          }
+        },
+        {
+          "client_id": "785465840386-ii4opp1p0932qh9gdv2grnt23ivbaj88.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoAgkVdMIesLqmg1ri86YrTD4bKQEwI5M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "785465840386-ii4opp1p0932qh9gdv2grnt23ivbaj88.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "785465840386-ts6voja5vpakp8a8oeo82cm0vaetdg52.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.stadiumtakeover.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

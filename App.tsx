@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged, User } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 import { FIREBASE_AUTH } from "./FirebaseConfig";
+import * as Clipboard from 'expo-clipboard';
 
 // Screens
 import Home from "./app/(tabs)/home";
@@ -113,6 +114,8 @@ export default function App() {
       if (!token) return;
       alert(token);
       setExpoPushToken(token);
+      Clipboard.setStringAsync(token)
+      alert("Token copied to clipboard")
     });
 
     if (Platform.OS === "android") {

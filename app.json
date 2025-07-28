@@ -12,7 +12,10 @@
       "icon": "./assets/images/ios.png",
       "supportsTablet": true,
       "bundleIdentifier": "com.stadiumtakeover.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -40,7 +43,23 @@
         }
       ],
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default",
+
+          "enableBackgroundRemoteNotifications": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

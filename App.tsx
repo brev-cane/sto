@@ -4,7 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged, User } from "firebase/auth";
 import React, { useEffect, useState } from "react";
 import { FIREBASE_AUTH } from "./FirebaseConfig";
-import * as Clipboard from 'expo-clipboard';
+import * as Clipboard from "expo-clipboard";
 
 // Screens
 import Home from "./app/(tabs)/home";
@@ -20,6 +20,8 @@ import COLORS from "./app/components/colors";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { AlertProvider } from "./contexts/dropdownContext";
+import { AuthProvider } from "./contexts/authContext";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -112,10 +114,8 @@ export default function App() {
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {
       if (!token) return;
-      alert(token);
       setExpoPushToken(token);
-      Clipboard.setStringAsync(token)
-      alert("Token copied to clipboard")
+      Clipboard.setStringAsync(token);
     });
 
     if (Platform.OS === "android") {
@@ -149,22 +149,26 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <>
-            <Stack.Screen name="Inside" component={InsideLayout} />
-            <Stack.Screen name="Settings" component={Settings} />
-          </>
-        ) : (
-          <Stack.Screen name="Login" component={Login} />
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AlertProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {user ? (
+              <>
+                <Stack.Screen name="Inside" component={InsideLayout} />
+                <Stack.Screen name="Settings" component={Settings} />
+              </>
+            ) : (
+              <Stack.Screen name="Login" component={Login} />
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthProvider>
+    </AlertProvider>
   );
 }
 
-async function registerForPushNotificationsAsync() {
+export async function registerForPushNotificationsAsync() {
   let token;
 
   if (Platform.OS === "android") {

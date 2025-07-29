@@ -1,13 +1,22 @@
-import { useEffect } from 'react';
-import { Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import COLORS from '../../components/colors';
-import { registerForPushNotificationsAsync } from '../../components/notifications';
-import { usePushNotifications } from '../../components/usePushNotifications';
+import { useEffect } from "react";
+import {
+  Image,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import COLORS from "../../components/colors";
+import { registerForPushNotificationsAsync } from "../../components/notifications";
+import { usePushNotifications } from "../../components/usePushNotifications";
+import { useAuth } from "@/contexts/authContext";
 
-const logoImage = require('../../../assets/images/light-logo.png');
+const logoImage = require("../../../assets/images/light-logo.png");
 
 function Home({ navigation }) {
   const { expoPushToken, notification } = usePushNotifications();
+  const { userDoc } = useAuth();
 
   useEffect(() => {
     registerForPushNotificationsAsync();
@@ -15,9 +24,8 @@ function Home({ navigation }) {
 
   return (
     <View style={styles.container}>
-        {/* used for testing */}
-        {/* <Text style={styles.text}>Token: {expoPushToken?.data ?? ""}</Text>
-        <Text style={styles.text}>{data}</Text> */}
+      {/* used for testing */}
+      <Text style={{ color: "#fff", marginVertical: 6 }}>Welcome {userDoc?.email}</Text>
 
       <View style={styles.logoContainer}>
         <Image source={logoImage} style={styles.logo} resizeMode="contain" />
@@ -25,14 +33,14 @@ function Home({ navigation }) {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate('Video')}
+        onPress={() => navigation.navigate("Video")}
       >
         <Text style={styles.buttonText}>Demo</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => Linking.openURL('https://stadiumtakeover.com/charity/')}
+        onPress={() => Linking.openURL("https://stadiumtakeover.com/charity/")}
       >
         <Text style={styles.buttonText}>Donations</Text>
       </TouchableOpacity>
@@ -46,14 +54,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
+    justifyContent: "flex-start",
+    alignItems: "center",
     paddingTop: 80,
   },
   logoContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 50,   
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 50,
   },
   logo: {
     width: 400,
@@ -64,13 +72,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
-    width: '55%',
+    width: "55%",
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

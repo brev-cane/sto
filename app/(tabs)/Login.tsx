@@ -15,12 +15,14 @@ import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
 import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
+import { useNavigation } from "@react-navigation/native";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
+  const {navigate}=useNavigation()
   const auth = FIREBASE_AUTH;
 
   const signIn = async () => {
@@ -28,6 +30,8 @@ const Login = () => {
     try {
       const response = await signInWithEmailAndPassword(auth, email, password);
       console.log(response);
+      navigate("Loading")
+
     } catch (error: any) {
       console.log(error);
      let message = "An unknown error occurred. Please try again.";
@@ -76,6 +80,7 @@ const Login = () => {
           uid: response.user.uid,
           pushToken: `${token}`,
         });
+         navigate("Loading")
       }
       alert("Check your emails!");
     } catch (error: any) {

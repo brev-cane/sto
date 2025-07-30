@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
-    "index.ts"   ]
+    "index.ts", "app/(tabs)/Video.jsx"   ]
 }

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
   Image,
   Linking,
@@ -8,24 +7,52 @@ import {
   View,
 } from "react-native";
 import COLORS from "../../components/colors";
-import { registerForPushNotificationsAsync } from "../../components/notifications";
-import { usePushNotifications } from "../../components/usePushNotifications";
 import { useAuth } from "@/contexts/authContext";
 
 const logoImage = require("../../../assets/images/light-logo.png");
 
 function Home({ navigation }) {
-  const { expoPushToken, notification } = usePushNotifications();
-  const { userDoc } = useAuth();
+  const { userDoc, pushToken } = useAuth();
 
-  useEffect(() => {
-    registerForPushNotificationsAsync();
-  }, []);
+  async function sendTestNotification(expoPushToken, delaySeconds = 30) {
+    const sentAtISO = new Date().toISOString(); // Current time in ISO format
+
+    const message = {
+      to: expoPushToken,
+      sound: "default",
+      title: "🎥 New Video Alert",
+      body: `A video will start in ${delaySeconds} seconds!`,
+      data: {
+        screen: `stadiumtakeover://Video?sentAt=${encodeURIComponent(
+          sentAtISO
+        )}&delaySeconds=${delaySeconds}`,
+      },
+    };
+
+    try {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(message),
+      });
+
+      const data = await response.json();
+      console.log("✅ Push Notification Sent:", data);
+    } catch (error) {
+      console.error("❌ Error sending push notification:", error);
+    }
+  }
 
   return (
     <View style={styles.container}>
       {/* used for testing */}
-      <Text style={{ color: "#fff", marginVertical: 6 }}>Welcome {userDoc?.email}</Text>
+      <Text style={{ color: "#fff", marginVertical: 6 }}>
+        Welcome {userDoc?.email}
+      </Text>
 
       <View style={styles.logoContainer}>
         <Image source={logoImage} style={styles.logo} resizeMode="contain" />
@@ -33,7 +60,13 @@ function Home({ navigation }) {
 
       <TouchableOpacity
         style={styles.button}
-        onPress={() => navigation.navigate("Video")}
+        // onPress={() => {
+        //   navigation.navigate("Video", {
+        //     sentAt: new Date().toISOString(),
+        //     delaySeconds: 10,
+        //   });
+        // }}
+        onPress={() => sendTestNotification(pushToken, 10)}
       >
         <Text style={styles.buttonText}>Demo</Text>
       </TouchableOpacity>

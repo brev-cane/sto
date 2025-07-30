@@ -2,13 +2,16 @@ import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import { useRoute } from '@react-navigation/native'; // <-- To get route params
 import COLORS from '../components/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const assetId = require('../../assets/videos/example-vid.mp4');
 
 export default function VideoScreen() {
-  const [countdown, setCountdown] = useState(5);
+  const { params } = useRoute();
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [missed, setMissed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
   const player = useVideoPlayer(assetId, (player) => {
@@ -20,10 +23,31 @@ export default function VideoScreen() {
   });
 
   useEffect(() => {
+    if (!params?.sentAt || !params?.delaySeconds) {
+      console.warn("Missing sentAt or delaySeconds in route params.");
+      return;
+    }
+
+    const sentAtTime = new Date(params.sentAt).getTime(); // ms
+    const delay = parseInt(params.delaySeconds, 10) * 1000; // ms
+    const targetTime = sentAtTime + delay;
+    const now = Date.now();
+    const remaining = Math.floor((targetTime - now) / 1000);
+
+    if (remaining > 0) {
+      setCountdown(remaining);
+    } else {
+      setMissed(true);
+    }
+  }, [params]);
+
+  useEffect(() => {
+    if (countdown === null || missed) return;
+
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      const timer = setTimeout(() => setCountdown((c) => c! - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (countdown === 0 && player) {
+    } else {
       setVideoReady(true);
       player.play();
     }
@@ -33,15 +57,20 @@ export default function VideoScreen() {
     <View style={styles.contentContainer}>
       <View style={styles.videoWrapper} pointerEvents="none">
         <VideoView style={styles.video} player={player} />
-        {countdown > 0 && (
+        {missed ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>You missed the video.</Text>
+          </View>
+        ) : countdown! > 0 ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.countdownText}>{countdown}</Text>
           </View>
-        )}
+        ) : null}
       </View>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   contentContainer: {

@@ -1,11 +1,8 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { onAuthStateChanged, User } from "firebase/auth";
-import React, { useEffect, useState } from "react";
-import { FIREBASE_AUTH } from "./FirebaseConfig";
-import * as Clipboard from "expo-clipboard";
-
+import { useEffect } from "react";
+import * as Linking from "expo-linking";
 // Screens
 import Home from "./app/(tabs)/home";
 import Login from "./app/(tabs)/Login";
@@ -22,6 +19,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { AlertProvider } from "./contexts/dropdownContext";
 import { AuthProvider } from "./contexts/authContext";
+import LoadingScreen from "./app/screens/loading";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -102,31 +100,11 @@ function InsideLayout({ navigation }: any) {
 }
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [expoPushToken, setExpoPushToken] = useState("");
-  const [channels, setChannels] = useState<Notifications.NotificationChannel[]>(
-    []
-  );
-  const [notification, setNotification] = useState<
-    Notifications.Notification | undefined
-  >(undefined);
-
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (!token) return;
-      setExpoPushToken(token);
-      Clipboard.setStringAsync(token);
-    });
+    registerForPushNotificationsAsync().then((token) => {});
 
-    if (Platform.OS === "android") {
-      Notifications.getNotificationChannelsAsync().then((value) =>
-        setChannels(value ?? [])
-      );
-    }
     const notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        setNotification(notification);
-      }
+      (notification) => {}
     );
 
     const responseListener =
@@ -140,27 +118,77 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, (authUser) => {
-      setUser(authUser);
-    });
-
-    return unsubscribe;
-  }, []);
-
   return (
     <AlertProvider>
       <AuthProvider>
-        <NavigationContainer>
+        <NavigationContainer
+          linking={{
+            prefixes: [Linking.createURL("/")],
+            config: {
+              screens: {
+                Inside: {
+                  screens: {
+                    Video: "Video",
+                  },
+                },
+              },
+            },
+            async getInitialURL() {
+              // First, you may want to do the default deep link handling
+              // Check if app was opened from a deep link
+              const url = await Linking.getInitialURL();
+
+              if (url != null) {
+                return url;
+              }
+
+              // Handle URL from expo push notifications
+              const response =
+                await Notifications.getLastNotificationResponseAsync();
+              console.log(
+                "url received 1:",
+                response?.notification.request.content.data.screen
+              );
+              return response?.notification.request.content.data.screen;
+            },
+            subscribe(listener) {
+              const onReceiveURL = ({ url }: { url: string }) => listener(url);
+
+              // Listen to incoming links from deep linking
+              const eventListenerSubscription = Linking.addEventListener(
+                "url",
+                onReceiveURL
+              );
+
+              // Listen to expo push notifications
+              const subscription =
+                Notifications.addNotificationResponseReceivedListener(
+                  (response) => {
+                    const url =
+                      response.notification.request.content.data.screen;
+
+                    console.log("url received 2:", url);
+                    listener(url);
+                  }
+                );
+
+              return () => {
+                // Clean up the event listeners
+                eventListenerSubscription.remove();
+                subscription.remove();
+              };
+            },
+          }}
+        >
           <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {user ? (
-              <>
-                <Stack.Screen name="Inside" component={InsideLayout} />
-                <Stack.Screen name="Settings" component={Settings} />
-              </>
-            ) : (
-              <Stack.Screen name="Login" component={Login} />
-            )}
+            <Stack.Screen
+              name="Loading"
+              component={LoadingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen name="Inside" component={InsideLayout} />
+            <Stack.Screen name="Settings" component={Settings} />
+            <Stack.Screen name="Login" component={Login} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>

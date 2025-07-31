@@ -50,9 +50,9 @@ function Home({ navigation }) {
   return (
     <View style={styles.container}>
       {/* used for testing */}
-      <Text style={{ color: "#fff", marginVertical: 6 }}>
+      {/* <Text style={{ color: "#fff", marginVertical: 6 }}>
         Welcome {userDoc?.email}
-      </Text>
+      </Text> */}
 
       <View style={styles.logoContainer}>
         <Image source={logoImage} style={styles.logo} resizeMode="contain" />
@@ -68,15 +68,15 @@ function Home({ navigation }) {
         // }}
         onPress={() => sendTestNotification(pushToken, 10)}
       >
-        <Text style={styles.buttonText}>Demo</Text>
+        <Text style={styles.buttonText}>Try Here!</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.button}
         onPress={() => Linking.openURL("https://stadiumtakeover.com/charity/")}
       >
         <Text style={styles.buttonText}>Donations</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }
@@ -94,11 +94,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     width: "100%",
     alignItems: "center",
-    marginBottom: 50,
   },
   logo: {
-    width: 400,
-    height: 200,
+    width: "95%",
+    height: "70%",
   },
   button: {
     backgroundColor: COLORS.primary,

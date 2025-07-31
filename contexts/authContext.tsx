@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   ReactNode,
+  useRef,
 } from "react";
 import { User as FirebaseUser, onAuthStateChanged } from "firebase/auth";
 import { dbService } from "@/services/dbService";
@@ -41,12 +42,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pushToken, setPushToken] = useState<string | null>(null);
+  const pushToken = useRef<null | string>(null);
 
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {
       if (token) {
-        setPushToken(token);
+        pushToken.current = token;
       }
     });
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (user) => {
@@ -60,7 +61,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (pushToken) {
             await dbService
               .collection<AppUser>("users")
-              .update(user.uid, { pushToken: pushToken });
+              .update(user.uid, { pushToken: pushToken.current as string });
+            console.log("Push token updated");
           }
 
           setUserDoc(userData ?? null);

@@ -6,7 +6,7 @@ import { useRoute } from '@react-navigation/native'; // <-- To get route params
 import COLORS from '../components/colors';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const assetId = require('../../assets/videos/example-vid.mp4');
+const assetId = require('../../assets/videos/1.mp4');
 
 export default function VideoScreen() {
   const { params } = useRoute();

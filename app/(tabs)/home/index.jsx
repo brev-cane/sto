@@ -8,11 +8,17 @@ import {
 } from "react-native";
 import COLORS from "../../components/colors";
 import { useAuth } from "@/contexts/authContext";
+import { useState } from "react";
+import {
+  getValidPushTokens,
+  sendBatchNotifications,
+} from "@/utils/notificationHelper";
 
 const logoImage = require("../../../assets/images/light-logo.png");
 
 function Home({ navigation }) {
   const { userDoc, pushToken } = useAuth();
+  const [tokens, setTokens] = useState([]);
 
   async function sendTestNotification(expoPushToken, delaySeconds = 30) {
     const sentAtISO = new Date().toISOString(); // Current time in ISO format
@@ -46,6 +52,16 @@ function Home({ navigation }) {
       console.error("❌ Error sending push notification:", error);
     }
   }
+  const notifyAllUsers = async () => {
+    const tokens = await getValidPushTokens();
+
+    if (tokens.length === 0) {
+      console.log("No valid push tokens found.");
+      return;
+    }
+
+    await sendBatchNotifications(tokens, 10);
+  };
 
   return (
     <View style={styles.container}>
@@ -66,7 +82,7 @@ function Home({ navigation }) {
         //     delaySeconds: 10,
         //   });
         // }}
-        onPress={() => sendTestNotification(pushToken, 10)}
+        onPress={() => notifyAllUsers()}
       >
         <Text style={styles.buttonText}>Try Here!</Text>
       </TouchableOpacity>

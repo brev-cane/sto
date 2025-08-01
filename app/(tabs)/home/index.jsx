@@ -1,14 +1,6 @@
-import {
-  Image,
-  Linking,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import COLORS from "../../components/colors";
 import { useAuth } from "@/contexts/authContext";
-import { useState } from "react";
 import {
   getValidPushTokens,
   sendBatchNotifications,

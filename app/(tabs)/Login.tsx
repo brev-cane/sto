@@ -142,7 +142,7 @@ const Login = () => {
         ) : (
           <>
             <Button title="Login" onPress={() => signIn()} />
-            <Button title="Create account" onPress={() => signUp()} />
+            <Button title="Create account" onPress={() => navigate("Signup")} />
           </>
         )}
       </KeyboardAvoidingView>

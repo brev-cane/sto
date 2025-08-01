@@ -1,12 +1,18 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View } from 'react-native';
 import COLORS from '../components/colors';
+import { signOut } from 'firebase/auth';
+import { FIREBASE_AUTH } from '@/FirebaseConfig';
+import { useNavigation } from '@react-navigation/native';
 
 export default function SettingsScreen() {
   // const { showAdmin, setShowAdmin } = useAdmin();
+  const {navigate}=useNavigation()
+ 
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>⚙️ Settings</Text>
+      <Button title='Logout' onPress={()=>signOut(FIREBASE_AUTH).then(()=>navigate("Loading"))} />
       {/* <Text style={styles.text}>Toggle Admin Page:</Text>
       <Switch
         value={showAdmin}

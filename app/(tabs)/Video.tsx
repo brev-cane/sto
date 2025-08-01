@@ -1,27 +1,27 @@
-import { useEvent } from 'expo';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEffect, useState } from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import { useRoute } from '@react-navigation/native'; // <-- To get route params
-import COLORS from '../components/colors';
+import { useEventListener } from "expo";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useEffect, useState } from "react";
+import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { useRoute } from "@react-navigation/native"; // <-- To get route params
+import COLORS from "../components/colors"; 
+import { useNavigation } from "expo-router";
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const assetId = require('../../assets/videos/1.mp4');
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+const assetId = require("../../assets/videos/1.mp4");
 
 export default function VideoScreen() {
   const { params } = useRoute();
+  const {navigate}=useNavigation()
   const [countdown, setCountdown] = useState<number | null>(null);
   const [missed, setMissed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
 
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = false;
-  });
-
-  const { isPlaying } = useEvent(player, 'playingChange', {
-    isPlaying: player.playing,
-  });
-
+  }); 
+  useEventListener(player, "playToEnd", () => {
+   navigate("Home")
+  }); 
   useEffect(() => {
     if (!params?.sentAt || !params?.delaySeconds) {
       console.warn("Missing sentAt or delaySeconds in route params.");
@@ -71,41 +71,40 @@ export default function VideoScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   videoWrapper: {
     width: screenWidth,
     height: screenHeight,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   video: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   countdownOverlay: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: "absolute",
+    justifyContent: "center",
+    alignItems: "center",
     width: screenWidth,
     height: screenHeight,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   countdownText: {
     fontSize: 72,
     color: COLORS.text,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   restricted: {
     fontSize: 20,
     color: COLORS.text,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

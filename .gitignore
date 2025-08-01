@@ -6,7 +6,7 @@ yarn.lock
 .vscode
 # dependencies
 node_modules/
-
+.expo
 # Expo
 .expo/
 dist/

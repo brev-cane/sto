@@ -17,41 +17,7 @@ import {
 const logoImage = require("../../../assets/images/light-logo.png");
 
 function Home({ navigation }) {
-  const { userDoc, pushToken } = useAuth();
-  const [tokens, setTokens] = useState([]);
-
-  async function sendTestNotification(expoPushToken, delaySeconds = 30) {
-    const sentAtISO = new Date().toISOString(); // Current time in ISO format
-
-    const message = {
-      to: expoPushToken,
-      sound: "default",
-      title: "🎥 New Video Alert",
-      body: `A video will start in ${delaySeconds} seconds!`,
-      data: {
-        screen: `stadiumtakeover://Video?sentAt=${encodeURIComponent(
-          sentAtISO
-        )}&delaySeconds=${delaySeconds}`,
-      },
-    };
-
-    try {
-      const response = await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Accept-Encoding": "gzip, deflate",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(message),
-      });
-
-      const data = await response.json();
-      console.log("✅ Push Notification Sent:", data);
-    } catch (error) {
-      console.error("❌ Error sending push notification:", error);
-    }
-  }
+  const { userDoc } = useAuth();
   const notifyAllUsers = async () => {
     const tokens = await getValidPushTokens();
 
@@ -66,9 +32,9 @@ function Home({ navigation }) {
   return (
     <View style={styles.container}>
       {/* used for testing */}
-      {/* <Text style={{ color: "#fff", marginVertical: 6 }}>
-        Welcome {userDoc?.email}
-      </Text> */}
+      <Text style={{ color: "#fff", marginVertical: 6 }}>
+        Welcome {userDoc?.name}
+      </Text>
 
       <View style={styles.logoContainer}>
         <Image source={logoImage} style={styles.logo} resizeMode="contain" />

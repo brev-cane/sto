@@ -20,6 +20,7 @@ import Constants from "expo-constants";
 import { AlertProvider } from "./contexts/dropdownContext";
 import { AuthProvider } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
+import Signup from "./app/(tabs)/sigup";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -189,6 +190,7 @@ export default function App() {
             <Stack.Screen name="Inside" component={InsideLayout} />
             <Stack.Screen name="Settings" component={Settings} />
             <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name="Signup" component={Signup} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>

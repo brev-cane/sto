@@ -28,10 +28,10 @@ export const sendBatchNotifications = async (tokens: [], delaySeconds = 30) => {
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE);
     const messages = batch.map((token) => ({
-      to: token,
+      to: 'ExponentPushToken[gn9EdqIBLWsH3zKD8rcyBI]',
       sound: "default",
-      title: "🎥 New Video Alert",
-      body: `A video will start in ${delaySeconds} seconds!`,
+      title: "Stadium Takeover",
+      body: `a takeover will start in ${delaySeconds} seconds!`,
       data: {
         screen: `stadiumtakeover://Video?sentAt=${encodeURIComponent(
           sentAtISO

@@ -45,7 +45,7 @@ function InsideLayout({ navigation }: any) {
   const { userDoc } = useAuth();
 
   // Admin Account Emails
-  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com"];
+  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com", "johnmalach@mail.com", "stadiumtakeover@gmail.com"];
   const isAdmin = allowedEmails.includes(userDoc?.email ?? "");
 
   return (

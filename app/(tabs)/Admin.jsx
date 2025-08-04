@@ -21,7 +21,7 @@ function Admin() {
   const navigation = useNavigation();
 
   // List of allowed admin emails
-  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com"];
+  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com", "stadiumtakeover@gmail.com", "johnmalach@mail.com"];
   const isAdmin = allowedEmails.includes(userDoc?.email);
 
   useEffect(() => {

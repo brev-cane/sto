@@ -1,87 +1,98 @@
-// import { Picker } from '@react-native-picker/picker';
-// import { useState } from 'react';
-// import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-// import COLORS from '../components/colors';
+import { useEffect } from "react";
+import {
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import COLORS from "../components/colors";
+import { useAuth } from "@/contexts/authContext";
+import {
+  getValidPushTokens,
+  sendBatchNotifications,
+} from "@/utils/notificationHelper";
 
-// export default function AdminScreen() {
-//   const [selectedVideo, setSelectedVideo] = useState('video1.mp4');
-//   const [countdown, setCountdown] = useState('');
+const logoImage = require("../../assets/images/light-logo.png");
 
-//   const videoList = ['video1.mp4', 'video2.mp4', 'video3.mp4', 'video4.mp4'];
+function Admin() {
+  const { userDoc } = useAuth();
+  const navigation = useNavigation();
 
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.title}>Admin Permissions</Text>
+  // List of allowed admin emails
+  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com"];
+  const isAdmin = allowedEmails.includes(userDoc?.email);
 
-//       <Text style={styles.label}>Select Video:</Text>
-//       <View style={styles.pickerWrapper}>
-//         <Picker
-//           selectedValue={selectedVideo}
-//           onValueChange={(itemValue) => setSelectedVideo(itemValue)}
-//           style={styles.picker}
-//           dropdownIconColor={COLORS.text}
-//         >
-//           {videoList.map((video) => (
-//             <Picker.Item label={video} value={video} key={video} />
-//           ))}
-//         </Picker>
-//       </View>
+  useEffect(() => {
+    if (!isAdmin) {
+      // Redirect non-admins to Home
+      navigation.navigate("Home");
+    }
+  }, [userDoc]);
 
-//       <Text style={styles.label}>Countdown (seconds):</Text>
-//       <TextInput
-//         style={styles.input}
-//         keyboardType="numeric"
-//         value={countdown}
-//         onChangeText={setCountdown}
-//         placeholder="Enter countdown"
-//         placeholderTextColor={COLORS.text}
-//       />
+  if (!isAdmin) return null;
 
-//       <View style={styles.buttonContainer}>
-//         <Button title="Start Takeover!" onPress={() => {}} color={COLORS.primary} />
-//       </View>
-//     </View>
-//   );
-// }
+  const notifyAllUsers = async () => {
+    const tokens = await getValidPushTokens();
 
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: COLORS.background,
-//     padding: 20,
-//     justifyContent: 'center',
-//   },
-//   title: {
-//     fontSize: 28,
-//     fontWeight: '600',
-//     color: COLORS.primary,
-//     textAlign: 'center',
-//     marginBottom: 20,
-//   },
-//   label: {
-//     fontSize: 16,
-//     color: COLORS.text,
-//     marginBottom: 5,
-//   },
-//   pickerWrapper: {
-//     backgroundColor: COLORS.secondary,
-//     borderRadius: 5,
-//     marginBottom: 20,
-//   },
-//   picker: {
-//     color: COLORS.background,
-//     height: 50,
-//     width: '100%',
-//   },
-//   input: {
-//     borderColor: COLORS.primary,
-//     borderWidth: 1,
-//     borderRadius: 5,
-//     padding: 10,
-//     color: COLORS.text,
-//     marginBottom: 20,
-//   },
-//   buttonContainer: {
-//     marginTop: 20,
-//   },
-// });
+    if (tokens.length === 0) {
+      console.log("No valid push tokens found.");
+      return;
+    }
+
+    await sendBatchNotifications(tokens, 10);
+  };
+
+  return (
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => notifyAllUsers()}
+      >
+        <Text style={styles.buttonText}>Send Takeover!</Text>
+      </TouchableOpacity>
+
+      {/* <TouchableOpacity
+        style={styles.button}
+        onPress={() => Linking.openURL("https://stadiumtakeover.com/charity/")}
+      >
+        <Text style={styles.buttonText}>Donations</Text>
+      </TouchableOpacity> */}
+    </View>
+  );
+}
+
+export default Admin;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingTop: 80,
+  },
+  logoContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  logo: {
+    width: "95%",
+    height: "70%",
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+    width: "55%",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+});

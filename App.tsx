@@ -8,6 +8,7 @@ import Home from "./app/(tabs)/home";
 import Login from "./app/(tabs)/Login";
 import Settings from "./app/(tabs)/Settings";
 import Video from "./app/(tabs)/Video";
+import Admin from "./app/(tabs)/Admin";
 
 // UI
 import { Ionicons } from "@expo/vector-icons";
@@ -18,7 +19,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { AlertProvider } from "./contexts/dropdownContext";
-import { AuthProvider } from "./contexts/authContext";
+import { AuthProvider, useAuth } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
 import Signup from "./app/(tabs)/sigup";
 
@@ -41,6 +42,12 @@ const LogoTitle = () => (
 );
 
 function InsideLayout({ navigation }: any) {
+  const { userDoc } = useAuth();
+
+  // Admin Account Emails
+  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com"];
+  const isAdmin = allowedEmails.includes(userDoc?.email ?? "");
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -69,6 +76,8 @@ function InsideLayout({ navigation }: any) {
             iconName = focused ? "home" : "home-outline";
           } else if (route.name === "Video") {
             iconName = focused ? "videocam" : "videocam-outline";
+          } else if (route.name === "Admin") {
+            iconName = focused ? "person-circle" : "person-circle-outline";
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -96,6 +105,7 @@ function InsideLayout({ navigation }: any) {
         //   tabBarButton: () => null
         // }}
       />
+      {isAdmin && <Tab.Screen name="Admin" component={Admin} />}  
     </Tab.Navigator>
   );
 }

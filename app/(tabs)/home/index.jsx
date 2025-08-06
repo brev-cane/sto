@@ -34,13 +34,13 @@ function Home({ navigation }) {
 
       <TouchableOpacity
         style={styles.button}
-        // onPress={() => {
-        //   navigation.navigate("Video", {
-        //     sentAt: new Date().toISOString(),
-        //     delaySeconds: 10,
-        //   });
-        // }}
-        onPress={() => notifyAllUsers()}
+        onPress={() => {
+          navigation.navigate("Video", {
+            sentAt: new Date().toISOString(),
+            delaySeconds: 10,
+          });
+        }}
+        // onPress={() => notifyAllUsers()}
       >
         <Text style={styles.buttonText}>Try Here!</Text>
       </TouchableOpacity>

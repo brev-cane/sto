@@ -1,35 +1,79 @@
+import { RouteProp, useRoute } from "@react-navigation/native";
 import { useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
-import { useRoute } from "@react-navigation/native"; // <-- To get route params
-import COLORS from "../components/colors"; 
+import COLORS from "../components/colors";
 import { useNavigation } from "expo-router";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-const assetId = require("../../assets/videos/1.mp4");
+
+type VideoScreenRouteParams = {
+  videoFile: string;
+  sentAt: string;
+  delaySeconds: string;
+};
+
+// map videos here
+const videoMap = {
+  "test.mp4": require("../../assets/videos/test.mp4"),
+  "1.mp4": require("../../assets/videos/1.mp4"),
+};
+
+function isValidVideoFile(file: string): file is keyof typeof videoMap {
+  return Object.prototype.hasOwnProperty.call(videoMap, file);
+}
 
 export default function VideoScreen() {
-  const { params } = useRoute();
-  const {navigate}=useNavigation()
+  const route = useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
+  const params = route.params;
+  const { navigate } = useNavigation();
+
   const [countdown, setCountdown] = useState<number | null>(null);
   const [missed, setMissed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!params) {
+    return (
+      <View style={styles.contentContainer}>
+        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
+          Missing parameters.
+        </Text>
+      </View>
+    );
+  }
+
+  const { videoFile, sentAt, delaySeconds } = params;
+
+  if (!videoFile || !isValidVideoFile(videoFile)) {
+    return (
+      <View style={styles.contentContainer}>
+        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
+          Invalid or missing video file.
+        </Text>
+      </View>
+    );
+  }
+
+  const assetId = videoMap[videoFile];
 
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = false;
-  }); 
+  });
+
   useEventListener(player, "playToEnd", () => {
-   navigate("Home")
-  }); 
+    navigate("Home");
+  });
+
   useEffect(() => {
-    if (!params?.sentAt || !params?.delaySeconds) {
-      console.warn("Missing sentAt or delaySeconds in route params.");
+    if (!sentAt || !delaySeconds) {
+      setError("Missing sentAt or delaySeconds parameters.");
       return;
     }
 
-    const sentAtTime = new Date(params.sentAt).getTime(); // ms
-    const delay = parseInt(params.delaySeconds, 10) * 1000; // ms
+    const sentAtTime = new Date(sentAt).getTime();
+    const delay = parseInt(delaySeconds, 10) * 1000;
     const targetTime = sentAtTime + delay;
     const now = Date.now();
     const remaining = Math.floor((targetTime - now) / 1000);
@@ -39,11 +83,10 @@ export default function VideoScreen() {
     } else {
       setMissed(true);
     }
-  }, [params]);
+  }, [sentAt, delaySeconds]);
 
   useEffect(() => {
     if (countdown === null || missed) return;
-
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown((c) => c! - 1), 1000);
       return () => clearTimeout(timer);
@@ -53,10 +96,20 @@ export default function VideoScreen() {
     }
   }, [countdown]);
 
+  if (error) {
+    return (
+      <View style={styles.contentContainer}>
+        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
+          {error}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.contentContainer}>
-      <View style={styles.videoWrapper} pointerEvents="none">
-        <VideoView style={styles.video} player={player} />
+      <View style={styles.videoWrapper}>
+        <VideoView style={styles.video} nativeControls={false} player={player} />
         {missed ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>

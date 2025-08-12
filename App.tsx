@@ -12,7 +12,7 @@ import Admin from "./app/(tabs)/Admin";
 
 // UI
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Platform, TouchableOpacity } from "react-native";
+import { Image, Platform, TouchableOpacity, Vibration } from "react-native";
 
 import COLORS from "./app/components/colors";
 import * as Device from "expo-device";
@@ -23,6 +23,9 @@ import { AuthProvider, useAuth } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
 import Signup from "./app/(tabs)/sigup";
 
+// 📳 Unique vibration pattern used for notifications & countdowns
+const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
@@ -31,6 +34,7 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -45,7 +49,12 @@ function InsideLayout({ navigation }: any) {
   const { userDoc } = useAuth();
 
   // Admin Account Emails
-  const allowedEmails = ["brev_horton@outlook.com", "chelseaamalach@gmail.com", "johnmalach@mail.com", "stadiumtakeover@gmail.com"];
+  const allowedEmails = [
+    "brev_horton@outlook.com",
+    "chelseaamalach@gmail.com",
+    "johnmalach@mail.com",
+    "stadiumtakeover@gmail.com"
+  ];
   const isAdmin = allowedEmails.includes(userDoc?.email ?? "");
 
   return (
@@ -54,12 +63,6 @@ function InsideLayout({ navigation }: any) {
         headerStyle: {
           backgroundColor: COLORS.primary,
         },
-        // headerTitle: () => <LogoTitle />,
-        // headerTitleContainerStyle: {
-        //   left: 0,
-        //   paddingLeft: 0,
-        //   marginLeft: -20,
-        // },
         headerTintColor: COLORS.text,
         headerRight: () => (
           <TouchableOpacity
@@ -97,14 +100,7 @@ function InsideLayout({ navigation }: any) {
       })}
     >
       <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen
-        name="Video"
-        component={Video}
-        // option used to disable the video tab on the navbar
-        // options={{
-        //   tabBarButton: () => null
-        // }}
-      />
+      <Tab.Screen name="Video" component={Video} />
       {isAdmin && <Tab.Screen name="Admin" component={Admin} />}  
     </Tab.Navigator>
   );
@@ -114,8 +110,11 @@ export default function App() {
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {});
 
+    // 📳 Vibrate when a notification is received
     const notificationListener = Notifications.addNotificationReceivedListener(
-      (notification) => {}
+      (notification) => {
+        Vibration.vibrate(UNIQUE_VIBRATION_PATTERN);
+      }
     );
 
     const responseListener =
@@ -145,15 +144,12 @@ export default function App() {
               },
             },
             async getInitialURL() {
-              // First, you may want to do the default deep link handling
-              // Check if app was opened from a deep link
               const url = await Linking.getInitialURL();
 
               if (url != null) {
                 return url;
               }
 
-              // Handle URL from expo push notifications
               const response =
                 await Notifications.getLastNotificationResponseAsync();
               console.log(
@@ -165,26 +161,22 @@ export default function App() {
             subscribe(listener) {
               const onReceiveURL = ({ url }: { url: string }) => listener(url);
 
-              // Listen to incoming links from deep linking
               const eventListenerSubscription = Linking.addEventListener(
                 "url",
                 onReceiveURL
               );
 
-              // Listen to expo push notifications
               const subscription =
                 Notifications.addNotificationResponseReceivedListener(
                   (response) => {
                     const url =
                       response.notification.request.content.data.screen;
-
                     console.log("url received 2:", url);
                     listener(url);
                   }
                 );
 
               return () => {
-                // Clean up the event listeners
                 eventListenerSubscription.remove();
                 subscription.remove();
               };
@@ -213,9 +205,9 @@ export async function registerForPushNotificationsAsync() {
 
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("myNotificationChannel", {
-      name: "A channel is needed for the permissions prompt to appear",
+      name: "Custom Notification Channel",
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
+      vibrationPattern: UNIQUE_VIBRATION_PATTERN, // 📳 Custom vibration for Android notifications
       lightColor: "#FF231F7C",
     });
   }
@@ -232,9 +224,7 @@ export async function registerForPushNotificationsAsync() {
       alert("Failed to get push token for push notification!");
       return;
     }
-    // Learn more about projectId:
-    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-    // EAS projectId is used here.
+
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??

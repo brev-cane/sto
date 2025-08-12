@@ -39,6 +39,7 @@ export const sendBatchNotifications = async (
         screen: `stadiumtakeover://Video?sentAt=${encodeURIComponent(
           sentAtISO
         )}&delaySeconds=${delaySeconds}&videoFile=${encodeURIComponent(videoFile)}`,
+        customVibrate: true, 
       },
     }));
 

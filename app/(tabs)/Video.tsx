@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
 import COLORS from "../components/colors";
 import { useNavigation } from "expo-router";
+import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -14,7 +15,6 @@ type VideoScreenRouteParams = {
   delaySeconds: string;
 };
 
-// map videos here
 const videoMap = {
   "test.mp4": require("../../assets/videos/test.mp4"),
   "1.mp4": require("../../assets/videos/1.mp4"),
@@ -57,7 +57,6 @@ export default function VideoScreen() {
   }
 
   const assetId = videoMap[videoFile];
-
   const player = useVideoPlayer(assetId, (player) => {
     player.loop = false;
   });
@@ -88,6 +87,9 @@ export default function VideoScreen() {
   useEffect(() => {
     if (countdown === null || missed) return;
     if (countdown > 0) {
+      if (countdown === 5) {
+        triggerUniqueVibration(); // 🔔 Vibrate at 5 seconds left
+      }
       const timer = setTimeout(() => setCountdown((c) => c! - 1), 1000);
       return () => clearTimeout(timer);
     } else {

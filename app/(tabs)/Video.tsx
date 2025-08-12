@@ -16,8 +16,9 @@ type VideoScreenRouteParams = {
 };
 
 const videoMap = {
-  "test.mp4": require("../../assets/videos/test.mp4"),
+  // "test.mp4": require("../../assets/videos/test.mp4"),
   "1.mp4": require("../../assets/videos/1.mp4"),
+  "5.mp4": require("../../assets/videos/5.mp4")
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {
@@ -88,7 +89,7 @@ export default function VideoScreen() {
     if (countdown === null || missed) return;
     if (countdown > 0) {
       if (countdown === 5) {
-        triggerUniqueVibration(); // 🔔 Vibrate at 5 seconds left
+        triggerUniqueVibration(); // Vibrate at 5 seconds left
       }
       const timer = setTimeout(() => setCountdown((c) => c! - 1), 1000);
       return () => clearTimeout(timer);

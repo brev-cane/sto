@@ -36,7 +36,8 @@ function Admin() {
   // video list
   const videoOptions = [
     { label: "Lets Go Buffalo!", value: "1.mp4" },
-    { label: "Test", value: "test.mp4" },
+    { label: "Mr. Brightside", value: "5.mp4" },
+    // { label: "Test", value: "test.mp4" },
   ];
 
   const delayOptions = [

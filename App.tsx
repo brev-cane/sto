@@ -23,7 +23,6 @@ import { AuthProvider, useAuth } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
 import Signup from "./app/(tabs)/sigup";
 
-// 📳 Unique vibration pattern used for notifications & countdowns
 const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
 Notifications.setNotificationHandler({
@@ -110,7 +109,6 @@ export default function App() {
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {});
 
-    // 📳 Vibrate when a notification is received
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
         Vibration.vibrate(UNIQUE_VIBRATION_PATTERN);
@@ -207,7 +205,7 @@ export async function registerForPushNotificationsAsync() {
     await Notifications.setNotificationChannelAsync("myNotificationChannel", {
       name: "Custom Notification Channel",
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: UNIQUE_VIBRATION_PATTERN, // 📳 Custom vibration for Android notifications
+      vibrationPattern: UNIQUE_VIBRATION_PATTERN, 
       lightColor: "#FF231F7C",
     });
   }

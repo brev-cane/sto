@@ -26,6 +26,7 @@ function Home({ navigation }) {
       {/* used for testing */}
       <Text style={{ color: "#fff", marginVertical: 6 }}>
         Welcome {userDoc?.name}
+        {/* Welcome Billy */}
       </Text>
 
       <View style={styles.logoContainer}>

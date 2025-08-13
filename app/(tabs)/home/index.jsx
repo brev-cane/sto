@@ -37,7 +37,7 @@ function Home({ navigation }) {
       </View>
     );
   }
-  console.log("user doc",userDoc)
+  console.log("user doc", userDoc);
 
   return userDoc?.role === "admin" ? (
     <AdminScreen />
@@ -64,18 +64,6 @@ function Home({ navigation }) {
         // onPress={() => notifyAllUsers()}
       >
         <Text style={styles.buttonText}>Try Here!</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => {
-          navigation.navigate("Admin", {
-            sentAt: new Date().toISOString(),
-            delaySeconds: 10,
-          });
-        }}
-        // onPress={() => notifyAllUsers()}
-      >
-        <Text style={styles.buttonText}>Admin</Text>
       </TouchableOpacity>
 
       {/* <TouchableOpacity

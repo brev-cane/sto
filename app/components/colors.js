@@ -1,5 +1,5 @@
 const COLORS = {
-  background: '#002244',   // Deep blue background
+  background: '#fff',   // Deep blue background
   primary: '#00338D',      // Royal Blue (primary)
   secondary: '#1E1E1E',    // Dark gray
   text: '#FFFFFF',         // White text

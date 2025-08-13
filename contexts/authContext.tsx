@@ -18,6 +18,7 @@ interface AppUser {
   name: string;
   email: string;
   pushToken: string;
+  role?:"admin" | null;
 }
 
 interface AuthContextType {

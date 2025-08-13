@@ -8,7 +8,6 @@ import Home from "./app/(tabs)/home";
 import Login from "./app/(tabs)/Login";
 import Settings from "./app/(tabs)/Settings";
 import Video from "./app/(tabs)/Video";
-import Admin from "./app/(tabs)/Admin";
 
 // UI
 import { Ionicons } from "@expo/vector-icons";
@@ -19,9 +18,10 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { AlertProvider } from "./contexts/dropdownContext";
-import { AuthProvider, useAuth } from "./contexts/authContext";
+import { AuthProvider } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
 import Signup from "./app/(tabs)/sigup";
+import AdminScreen from "./app/(tabs)/Admin";
 
 const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
@@ -45,17 +45,6 @@ const LogoTitle = () => (
 );
 
 function InsideLayout({ navigation }: any) {
-  const { userDoc } = useAuth();
-
-  // Admin Account Emails
-  const allowedEmails = [
-    "brev_horton@outlook.com",
-    "chelseaamalach@gmail.com",
-    "johnmalach@mail.com",
-    "stadiumtakeover@gmail.com"
-  ];
-  const isAdmin = allowedEmails.includes(userDoc?.email ?? "");
-
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -100,7 +89,6 @@ function InsideLayout({ navigation }: any) {
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Video" component={Video} />
-      {isAdmin && <Tab.Screen name="Admin" component={Admin} />}  
     </Tab.Navigator>
   );
 }
@@ -191,6 +179,7 @@ export default function App() {
             <Stack.Screen name="Settings" component={Settings} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Signup" component={Signup} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>
@@ -205,7 +194,7 @@ export async function registerForPushNotificationsAsync() {
     await Notifications.setNotificationChannelAsync("myNotificationChannel", {
       name: "Custom Notification Channel",
       importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: UNIQUE_VIBRATION_PATTERN, 
+      vibrationPattern: UNIQUE_VIBRATION_PATTERN,
       lightColor: "#FF231F7C",
     });
   }

@@ -1,15 +1,25 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import COLORS from "../../components/colors";
 import { useAuth } from "@/contexts/authContext";
 import {
   getValidPushTokens,
   sendBatchNotifications,
 } from "@/utils/notificationHelper";
+import { useNavigation } from "@react-navigation/native";
+import AdminScreen from "../Admin";
 
 const logoImage = require("../../../assets/images/light-logo.png");
 
 function Home({ navigation }) {
   const { userDoc } = useAuth();
+  const { navigate } = useNavigation();
   const notifyAllUsers = async () => {
     const tokens = await getValidPushTokens();
 
@@ -20,8 +30,18 @@ function Home({ navigation }) {
 
     await sendBatchNotifications(tokens, 10);
   };
+  if (!userDoc) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+  console.log("user doc",userDoc)
 
-  return (
+  return userDoc?.role === "admin" ? (
+    <AdminScreen />
+  ) : (
     <View style={styles.container}>
       {/* used for testing */}
       <Text style={{ color: "#fff", marginVertical: 6 }}>
@@ -44,6 +64,18 @@ function Home({ navigation }) {
         // onPress={() => notifyAllUsers()}
       >
         <Text style={styles.buttonText}>Try Here!</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => {
+          navigation.navigate("Admin", {
+            sentAt: new Date().toISOString(),
+            delaySeconds: 10,
+          });
+        }}
+        // onPress={() => notifyAllUsers()}
+      >
+        <Text style={styles.buttonText}>Admin</Text>
       </TouchableOpacity>
 
       {/* <TouchableOpacity

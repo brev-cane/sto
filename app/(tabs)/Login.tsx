@@ -20,23 +20,32 @@ import { doc, setDoc } from "firebase/firestore";
 import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
-import { AppleButton, appleAuth } from '@invertase/react-native-apple-authentication';
-import { AppleAuthProvider, getAuth, revokeAccessToken, onAuthStateChanged, signInWithCredential, } from '@react-native-firebase/auth';
-
+import {
+  AppleButton,
+  appleAuth,
+} from "@invertase/react-native-apple-authentication";
+import {
+  AppleAuthProvider,
+  getAuth,
+  revokeAccessToken,
+  onAuthStateChanged,
+  signInWithCredential,
+} from "@react-native-firebase/auth";
+import PasswordInput from "../components/password";
+import COLORS from "../components/colors";
 
 const Login = () => {
-
   // async function revokeSignInWithAppleToken() {
   //   // Get an authorizationCode from Apple
   //   const { authorizationCode } = await appleAuth.performRequest({
   //     requestedOperation: appleAuth.Operation.REFRESH,
   //   });
-  
+
   //   // Ensure Apple returned an authorizationCode
   //   if (!authorizationCode) {
   //     throw new Error('Apple Revocation failed - no authorizationCode returned');
   //   }
-  
+
   //   // Revoke the token
   //   return revokeAccessToken(getAuth(), authorizationCode);
   // }
@@ -49,27 +58,28 @@ const Login = () => {
       // See: https://github.com/invertase/react-native-apple-authentication#faqs
       requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
     });
-  
+
     // Ensure Apple returned a user identityToken
     if (!appleAuthRequestResponse.identityToken) {
-      throw new Error('Apple Sign-In failed - no identify token returned');
+      throw new Error("Apple Sign-In failed - no identify token returned");
     }
-  
+
     // Create a Firebase credential from the response
     //console.log(appleAuthRequestResponse.identityToken);
     const { identityToken, nonce } = appleAuthRequestResponse;
     const appleCredential = AppleAuthProvider.credential(identityToken, nonce);
- 
-  
+
     // Sign the user in with the credential
-    const response = await  signInWithCredential(getAuth(), appleCredential);
+    const response = await signInWithCredential(getAuth(), appleCredential);
   }
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(
+    __DEV__ ? "admin@stadiumtakeover.com" : ""
+  );
+  const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
-  const {navigate}=useNavigation()
+  const { navigate } = useNavigation();
   const auth = FIREBASE_AUTH;
 
   const signIn = async () => {
@@ -77,11 +87,10 @@ const Login = () => {
     try {
       const response = await signInWithEmailAndPassword(auth, email, password);
       console.log(response);
-      navigate("Loading")
-
+      navigate("Loading");
     } catch (error: any) {
       console.log(error);
-     let message = "An unknown error occurred. Please try again.";
+      let message = "An unknown error occurred. Please try again.";
       switch (error.code) {
         case "auth/invalid-email":
           message = "The email address is not valid.";
@@ -105,7 +114,7 @@ const Login = () => {
           message = error.message;
           break;
       }
-      showAlert("error","Error",message)
+      showAlert("error", "Error", message);
     } finally {
       setLoading(false);
     }
@@ -127,7 +136,7 @@ const Login = () => {
           uid: response.user.uid,
           pushToken: `${token}`,
         });
-         navigate("Loading")
+        navigate("Loading");
       }
       alert("Check your emails!");
     } catch (error: any) {
@@ -167,72 +176,78 @@ const Login = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-    <View style={styles.scroll}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.innerContainer}
-      >
-        <Text style={styles.title}>Sign in</Text>
-        <TextInput
-          value={email}
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          autoCapitalize="none"
-          onChangeText={(text) => setEmail(text)}
-        ></TextInput>
-        <TextInput
-          secureTextEntry={true}
-          value={password}
-          style={styles.input}
-          placeholder="password"
-          placeholderTextColor="#999"
-          autoCapitalize="none"
-          onChangeText={(text) => setPassword(text)}
-        ></TextInput>
+      <View style={styles.scroll}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.innerContainer}
+        >
+          <Text style={styles.title}>Sign in</Text>
+          <TextInput
+            value={email}
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            onChangeText={(text) => setEmail(text)}
+          ></TextInput>
+          <PasswordInput password={password} setPassword={setPassword} />
 
-      {loading ? (
-          <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-        ) : (
-          <>
-            <TouchableOpacity style={styles.button} onPress={signIn}>
-              <Text style={styles.buttonText}>Log in</Text>
-            </TouchableOpacity>
-            <Text style={styles.subtitleText}> - OR - </Text>
-
-            <TouchableOpacity
-              style={[styles.button, styles.googleButton]}
-              onPress={() => navigate("Login")}
-            >
-              <Ionicons name="logo-google" size={24} color="#007AFF" />
-              <Text style={styles.googleButtonText}> Sign in with Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.googleButton}
-              onPress={() => onAppleButtonPress().then(() => console.log('Apple sign-in complete!'))}
-            >
-              <Ionicons name="logo-apple" size={24} color="#007AFF" />
-              <Text style={styles.googleButtonText}> Sign in with Apple</Text>
-            </TouchableOpacity>
-
-            <View style={{
-              backgroundColor: 'transparent',
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              justifyContent: "center",
-            }}>
-              <Text style={styles.subtitleText}>Don't have an account? </Text>
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={() => navigate("Signup")}>
-                <Text style={styles.secondaryButtonText}>Sign Up</Text>
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color={COLORS.primary}
+              style={styles.loader}
+            />
+          ) : (
+            <>
+              <TouchableOpacity style={styles.button} onPress={signIn}>
+                <Text style={styles.buttonText}>Log in</Text>
               </TouchableOpacity>
-            </View>
-          </>
-        )}
-      </KeyboardAvoidingView>
-    </View>
+              <Text style={styles.subtitleText}> - OR - </Text>
+
+              <TouchableOpacity
+                style={[styles.button, styles.googleButton]}
+                onPress={() => navigate("Login")}
+              >
+                <Ionicons name="logo-google" size={24} color="#007AFF" />
+                <Text style={styles.googleButtonText}>
+                  {" "}
+                  Sign in with Google
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.googleButton}
+                onPress={() =>
+                  onAppleButtonPress().then(() =>
+                    console.log("Apple sign-in complete!")
+                  )
+                }
+              >
+                <Ionicons name="logo-apple" size={24} color="#007AFF" />
+                <Text style={styles.googleButtonText}> Sign in with Apple</Text>
+              </TouchableOpacity>
+
+              <View
+                style={{
+                  backgroundColor: "transparent",
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={styles.subtitleText}>Don't have an account? </Text>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => navigate("Signup")}
+                >
+                  <Text style={styles.secondaryButtonText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+        </KeyboardAvoidingView>
+      </View>
     </ScrollView>
   );
 };
@@ -273,7 +288,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: COLORS.primary,
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: "center",
@@ -291,23 +306,22 @@ const styles = StyleSheet.create({
     color: "#007AFF",
     fontWeight: "600",
     fontSize: 16,
-    textDecorationLine: 'underline',
-
+    textDecorationLine: "underline",
   },
   subtitleText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#545f75",
     textAlign: "center",
-    marginBottom:12,
+    marginBottom: 12,
   },
   googleButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#007AFF",
     textAlign: "center",
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "center",
     paddingVertical: 16,
     borderRadius: 10,

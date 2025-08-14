@@ -137,8 +137,13 @@ const Login = () => {
   const signIn = async () => {
     setLoading(true);
     try {
-      const response = await signInWithEmailAndPassword(auth, email, password);
+      const response = await signInWithEmailAndPassword(
+        FIREBASE_AUTH,
+        email,
+        password
+      );
       console.log(response);
+      showAlert("success", "Success", "Logged in successfully");
       navigate("Loading");
     } catch (error: any) {
       console.log(error);

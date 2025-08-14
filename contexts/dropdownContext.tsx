@@ -1,3 +1,4 @@
+import COLORS from "@/app/components/colors";
 import React, { createContext, useContext, useRef } from "react";
 import DropdownAlert from "react-native-dropdownalert";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -48,7 +49,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
           alert={(func) => (alertRef.current = func)}
           dismiss={(func) => (dismissRef.current = func)}
           errorColor={"red"}
-          successColor={"green"}
+          successColor={COLORS.primary}
           zIndex={10}
         />
       </AlertContext.Provider>

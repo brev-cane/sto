@@ -11,6 +11,7 @@
     "ios": {
       "icon": "./assets/images/ios.png",
       "supportsTablet": true,
+       "usesAppleSignIn": true,
       "bundleIdentifier": "com.stadiumtakeover.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -29,17 +30,18 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/light-logo.png"
     },
     "plugins": [
       "expo-router",
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/light-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#00338D"
         }
       ],
       "expo-video",
@@ -58,6 +60,12 @@
           "defaultChannel": "default",
 
           "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.317906654011-o5bso9jq4cpj0fga35qji7fgo1mgfi4q"
         }
       ]
     ],

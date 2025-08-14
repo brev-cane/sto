@@ -38,7 +38,7 @@ export default function VideoScreen() {
   if (!params) {
     return (
       <View style={styles.contentContainer}>
-        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
+        <Text style={{ color: '#000', fontSize: 18, textAlign: "center" }}>
           Missing parameters.
         </Text>
       </View>

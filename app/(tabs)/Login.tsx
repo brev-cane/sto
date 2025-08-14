@@ -1,6 +1,9 @@
 import {
   createUserWithEmailAndPassword,
+  OAuthProvider,
+  signInWithCredential,
   signInWithEmailAndPassword,
+  User,
 } from "firebase/auth";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,8 +18,12 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
-import { doc, setDoc } from "firebase/firestore";
+import {
+  FIREBASE_APP,
+  FIREBASE_AUTH,
+  FIRESTORE_DB,
+} from "../../FirebaseConfig";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
@@ -24,55 +31,11 @@ import {
   AppleButton,
   appleAuth,
 } from "@invertase/react-native-apple-authentication";
-import {
-  AppleAuthProvider,
-  getAuth,
-  revokeAccessToken,
-  onAuthStateChanged,
-  signInWithCredential,
-} from "@react-native-firebase/auth";
+import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
 import COLORS from "../components/colors";
 
 const Login = () => {
-  // async function revokeSignInWithAppleToken() {
-  //   // Get an authorizationCode from Apple
-  //   const { authorizationCode } = await appleAuth.performRequest({
-  //     requestedOperation: appleAuth.Operation.REFRESH,
-  //   });
-
-  //   // Ensure Apple returned an authorizationCode
-  //   if (!authorizationCode) {
-  //     throw new Error('Apple Revocation failed - no authorizationCode returned');
-  //   }
-
-  //   // Revoke the token
-  //   return revokeAccessToken(getAuth(), authorizationCode);
-  // }
-
-  async function onAppleButtonPress() {
-    // Start the sign-in request
-    const appleAuthRequestResponse = await appleAuth.performRequest({
-      requestedOperation: appleAuth.Operation.LOGIN,
-      // As per the FAQ of react-native-apple-authentication, the name should come first in the following array.
-      // See: https://github.com/invertase/react-native-apple-authentication#faqs
-      requestedScopes: [appleAuth.Scope.FULL_NAME, appleAuth.Scope.EMAIL],
-    });
-
-    // Ensure Apple returned a user identityToken
-    if (!appleAuthRequestResponse.identityToken) {
-      throw new Error("Apple Sign-In failed - no identify token returned");
-    }
-
-    // Create a Firebase credential from the response
-    //console.log(appleAuthRequestResponse.identityToken);
-    const { identityToken, nonce } = appleAuthRequestResponse;
-    const appleCredential = AppleAuthProvider.credential(identityToken, nonce);
-
-    // Sign the user in with the credential
-    const response = await signInWithCredential(getAuth(), appleCredential);
-  }
-
   const [email, setEmail] = useState(
     __DEV__ ? "admin@stadiumtakeover.com" : ""
   );
@@ -80,7 +43,57 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { showAlert } = useAlert();
   const { navigate } = useNavigation();
-  const auth = FIREBASE_AUTH;
+  const handeleAppleAuthentication = async () => {
+    try {
+      setLoading(true);
+      const res = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+      if (res.identityToken) {
+        const provider = new OAuthProvider("apple.com");
+        console.log("user crede :", provider);
+        const credential = provider.credential({ idToken: res.identityToken });
+        const userCredential = await signInWithCredential(
+          FIREBASE_AUTH,
+          credential
+        );
+        console.log("user crede :", userCredential);
+        if (userCredential.user.uid) {
+          const res1 = await getDoc(
+            doc(FIRESTORE_DB, "users", userCredential.user.uid)
+          );
+          if (res1.exists()) {
+            showAlert("success", "Welcome", "Logged in successfully");
+            navigate("Loading");
+            return;
+          }
+          const user = userCredential.user;
+          const userObject = {
+            uid: user.uid,
+            email: email,
+            name: res.fullName?.nickname ? res.fullName?.nickname : res.email,
+            createdAt: serverTimestamp(),
+          };
+
+          const res2 = await setDoc(
+            doc(FIRESTORE_DB, "users", user.uid),
+            userObject
+          ).then(() => {
+            setLoading(false);
+            showAlert("success", "Welcome", "Logged in successfully");
+            navigate("Loading");
+          });
+        }
+      }
+    } catch (error) {
+      showAlert("error", "Error", "Something went wrong!");
+      setLoading(false);
+      console.log("error", error);
+    }
+  };
 
   const signIn = async () => {
     setLoading(true);
@@ -218,11 +231,7 @@ const Login = () => {
 
               <TouchableOpacity
                 style={styles.googleButton}
-                onPress={() =>
-                  onAppleButtonPress().then(() =>
-                    console.log("Apple sign-in complete!")
-                  )
-                }
+                onPress={handeleAppleAuthentication}
               >
                 <Ionicons name="logo-apple" size={24} color="#007AFF" />
                 <Text style={styles.googleButtonText}> Sign in with Apple</Text>

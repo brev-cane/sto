@@ -11,7 +11,7 @@ import Video from "./app/(tabs)/Video";
 
 // UI
 import { Ionicons } from "@expo/vector-icons";
-import { Image, Platform, TouchableOpacity, Vibration } from "react-native";
+import { Platform, TouchableOpacity, Vibration } from "react-native";
 
 import COLORS from "./app/components/colors";
 import * as Device from "expo-device";
@@ -37,27 +37,16 @@ Notifications.setNotificationHandler({
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const LogoTitle = () => (
-  <Image
-    source={require("./assets/images/light-logo.png")}
-    style={{ width: 120, height: 35, resizeMode: "contain" }}
-  />
-);
-
 function InsideLayout({ navigation }: any) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.text,
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate("Settings")}
             style={{ marginRight: 15 }}
           >
-            <Ionicons name="settings-outline" size={24} color={COLORS.text} />
+            <Ionicons name="settings-outline" size={24} color={"#000"} />
           </TouchableOpacity>
         ),
         tabBarIcon: ({ focused, color, size }) => {
@@ -73,14 +62,9 @@ function InsideLayout({ navigation }: any) {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.accent,
-        tabBarInactiveTintColor: "white",
-        tabBarStyle: {
-          backgroundColor: COLORS.primary,
-          height: 58,
-          borderTopWidth: 0,
-          borderTopColor: "black",
-        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: "#D4D4D4",
+
         tabBarLabelStyle: {
           fontWeight: "600",
           fontSize: 12,

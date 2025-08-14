@@ -15,7 +15,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import AdminScreen from "../Admin";
 
-const logoImage = require("../../../assets/images/light-logo.png");
+const logoImage = require("../../../assets/images/blue-logo.png");
 
 function Home({ navigation }) {
   const { userDoc } = useAuth();
@@ -44,7 +44,7 @@ function Home({ navigation }) {
   ) : (
     <View style={styles.container}>
       {/* used for testing */}
-      <Text style={{ color: "#fff", marginVertical: 6 }}>
+      <Text style={{ color: "#000", marginVertical: 6 }}>
         Welcome {userDoc?.name}
         {/* Welcome Billy */}
       </Text>

@@ -1,18 +1,27 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
-import COLORS from '../components/colors';
-import { signOut } from 'firebase/auth';
-import { FIREBASE_AUTH } from '@/FirebaseConfig';
-import { useNavigation } from '@react-navigation/native';
+import { Button, StyleSheet, Text, View } from "react-native";
+import COLORS from "../components/colors";
+import { signOut } from "firebase/auth";
+import { FIREBASE_AUTH } from "@/FirebaseConfig";
+import { useNavigation } from "@react-navigation/native";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 export default function SettingsScreen() {
   // const { showAdmin, setShowAdmin } = useAdmin();
-  const {navigate}=useNavigation()
- 
+  const { navigate } = useNavigation();
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>⚙️ Settings</Text>
-      <Button title='Logout' onPress={()=>signOut(FIREBASE_AUTH).then(()=>navigate("Loading"))} />
+      <Button
+        title="Logout"
+        onPress={() => {
+          const user = GoogleSignin.getCurrentUser();
+          if (user) {
+            GoogleSignin.signOut();
+          }
+          signOut(FIREBASE_AUTH).then(() => navigate("Loading"));
+        }}
+      />
       {/* <Text style={styles.text}>Toggle Admin Page:</Text>
       <Switch
         value={showAdmin}
@@ -28,12 +37,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 28,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.primary,
     marginBottom: 10,
   },

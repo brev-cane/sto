@@ -1,11 +1,11 @@
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   OAuthProvider,
   signInWithCredential,
   signInWithEmailAndPassword,
-  User,
 } from "firebase/auth";
-import React, { useState, useEffect } from "react";
+import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
@@ -18,22 +18,16 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import {
-  FIREBASE_APP,
-  FIREBASE_AUTH,
-  FIRESTORE_DB,
-} from "../../FirebaseConfig";
+import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
-import {
-  AppleButton,
-  appleAuth,
-} from "@invertase/react-native-apple-authentication";
 import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
 import COLORS from "../components/colors";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+GoogleSignin.configure({});
 
 const Login = () => {
   const [email, setEmail] = useState(
@@ -94,6 +88,51 @@ const Login = () => {
       console.log("error", error);
     }
   };
+  const loginByGoogle = async () => {
+    try {
+      setLoading(true);
+      const res = await GoogleSignin.signIn();
+      if (res.type === "success") {
+        const credential = GoogleAuthProvider.credential(res.data.idToken);
+        const userCredential = await signInWithCredential(
+          FIREBASE_AUTH,
+          credential
+        );
+        if (userCredential.user.uid) {
+          const res1 = await getDoc(
+            doc(FIRESTORE_DB, "users", userCredential.user.uid)
+          );
+          if (res1.exists()) {
+            showAlert("success", "Welcome", "Logged in successfully");
+            navigate("Loading");
+            return;
+          }
+          const user = userCredential.user;
+          const userObject = {
+            uid: user.uid,
+            email: email,
+            name: res.data.user.name,
+            createdAt: serverTimestamp(),
+          };
+
+          const res2 = await setDoc(
+            doc(FIRESTORE_DB, "users", user.uid),
+            userObject
+          ).then(() => {
+            setLoading(false);
+            showAlert("success", "Welcome", "Logged in successfully");
+            navigate("Loading");
+          });
+        }
+      } else {
+        throw new Error("Failed to login with Google");
+      }
+    } catch (error) {
+      console.log("error google login :", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signIn = async () => {
     setLoading(true);
@@ -132,61 +171,6 @@ const Login = () => {
       setLoading(false);
     }
   };
-
-  const signUp = async () => {
-    setLoading(true);
-    try {
-      const response = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      console.log(response);
-      if (response.user) {
-        const token = await registerForPushNotificationsAsync();
-        setDoc(doc(FIRESTORE_DB, "users", response.user.uid), {
-          email: email,
-          uid: response.user.uid,
-          pushToken: `${token}`,
-        });
-        navigate("Loading");
-      }
-      alert("Check your emails!");
-    } catch (error: any) {
-      console.log(error);
-      let message = "An unknown error occurred. Please try again.";
-
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          message = "This email is already in use. Please try logging in.";
-          break;
-        case "auth/invalid-email":
-          message = "The email address is not valid.";
-          break;
-        case "auth/operation-not-allowed":
-          message = "Email/password accounts are not enabled.";
-          break;
-        case "auth/weak-password":
-          message =
-            "The password is too weak. It must be at least 8 characters.";
-          break;
-        case "auth/network-request-failed":
-          message =
-            "Network error. Please check your connection and try again.";
-          break;
-        case "auth/internal-error":
-          message = "An internal error occurred. Please try again later.";
-          break;
-        default:
-          message = error.message;
-          break;
-      }
-      showAlert("error", "Error", message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.scroll}>
@@ -220,23 +204,31 @@ const Login = () => {
 
               <TouchableOpacity
                 style={[styles.button, styles.googleButton]}
-                onPress={() => navigate("Login")}
+                onPress={loginByGoogle}
               >
-                <Ionicons name="logo-google" size={24} color="#007AFF" />
+                <Ionicons name="logo-google" size={24} color={COLORS.primary} />
                 <Text style={styles.googleButtonText}>
                   {" "}
                   Sign in with Google
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.googleButton}
-                onPress={handeleAppleAuthentication}
-              >
-                <Ionicons name="logo-apple" size={24} color="#007AFF" />
-                <Text style={styles.googleButtonText}> Sign in with Apple</Text>
-              </TouchableOpacity>
-
+              {Platform.OS === "ios" && (
+                <TouchableOpacity
+                  style={styles.googleButton}
+                  onPress={handeleAppleAuthentication}
+                >
+                  <Ionicons
+                    name="logo-apple"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.googleButtonText}>
+                    {" "}
+                    Sign in with Apple
+                  </Text>
+                </TouchableOpacity>
+              )}
               <View
                 style={{
                   backgroundColor: "transparent",
@@ -312,7 +304,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#007AFF",
+    color: COLORS.primary,
     fontWeight: "600",
     fontSize: 16,
     textDecorationLine: "underline",
@@ -327,7 +319,7 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#007AFF",
+    borderColor: COLORS.primary,
     textAlign: "center",
     flexDirection: "row",
     flexWrap: "wrap",
@@ -339,7 +331,7 @@ const styles = StyleSheet.create({
   },
   googleButtonText: {
     textAlign: "center",
-    color: "#007AFF",
+    color: COLORS.primary,
     fontWeight: "600",
     fontSize: 16,
   },

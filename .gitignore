@@ -4,6 +4,8 @@ ios
 package-lock.json
 yarn.lock
 .vscode
+*.apk
+*.ipa
 # dependencies
 node_modules/
 .expo

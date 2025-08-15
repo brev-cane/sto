@@ -143,7 +143,7 @@ const Login = () => {
         password
       );
       console.log(response);
-      showAlert("success", "Success", "Logged in successfully");
+      showAlert("success", "Welcome", "Logged in successfully");
       navigate("Loading");
     } catch (error: any) {
       console.log(error);

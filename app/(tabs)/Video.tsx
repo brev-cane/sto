@@ -16,9 +16,21 @@ type VideoScreenRouteParams = {
 };
 
 const videoMap = {
-  // "test.mp4": require("../../assets/videos/test.mp4"),
   "1.mp4": require("../../assets/videos/1.mp4"),
-  "5.mp4": require("../../assets/videos/5.mp4")
+  "2.mp4": require("../../assets/videos/2.mp4"),
+  "3.mp4": require("../../assets/videos/3.mp4"),
+  "4.mp4": require("../../assets/videos/4.mp4"),
+  "5.mp4": require("../../assets/videos/5.mp4"),
+  "6.mp4": require("../../assets/videos/6.mp4"),
+  "7.mp4": require("../../assets/videos/7.mp4"),
+  "8.mp4": require("../../assets/videos/8.mp4"),
+  "9.mp4": require("../../assets/videos/9.mp4"),
+ // "10.mp4": require("../../assets/videos/10.mp4"),
+  "11.mp4": require("../../assets/videos/11.mp4"),
+//  "12.mp4": require("../../assets/videos/12.mp4"),
+  "13.mp4": require("../../assets/videos/13.mp4"),
+  "14.mp4": require("../../assets/videos/14.mp4"),
+  "15.mp4": require("../../assets/videos/15.mp4"),
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {
@@ -26,7 +38,8 @@ function isValidVideoFile(file: string): file is keyof typeof videoMap {
 }
 
 export default function VideoScreen() {
-  const route = useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
+  const route =
+    useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
   const params = route.params;
   const { navigate } = useNavigation();
 
@@ -38,7 +51,7 @@ export default function VideoScreen() {
   if (!params) {
     return (
       <View style={styles.contentContainer}>
-        <Text style={{ color: '#000', fontSize: 18, textAlign: "center" }}>
+        <Text style={{ color: "#000", fontSize: 18, textAlign: "center" }}>
           Missing parameters.
         </Text>
       </View>
@@ -112,7 +125,11 @@ export default function VideoScreen() {
   return (
     <View style={styles.contentContainer}>
       <View style={styles.videoWrapper}>
-        <VideoView style={styles.video} nativeControls={false} player={player} />
+        <VideoView
+          style={styles.video}
+          nativeControls={false}
+          player={player}
+        />
         {missed ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>

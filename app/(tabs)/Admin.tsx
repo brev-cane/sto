@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+  Switch,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
 import { Picker } from "@react-native-picker/picker";
@@ -12,7 +19,20 @@ import COLORS from "../components/colors";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
-  { file: "5.mp4", name: "Mr Brightside" }, 
+  { file: "2.mp4", name: "Third Down" },
+  { file: "3.mp4", name: "Shout" },
+  { file: "4.mp4", name: "Where else" },
+  { file: "5.mp4", name: "Mr Brightened" },
+  { file: "6.mp4", name: "We will Rock You" },
+  { file: "7.mp4", name: "Be Good Do Good" },
+  { file: "6.mp4", name: "Gotta feeling" },
+  { file: "9.mp4", name: "Coming in the Air Tonight" },
+  //  { file: "10.mp4", name: "" },
+  { file: "11.mp4", name: "Dont Need No Education" },
+  //  { file: "12.mp4", name: "" },
+  { file: "13.mp4", name: "Devil Georgia" },
+  { file: "14.mp4", name: "Gonna play Texas" },
+  { file: "15.mp4", name: "Rainbow Connection" },
 ];
 
 export default function AdminScreen() {
@@ -21,6 +41,9 @@ export default function AdminScreen() {
   const [loading, setLoading] = useState(false);
   const { userDoc } = useAuth();
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
+
   useEffect(() => {
     let mounted = true;
     const interval = setInterval(async () => {
@@ -63,7 +86,7 @@ export default function AdminScreen() {
         return;
       }
       await sendBatchNotifications(
-        [userDoc?.pushToken as string],
+        isEnabled ? [userDoc?.pushToken as string] : tokens,
         delay,
         video
       );
@@ -87,11 +110,18 @@ export default function AdminScreen() {
           selectedValue={video}
           onValueChange={(itemValue) => setVideo(itemValue)}
           style={styles.picker}
+          selectionColor={"#fff"}
+          mode="dialog"
           dropdownIconColor={"#fff"}
         >
-          <Picker.Item label="-- Choose a Video --" value="" />
+          <Picker.Item label="-- Choose a Video --" value="" color="#fff" />
           {videoOptions.map((v) => (
-            <Picker.Item key={v.file} label={v.name} value={v.file} />
+            <Picker.Item
+              key={v.file}
+              label={v.name}
+              color="#fff"
+              value={v.file}
+            />
           ))}
         </Picker>
       </View>
@@ -105,12 +135,35 @@ export default function AdminScreen() {
         step={5}
         value={delay}
         onValueChange={setDelay}
-        minimumTrackTintColor="#1e90ff"
+        minimumTrackTintColor={COLORS.primary}
         maximumTrackTintColor="#ccc"
-        thumbTintColor="#1e90ff"
+        thumbTintColor={COLORS.primary}
       />
 
       {/* Send Button */}
+      <View
+        style={{
+          flexDirection: "row",
+          padding: 10,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: "bold" }}>Admin Only</Text>
+          <Text style={{ fontSize: 14 }}>
+            Send notifications to yourself only
+          </Text>
+        </View>
+        <Switch
+          trackColor={{ false: "#767577", true: COLORS.primary }}
+          thumbColor={isEnabled ? "#FFF" : "#f4f3f4"}
+          ios_backgroundColor="#3e3e3e"
+          onValueChange={toggleSwitch}
+          value={isEnabled}
+        />
+      </View>
+
       <View style={{ marginTop: 20 }}>
         <TouchableOpacity
           style={styles.button}

@@ -1,27 +1,21 @@
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useEffect } from "react";
 import * as Linking from "expo-linking";
 // Screens
-import Home from "./app/(tabs)/home";
-import Login from "./app/(tabs)/Login";
-import Settings from "./app/(tabs)/Settings";
-import Video from "./app/(tabs)/Video";
+import Home from "./app/screens/home";
+import Login from "./app/screens/Login";
+import { Platform, StatusBar, Vibration } from "react-native";
 
-// UI
-import { Ionicons } from "@expo/vector-icons";
-import { Platform, TouchableOpacity, Vibration } from "react-native";
-
-import COLORS from "./app/components/colors";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { AlertProvider } from "./contexts/dropdownContext";
 import { AuthProvider } from "./contexts/authContext";
 import LoadingScreen from "./app/screens/loading";
-import Signup from "./app/(tabs)/sigup";
-import AdminScreen from "./app/(tabs)/Admin";
+import Signup from "./app/screens/sigup";
+import { UserProfileScreen } from "./app/screens/profile";
+import VideoScreen from "./app/screens/Video";
 
 const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
@@ -35,47 +29,6 @@ Notifications.setNotificationHandler({
 });
 
 const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
-
-function InsideLayout({ navigation }: any) {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerRight: () => (
-          <TouchableOpacity
-            onPress={() => navigation.navigate("Settings")}
-            style={{ marginRight: 15 }}
-          >
-            <Ionicons name="settings-outline" size={24} color={"#000"} />
-          </TouchableOpacity>
-        ),
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = "home-outline";
-
-          if (route.name === "Home") {
-            iconName = focused ? "home" : "home-outline";
-          } else if (route.name === "Video") {
-            iconName = focused ? "videocam" : "videocam-outline";
-          } else if (route.name === "Admin") {
-            iconName = focused ? "person-circle" : "person-circle-outline";
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: "#D4D4D4",
-
-        tabBarLabelStyle: {
-          fontWeight: "600",
-          fontSize: 12,
-        },
-      })}
-    >
-      <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="Video" component={Video} />
-    </Tab.Navigator>
-  );
-}
 
 export default function App() {
   useEffect(() => {
@@ -106,11 +59,7 @@ export default function App() {
             prefixes: [Linking.createURL("/")],
             config: {
               screens: {
-                Inside: {
-                  screens: {
-                    Video: "Video",
-                  },
-                },
+                Video: "Video",
               },
             },
             async getInitialURL() {
@@ -159,14 +108,15 @@ export default function App() {
               component={LoadingScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen name="Inside" component={InsideLayout} />
-            <Stack.Screen name="Settings" component={Settings} />
+            <Stack.Screen name="Home" component={Home} />
+            <Stack.Screen name="Video" component={VideoScreen} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Signup" component={Signup} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
+            <Stack.Screen name="Profile" component={UserProfileScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>
+      <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
     </AlertProvider>
   );
 }
@@ -191,11 +141,6 @@ export async function registerForPushNotificationsAsync() {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-    if (finalStatus !== "granted") {
-      alert("Failed to get push token for push notification!");
-      return;
-    }
-
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??

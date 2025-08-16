@@ -6,6 +6,8 @@ import { Dimensions, StyleSheet, Text, View } from "react-native";
 import COLORS from "../components/colors";
 import { useNavigation } from "expo-router";
 import { triggerUniqueVibration } from "../../utils/vibrationHelper";
+import BackButton from "@/components/ui/backbutton";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -25,9 +27,9 @@ const videoMap = {
   "7.mp4": require("../../assets/videos/7.mp4"),
   "8.mp4": require("../../assets/videos/8.mp4"),
   "9.mp4": require("../../assets/videos/9.mp4"),
- // "10.mp4": require("../../assets/videos/10.mp4"),
+  // "10.mp4": require("../../assets/videos/10.mp4"),
   "11.mp4": require("../../assets/videos/11.mp4"),
-//  "12.mp4": require("../../assets/videos/12.mp4"),
+  //  "12.mp4": require("../../assets/videos/12.mp4"),
   "13.mp4": require("../../assets/videos/13.mp4"),
   "14.mp4": require("../../assets/videos/14.mp4"),
   "15.mp4": require("../../assets/videos/15.mp4"),
@@ -50,11 +52,14 @@ export default function VideoScreen() {
 
   if (!params) {
     return (
-      <View style={styles.contentContainer}>
-        <Text style={{ color: "#000", fontSize: 18, textAlign: "center" }}>
-          Missing parameters.
-        </Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <BackButton />
+        <View style={styles.contentContainer}>
+          <Text style={{ color: "#000", fontSize: 18, textAlign: "center" }}>
+            Missing parameters.
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -63,6 +68,7 @@ export default function VideoScreen() {
   if (!videoFile || !isValidVideoFile(videoFile)) {
     return (
       <View style={styles.contentContainer}>
+        <BackButton />
         <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
           Invalid or missing video file.
         </Text>
@@ -114,33 +120,40 @@ export default function VideoScreen() {
 
   if (error) {
     return (
-      <View style={styles.contentContainer}>
-        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
-          {error}
-        </Text>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <View style={styles.contentContainer}>
+          <Text
+            style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}
+          >
+            {error}
+          </Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.contentContainer}>
-      <View style={styles.videoWrapper}>
-        <VideoView
-          style={styles.video}
-          nativeControls={false}
-          player={player}
-        />
-        {missed ? (
-          <View style={styles.countdownOverlay}>
-            <Text style={styles.restricted}>You missed the video.</Text>
-          </View>
-        ) : countdown! > 0 ? (
-          <View style={styles.countdownOverlay}>
-            <Text style={styles.countdownText}>{countdown}</Text>
-          </View>
-        ) : null}
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <BackButton />
+      <View style={styles.contentContainer}>
+        <View style={styles.videoWrapper}>
+          <VideoView
+            style={styles.video}
+            nativeControls={false}
+            player={player}
+          />
+          {missed ? (
+            <View style={styles.countdownOverlay}>
+              <Text style={styles.restricted}>You missed the video.</Text>
+            </View>
+          ) : countdown! > 0 ? (
+            <View style={styles.countdownOverlay}>
+              <Text style={styles.countdownText}>{countdown}</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

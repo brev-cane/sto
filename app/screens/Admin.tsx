@@ -16,6 +16,8 @@ import {
 } from "@/utils/notificationHelper";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "../components/colors";
+import { Target, User, Video } from "lucide-react-native";
+import SearchableDropdown from "@/components/ui/searchableDropDown";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
@@ -25,7 +27,7 @@ const videoOptions = [
   { file: "5.mp4", name: "Mr Brightened" },
   { file: "6.mp4", name: "We will Rock You" },
   { file: "7.mp4", name: "Be Good Do Good" },
-  { file: "6.mp4", name: "Gotta feeling" },
+  { file: "8.mp4", name: "Gotta feeling" },
   { file: "9.mp4", name: "Coming in the Air Tonight" },
   //  { file: "10.mp4", name: "" },
   { file: "11.mp4", name: "Dont Need No Education" },
@@ -39,17 +41,27 @@ export default function AdminScreen() {
   const [video, setVideo] = useState("");
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
+  const [tokens, setTokens] = useState([]);
   const { userDoc } = useAuth();
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isEnabled, setIsEnabled] = useState(false);
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
+  const countUsers = async () => {
+    try {
+      const tokens = await getValidPushTokens();
+      setTokens(tokens);
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
 
   useEffect(() => {
+    countUsers();
     let mounted = true;
     const interval = setInterval(async () => {
       try {
         const nextAllowed = await AsyncStorage.getItem(
-          "nextAllowedNotificationTime"
+          "nextAllowedNotificationTimeAdmin"
         );
         const ts = parseInt(nextAllowed ?? "0", 10); // avoid NaN
         const diff = Math.max(0, ts - Date.now());
@@ -76,7 +88,7 @@ export default function AdminScreen() {
       // set next allowed time locally so the countdown starts right away
       const nextAllowedTs = Date.now() + delay * 1000; // delay is in seconds
       await AsyncStorage.setItem(
-        "nextAllowedNotificationTime",
+        "nextAllowedNotificationTimeAdmin",
         String(nextAllowedTs)
       );
       setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
@@ -102,28 +114,47 @@ export default function AdminScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>📢 Stadium Takeover</Text>
+      <View
+        style={{
+          flexDirection: "row",
+          padding: 10,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <View>
+          <Text style={{ fontSize: 18, fontWeight: "bold" }}>Users</Text>
+          <Text style={{ fontSize: 14 }}>
+            Total users who have enabled {"\n"} push notifications
+          </Text>
+        </View>
+        <View style={{ flexDirection: "row" }}>
+          <User color={COLORS.primary} />
 
+          <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+            {tokens.length}
+          </Text>
+        </View>
+      </View>
       {/* Video Picker */}
       <Text style={styles.label}>Select Video</Text>
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={video}
-          onValueChange={(itemValue) => setVideo(itemValue)}
-          style={styles.picker}
-          selectionColor={"#fff"}
-          mode="dialog"
-          dropdownIconColor={"#fff"}
-        >
-          <Picker.Item label="-- Choose a Video --" value="" color="#fff" />
-          {videoOptions.map((v) => (
-            <Picker.Item
-              key={v.file}
-              label={v.name}
-              color="#fff"
-              value={v.file}
-            />
-          ))}
-        </Picker>
+
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          borderWidth: 1,
+          borderRadius: 8,
+          borderColor: COLORS.primary,
+          padding: 10,
+        }}
+      >
+        <Video color={COLORS.primary} />
+        <SearchableDropdown
+          options={videoOptions}
+          placeholder={"-- Choose a Video --"}
+          onSelect={(item) => setVideo(item.file)}
+        />
       </View>
 
       {/* Delay Slider */}

@@ -12,7 +12,7 @@ export default function LoadingScreen() {
         navigation.dispatch(
           CommonActions.reset({
             index: 0,
-            routes: [{ name: "Inside" }],
+            routes: [{ name: "Home" }],
           })
         );
       }, 3000);

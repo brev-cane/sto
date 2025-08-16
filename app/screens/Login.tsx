@@ -1,5 +1,4 @@
 import {
-  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   OAuthProvider,
   signInWithCredential,
@@ -20,14 +19,18 @@ import {
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
 import COLORS from "../components/colors";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-GoogleSignin.configure({});
+import { dbService } from "@/services/dbService";
+import { useAuth } from "@/contexts/authContext";
+GoogleSignin.configure({
+  webClientId:
+    "785465840386-ii4opp1p0932qh9gdv2grnt23ivbaj88.apps.googleusercontent.com",
+});
 
 const Login = () => {
   const [email, setEmail] = useState(
@@ -35,6 +38,7 @@ const Login = () => {
   );
   const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
+  const { setUserDoc } = useAuth();
   const { showAlert } = useAlert();
   const { navigate } = useNavigation();
   const handeleAppleAuthentication = async () => {
@@ -103,14 +107,16 @@ const Login = () => {
             doc(FIRESTORE_DB, "users", userCredential.user.uid)
           );
           if (res1.exists()) {
+            console.log("user exists");
             showAlert("success", "Welcome", "Logged in successfully");
             navigate("Loading");
             return;
           }
+          console.log("user exists, does not exist");
           const user = userCredential.user;
           const userObject = {
             uid: user.uid,
-            email: email,
+            email: user.email,
             name: res.data.user.name,
             createdAt: serverTimestamp(),
           };
@@ -123,6 +129,10 @@ const Login = () => {
             showAlert("success", "Welcome", "Logged in successfully");
             navigate("Loading");
           });
+          const userData = await dbService
+            .collection("users")
+            .getById(user.uid);
+          setUserDoc(userData);
         }
       } else {
         throw new Error("Failed to login with Google");

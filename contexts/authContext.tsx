@@ -18,7 +18,7 @@ interface AppUser {
   name: string;
   email: string;
   pushToken: string;
-  role?:"admin" | null;
+  role?: "admin" | null;
 }
 
 interface AuthContextType {
@@ -26,6 +26,7 @@ interface AuthContextType {
   userDoc: AppUser | null;
   loading: boolean;
   pushToken?: string | null;
+  setUserDoc: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   userDoc: null,
   loading: true,
   pushToken: null,
+  setUserDoc: () => {},
 });
 
 interface AuthProviderProps {
@@ -63,10 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             await dbService
               .collection<AppUser>("users")
               .update(user.uid, { pushToken: pushToken.current as string });
+            setUserDoc({ ...userData, pushToken: pushToken.current } ?? null);
+
             console.log("Push token updated");
           }
-
-          setUserDoc(userData ?? null);
+          if (!pushToken) {
+            setUserDoc(userData ?? null);
+          }
         } catch (error) {
           console.error("Failed to fetch user document:", error);
           setUserDoc(null);
@@ -82,7 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, userDoc, loading, pushToken }}>
+    <AuthContext.Provider
+      value={{ firebaseUser, userDoc, loading, pushToken, setUserDoc }}
+    >
       {children}
     </AuthContext.Provider>
   );

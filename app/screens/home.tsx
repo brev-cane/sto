@@ -1,0 +1,205 @@
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import COLORS from "../components/colors";
+import { useAuth } from "@/contexts/authContext";
+import { sendBatchNotifications } from "@/utils/notificationHelper";
+import { useNavigation } from "@react-navigation/native";
+import AdminScreen from "./Admin";
+import { Drawer } from "react-native-drawer-layout";
+import { useEffect, useState } from "react";
+import Header from "@/components/ui/header";
+import CustomDrawer from "@/components/ui/drawer";
+import InstructionsCard from "@/components/ui/instructions";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { dbService } from "@/services/dbService";
+
+const logoImage = require("../../assets/images/blue-logo.png");
+
+function Home() {
+  const { userDoc, firebaseUser, setUserDoc } = useAuth();
+  const { navigate } = useNavigation();
+  const [open, setOpen] = useState(false);
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const getUser = async () => {
+    try {
+      const userData = await dbService
+        .collection("users")
+        .getById(firebaseUser?.uid);
+      setUserDoc(userData);
+    } catch (error) {
+      console.log("error :", error);
+    }
+  };
+  useEffect(() => {
+    getUser();
+  }, []);
+  useEffect(() => {
+    let mounted = true;
+    const interval = setInterval(async () => {
+      try {
+        const nextAllowed = await AsyncStorage.getItem(
+          "nextAllowedNotificationTime"
+        );
+        const ts = parseInt(nextAllowed ?? "0", 10); // avoid NaN
+        const diff = Math.max(0, ts - Date.now());
+        if (mounted) setCooldownRemaining(Math.ceil(diff / 1000));
+      } catch {
+        if (mounted) setCooldownRemaining(0);
+      }
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleSend = async () => {
+    try {
+      // set next allowed time locally so the countdown starts right away
+      const nextAllowedTs = Date.now() + 1000 * 1000; // delay is in seconds
+      await AsyncStorage.setItem(
+        "nextAllowedNotificationTime",
+        String(nextAllowedTs)
+      );
+      setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
+
+      if (!userDoc?.pushToken) {
+        alert("Please enable push notifications first");
+        navigate("Profile");
+        return;
+      }
+      const tokens = [userDoc.pushToken];
+      console.log("tokens ", tokens);
+      await sendBatchNotifications(tokens, 30, "1.mp4");
+
+      Alert.alert("✅ Success", "Notification sent!");
+    } catch (err: any) {
+      Alert.alert("⚠️ Error", err.message);
+    } finally {
+    }
+  };
+
+  if (!userDoc) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  return (
+    <Drawer
+      open={open}
+      onOpen={() => setOpen(true)}
+      onClose={() => setOpen(false)}
+      renderDrawerContent={CustomDrawer}
+    >
+      <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
+      <Header onPress={() => setOpen(true)} />
+
+      {userDoc?.role === "admin" ? (
+        <AdminScreen />
+      ) : (
+        <View style={styles.container}>
+          {/* used for testing */}
+          <Text style={{ color: "#000", marginVertical: 6, fontSize: 18 }}>
+            Welcome {userDoc?.name} to <Text style={{ fontSize: 22 }}>⤵</Text>
+            {/* Welcome Billy */}
+          </Text>
+
+          <View style={styles.logoContainer}>
+            <Image
+              source={logoImage}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <InstructionsCard />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              navigate("Video", {
+                sentAt: new Date().toISOString(),
+                delaySeconds: 10,
+                videoFile: "1.mp4",
+              });
+            }}
+            // onPress={() => notifyAllUsers()}
+          >
+            <Text style={styles.buttonText}>Try Here!</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => {
+              handleSend();
+            }}
+            // onPress={() => notifyAllUsers()}
+          >
+            <Text style={styles.buttonText}>
+              {cooldownRemaining > 0
+                ? `Try after ${cooldownRemaining} seconds`
+                : "Try With Notification"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* <TouchableOpacity
+        style={styles.button}
+        onPress={() => Linking.openURL("https://stadiumtakeover.com/charity/")}
+      >
+        <Text style={styles.buttonText}>Donations</Text>
+      </TouchableOpacity> */}
+        </View>
+      )}
+    </Drawer>
+  );
+}
+
+export default Home;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 10,
+  },
+  logoContainer: {
+    width: "100%",
+    alignItems: "center",
+  },
+  logo: {
+    width: 120,
+    height: 120,
+  },
+  button: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+    width: "70%",
+    alignSelf: "center",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+});

@@ -1,6 +1,7 @@
 import React, { JSX } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { PlayCircle, Bell, Users } from "lucide-react-native";
+import COLORS from "@/app/components/colors";
 
 interface Instruction {
   id: number;
@@ -53,6 +54,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     marginVertical: 16,
+    borderWidth:1,
+    borderColor:COLORS.primary
   },
   title: {
     fontSize: 18,

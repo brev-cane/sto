@@ -119,7 +119,7 @@ function Home() {
         <View style={styles.container}>
           {/* used for testing */}
           <Text style={{ color: "#000", marginVertical: 6, fontSize: 18 }}>
-            Welcome {userDoc?.name} to <Text style={{ fontSize: 22 }}>⤵</Text>
+            Welcome {userDoc?.name.substring(0,15)} to <Text style={{ fontSize: 22 }}>⤵</Text>
             {/* Welcome Billy */}
           </Text>
 

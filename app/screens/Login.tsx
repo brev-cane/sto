@@ -71,8 +71,8 @@ const Login = () => {
           const user = userCredential.user;
           const userObject = {
             uid: user.uid,
-            email: email,
-            name: res.fullName?.nickname ? res.fullName?.nickname : res.email,
+            email: user.email,
+            name: user.email,
             createdAt: serverTimestamp(),
           };
 

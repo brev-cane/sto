@@ -27,7 +27,7 @@ const videoMap = {
   "7.mp4": require("../../assets/videos/7.mp4"),
   "8.mp4": require("../../assets/videos/8.mp4"),
   "9.mp4": require("../../assets/videos/9.mp4"),
-  // "10.mp4": require("../../assets/videos/10.mp4"),
+  "10.mp4": require("../../assets/videos/10.mp4"),
   "11.mp4": require("../../assets/videos/11.mp4"),
   //  "12.mp4": require("../../assets/videos/12.mp4"),
   "13.mp4": require("../../assets/videos/13.mp4"),
@@ -134,7 +134,6 @@ export default function VideoScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <BackButton />
       <View style={styles.contentContainer}>
         <View style={styles.videoWrapper}>
           <VideoView

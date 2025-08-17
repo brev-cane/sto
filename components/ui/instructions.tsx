@@ -23,14 +23,14 @@ const instructions: Instruction[] = [
   {
     id: 3,
     icon: <Users size={22} color={COLORS.primary} />,
-    text: "Open the notification to join the cheer before it expires!",
+    text: "Open the notification to join the cheer before it startsfi!",
   },
 ];
 
 const InstructionsCard: React.FC = () => {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Using Stadium Takeover?</Text>
+      <Text style={styles.title}>Using Stadium Takeover</Text>
       {instructions.map((item) => (
         <View key={item.id} style={styles.row}>
           {item.icon}

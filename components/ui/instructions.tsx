@@ -12,25 +12,25 @@ interface Instruction {
 const instructions: Instruction[] = [
   {
     id: 1,
-    icon: <PlayCircle size={22} color="#4F46E5" />,
-    text: "Use the try button to simulate the flow of the app.",
+    icon: <PlayCircle size={22} color={COLORS.primary} />,
+    text: "Use the “Try Here!” button to see how the app works.",
   },
   {
     id: 2,
-    icon: <Bell size={22} color="#4F46E5" />,
-    text: "During a live event you will receive a notification.",
+    icon: <Bell size={22} color={COLORS.primary} />,
+    text: "During a game, takeover notifications are automatically sent to all subscribers.",
   },
   {
     id: 3,
-    icon: <Users size={22} color="#4F46E5" />,
-    text: "Open the notification to join the crowd before it expires.",
+    icon: <Users size={22} color={COLORS.primary} />,
+    text: "Open the notification to join the cheer before it expires!",
   },
 ];
 
 const InstructionsCard: React.FC = () => {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>How it works?</Text>
+      <Text style={styles.title}>Using Stadium Takeover?</Text>
       {instructions.map((item) => (
         <View key={item.id} style={styles.row}>
           {item.icon}
@@ -54,8 +54,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     marginVertical: 16,
-    borderWidth:1,
-    borderColor:COLORS.primary
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
   title: {
     fontSize: 18,

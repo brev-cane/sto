@@ -91,6 +91,7 @@ export const UserProfileScreen: React.FC = () => {
           <Text style={styles.title}>My Profile</Text>
 
           {/* Email */}
+          <Text style={{padding:4,fontSize:18}}>Email</Text>
           <View style={styles.inputRow}>
             <Mail size={20} color={COLORS.primary} style={styles.icon} />
             <TextInput
@@ -101,6 +102,7 @@ export const UserProfileScreen: React.FC = () => {
           </View>
 
           {/* Name */}
+           <Text style={{padding:4,fontSize:18}}>Name</Text>
           <View style={styles.inputRow}>
             <User size={20} color={COLORS.primary} style={styles.icon} />
             <TextInput

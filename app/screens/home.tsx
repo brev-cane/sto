@@ -20,6 +20,7 @@ import CustomDrawer from "@/components/ui/drawer";
 import InstructionsCard from "@/components/ui/instructions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dbService } from "@/services/dbService";
+import * as Animatable from "react-native-animatable";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -118,21 +119,34 @@ function Home() {
       ) : (
         <View style={styles.container}>
           {/* used for testing */}
-          <Text style={{ color: "#000", marginVertical: 6, fontSize: 18 }}>
-            Welcome {userDoc?.name.substring(0,15)} to <Text style={{ fontSize: 22 }}>⤵</Text>
-            {/* Welcome Billy */}
-          </Text>
-
-          <View style={styles.logoContainer}>
-            <Image
-              source={logoImage}
-              style={styles.logo}
-              resizeMode="contain"
-            />
+          <View style={styles.card}>
+            <View style={styles.logoContainer}>
+              <Animatable.Image
+                animation={"pulse"}
+                easing="ease-in-out"
+                iterationCount={"infinite"}
+                source={logoImage}
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+            <Text
+              style={{
+                color: "#000",
+                marginVertical: 6,
+                fontSize: 18,
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+              Welcome {userDoc?.name}
+              {/* Welcome Billy */}
+            </Text>
           </View>
+
           <InstructionsCard />
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.button}
             onPress={() => {
               navigate("Video", {
@@ -144,18 +158,17 @@ function Home() {
             // onPress={() => notifyAllUsers()}
           >
             <Text style={styles.buttonText}>Try Here!</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity
             style={styles.button}
             onPress={() => {
               handleSend();
             }}
-            // onPress={() => notifyAllUsers()}
           >
             <Text style={styles.buttonText}>
               {cooldownRemaining > 0
                 ? `Try after ${cooldownRemaining} seconds`
-                : "Try With Notification"}
+                : "Try Here!"}
             </Text>
           </TouchableOpacity>
 
@@ -174,6 +187,25 @@ function Home() {
 export default Home;
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 3,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 16,
+    color: "#111827",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

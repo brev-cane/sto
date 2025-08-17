@@ -23,7 +23,7 @@ const instructions: Instruction[] = [
   {
     id: 3,
     icon: <Users size={22} color={COLORS.primary} />,
-    text: "Open the notification to join the cheer before it startsfi!",
+    text: "Open the notification to join the cheer before it starts!",
   },
 ];
 

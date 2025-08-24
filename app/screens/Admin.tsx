@@ -6,10 +6,11 @@ import {
   Alert,
   TouchableOpacity,
   Switch,
+  TextInput,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
-import { Picker } from "@react-native-picker/picker";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
   getValidPushTokens,
   sendBatchNotifications,
@@ -25,16 +26,16 @@ const videoOptions = [
   { file: "3.mp4", name: "Shout" },
   { file: "4.mp4", name: "Where else" },
   { file: "5.mp4", name: "Mr Brightside" },
-  { file: "6.mp4", name: "We will Rock You" },
+//  { file: "6.mp4", name: "We will Rock You" },
   { file: "7.mp4", name: "Be Good Do Good" },
-  { file: "8.mp4", name: "Gotta feeling" },
-  { file: "9.mp4", name: "Coming in the Air Tonight" },
-   { file: "10.mp4", name: "Shout Corey" },
-  { file: "11.mp4", name: "Dont Need No Education" },
+  // { file: "8.mp4", name: "Gotta feeling" },
+  // { file: "9.mp4", name: "Coming in the Air Tonight" },
+  { file: "10.mp4", name: "Shout Corey" },
+  //{ file: "11.mp4", name: "Dont Need No Education" },
   //  { file: "12.mp4", name: "" },
-  { file: "13.mp4", name: "Devil Georgia" },
-  { file: "14.mp4", name: "Gonna play Texas" },
-  { file: "15.mp4", name: "Rainbow Connection" },
+  // { file: "13.mp4", name: "Devil Georgia" },
+  // { file: "14.mp4", name: "Gonna play Texas" },
+  // { file: "15.mp4", name: "Rainbow Connection" },
 ];
 
 export default function AdminScreen() {
@@ -45,7 +46,11 @@ export default function AdminScreen() {
   const { userDoc } = useAuth();
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isEnabled, setIsEnabled] = useState(false);
+  const [customUsers, setCustomUsers] = useState(false);
+  const [customUsersToken, setCustomUsersToken] = useState([]);
+  const [token, setToken] = useState("");
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
+  const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
   const countUsers = async () => {
     try {
       const tokens = await getValidPushTokens();
@@ -98,7 +103,11 @@ export default function AdminScreen() {
         return;
       }
       await sendBatchNotifications(
-        isEnabled ? [userDoc?.pushToken as string] : tokens,
+        isEnabled
+          ? [userDoc?.pushToken as string]
+          : customUsers
+          ? customUsersToken
+          : tokens,
         delay,
         video
       );
@@ -112,105 +121,155 @@ export default function AdminScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>📢 Stadium Takeover</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          padding: 10,
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View>
-          <Text style={{ fontSize: 18, fontWeight: "bold" }}>Users</Text>
-          <Text style={{ fontSize: 14 }}>
-            Total users who have enabled {"\n"} push notifications
-          </Text>
-        </View>
-        <View style={{ flexDirection: "row" }}>
-          <User color={COLORS.primary} />
-
-          <Text style={{ fontSize: 18, fontWeight: "bold" }}>
-            {tokens.length}
-          </Text>
-        </View>
-      </View>
-      {/* Video Picker */}
-      <Text style={styles.label}>Select Video</Text>
-
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          borderWidth: 1,
-          borderRadius: 8,
-          borderColor: COLORS.primary,
-          padding: 10,
-        }}
-      >
-        <Video color={COLORS.primary} />
-        <SearchableDropdown
-          options={videoOptions}
-          placeholder={"-- Choose a Video --"}
-          onSelect={(item) => setVideo(item.file)}
-        />
-      </View>
-
-      {/* Delay Slider */}
-      <Text style={styles.label}>Delay: {delay} seconds</Text>
-      <Slider
-        style={{ width: "100%", height: 40 }}
-        minimumValue={10}
-        maximumValue={180}
-        step={5}
-        value={delay}
-        onValueChange={setDelay}
-        minimumTrackTintColor={COLORS.primary}
-        maximumTrackTintColor="#ccc"
-        thumbTintColor={COLORS.primary}
-      />
-
-      {/* Send Button */}
-      <View
-        style={{
-          flexDirection: "row",
-          padding: 10,
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <View>
-          <Text style={{ fontSize: 18, fontWeight: "bold" }}>Admin Only</Text>
-          <Text style={{ fontSize: 14 }}>
-            Send notifications to yourself only
-          </Text>
-        </View>
-        <Switch
-          trackColor={{ false: "#767577", true: COLORS.primary }}
-          thumbColor={isEnabled ? "#FFF" : "#f4f3f4"}
-          ios_backgroundColor="#3e3e3e"
-          onValueChange={toggleSwitch}
-          value={isEnabled}
-        />
-      </View>
-
-      <View style={{ marginTop: 20 }}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleSend}
-          disabled={loading}
+    <KeyboardAwareScrollView
+      keyboardShouldPersistTaps="always"
+      contentContainerStyle={{ flex: 1, backgroundColor: "#fff" }}
+    >
+      <View style={styles.container}>
+        <Text style={styles.title}>📢 Stadium Takeover</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            padding: 10,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
         >
-          <Text>
-            {cooldownRemaining > 0
-              ? `Wait ${cooldownRemaining}s`
-              : loading
-              ? "Sending..."
-              : "Send Notification"}
-          </Text>
-        </TouchableOpacity>
+          <View>
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>Users</Text>
+            <Text style={{ fontSize: 14 }}>
+              Total users who have enabled {"\n"} push notifications
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row" }}>
+            <User color={COLORS.primary} />
+
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+              {tokens.length}
+            </Text>
+          </View>
+        </View>
+        {/* Video Picker */}
+        <Text style={styles.label}>Select Video</Text>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            borderWidth: 1,
+            borderRadius: 8,
+            borderColor: COLORS.primary,
+            padding: 10,
+          }}
+        >
+          <Video color={COLORS.primary} />
+          <SearchableDropdown
+            options={videoOptions}
+            placeholder={"-- Choose a Video --"}
+            onSelect={(item) => setVideo(item.file)}
+          />
+        </View>
+
+        {/* Delay Slider */}
+        <Text style={styles.label}>Delay: {delay} seconds</Text>
+        <Slider
+          style={{ width: "100%", height: 40 }}
+          minimumValue={10}
+          maximumValue={180}
+          step={5}
+          value={delay}
+          onValueChange={setDelay}
+          minimumTrackTintColor={COLORS.primary}
+          maximumTrackTintColor="#ccc"
+          thumbTintColor={COLORS.primary}
+        />
+
+        {/* Send Button */}
+        <View
+          style={{
+            flexDirection: "row",
+            padding: 10,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <View>
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>Admin Only</Text>
+            <Text style={{ fontSize: 14 }}>
+              Send notifications to yourself only
+            </Text>
+          </View>
+          <Switch
+            trackColor={{ false: "#767577", true: COLORS.primary }}
+            thumbColor={isEnabled ? "#FFF" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={toggleSwitch}
+            value={isEnabled}
+          />
+        </View>
+        <View
+          style={{
+            flexDirection: "row",
+            padding: 10,
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <View>
+            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
+              Custom Users only
+            </Text>
+            <Text style={{ fontSize: 14 }}>
+              Send notifications to selected users only
+            </Text>
+          </View>
+          <Switch
+            trackColor={{ false: "#767577", true: COLORS.primary }}
+            thumbColor={customUsers ? "#FFF" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={toggleSwitch2}
+            value={customUsers}
+          />
+        </View>
+        {customUsers && (
+          <>
+            <Text style={styles.title}>{customUsersToken.length} users</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                placeholder="Past push token"
+                style={styles.input}
+                value={token}
+                onChangeText={setToken}
+              />
+              <TouchableOpacity
+                style={[styles.pickerContainer, { padding: 12, margin: 5 }]}
+                onPress={() => {
+                  setCustomUsersToken([...customUsersToken, token]);
+                  setToken("");
+                }}
+              >
+                <Text style={{ color: "#fff" }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+        <View style={{ marginTop: 20 }}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSend}
+            disabled={loading}
+          >
+            <Text>
+              {cooldownRemaining > 0
+                ? `Wait ${cooldownRemaining}s`
+                : loading
+                ? "Sending..."
+                : "Send Notification"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </KeyboardAwareScrollView>
   );
 }
 
@@ -219,6 +278,25 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: "#fff",
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  icon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#111827",
   },
   title: {
     fontSize: 24,

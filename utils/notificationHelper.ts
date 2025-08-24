@@ -26,8 +26,10 @@ export const sendBatchNotifications = async (
   videoFile: string
 ) => {
   const BATCH_SIZE = 100;
-  const sentAtISO = new Date().toISOString();
-
+  
+  // Calculate the exact future timestamp when video should start playing
+  const playAtTimestamp = Date.now() + (delaySeconds * 1000);
+  
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE);
     const messages = batch.map((token) => ({
@@ -36,10 +38,8 @@ export const sendBatchNotifications = async (
       title: "Stadium Takeover",
       body: `A takeover will start in ${delaySeconds} seconds!`,
       data: {
-        screen: `stadiumtakeover://Video?sentAt=${encodeURIComponent(
-          sentAtISO
-        )}&delaySeconds=${delaySeconds}&videoFile=${encodeURIComponent(videoFile)}`,
-        customVibrate: true, 
+        screen: `stadiumtakeover://Video?playAt=${playAtTimestamp}&videoFile=${encodeURIComponent(videoFile)}`,
+        customVibrate: true,
       },
     }));
 

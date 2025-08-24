@@ -23,16 +23,16 @@ const videoMap = {
   "3.mp4": require("../../assets/videos/3.mp4"),
   "4.mp4": require("../../assets/videos/4.mp4"),
   "5.mp4": require("../../assets/videos/5.mp4"),
-  "6.mp4": require("../../assets/videos/6.mp4"),
+  //"6.mp4": require("../../assets/videos/6.mp4"),
   "7.mp4": require("../../assets/videos/7.mp4"),
-  "8.mp4": require("../../assets/videos/8.mp4"),
-  "9.mp4": require("../../assets/videos/9.mp4"),
+  // "8.mp4": require("../../assets/videos/8.mp4"),
+  // "9.mp4": require("../../assets/videos/9.mp4"),
   "10.mp4": require("../../assets/videos/10.mp4"),
-  "11.mp4": require("../../assets/videos/11.mp4"),
+  //  "11.mp4": require("../../assets/videos/11.mp4"),
   //  "12.mp4": require("../../assets/videos/12.mp4"),
-  "13.mp4": require("../../assets/videos/13.mp4"),
-  "14.mp4": require("../../assets/videos/14.mp4"),
-  "15.mp4": require("../../assets/videos/15.mp4"),
+  // "13.mp4": require("../../assets/videos/13.mp4"),
+  // "14.mp4": require("../../assets/videos/14.mp4"),
+  // "15.mp4": require("../../assets/videos/15.mp4"),
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {
@@ -50,77 +50,89 @@ export default function VideoScreen() {
   const [videoReady, setVideoReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!params) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-        <BackButton />
-        <View style={styles.contentContainer}>
-          <Text style={{ color: "#000", fontSize: 18, textAlign: "center" }}>
-            Missing parameters.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Extract params safely with defaults
+  const videoFile = params?.videoFile;
+  const playAt = params?.playAt;
 
-  const { videoFile, sentAt, delaySeconds } = params;
-
-  if (!videoFile || !isValidVideoFile(videoFile)) {
-    return (
-      <View style={styles.contentContainer}>
-        <BackButton />
-        <Text style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}>
-          Invalid or missing video file.
-        </Text>
-      </View>
-    );
-  }
-
-  const assetId = videoMap[videoFile];
+  // Always initialize player (with a default or null check)
+  const assetId =
+    videoFile && isValidVideoFile(videoFile) ? videoMap[videoFile] : null;
   const player = useVideoPlayer(assetId, (player) => {
-    player.loop = false;
+    if (player) {
+      player.loop = false;
+    }
   });
 
   useEventListener(player, "playToEnd", () => {
     navigate("Home");
   });
 
+  // Validate params and set errors
   useEffect(() => {
-    if (!sentAt || !delaySeconds) {
-      setError("Missing sentAt or delaySeconds parameters.");
+    if (!params) {
+      setError("Missing parameters.");
       return;
     }
 
-    const sentAtTime = new Date(sentAt).getTime();
-    const delay = parseInt(delaySeconds, 10) * 1000;
-    const targetTime = sentAtTime + delay;
-    const now = Date.now();
-    const remaining = Math.floor((targetTime - now) / 1000);
-
-    if (remaining > 0) {
-      setCountdown(remaining);
-    } else {
-      setMissed(true);
+    if (!videoFile || !isValidVideoFile(videoFile)) {
+      setError("Invalid or missing video file.");
+      return;
     }
-  }, [sentAt, delaySeconds]);
 
+    if (!playAt) {
+      setError("Missing playAt timestamp parameter.");
+      return;
+    }
+
+    // Clear any previous errors
+    setError(null);
+  }, [params, videoFile, playAt]);
+
+  // Sync countdown with server timestamp
   useEffect(() => {
-    if (countdown === null || missed) return;
-    if (countdown > 0) {
-      if (countdown === 5) {
-        triggerUniqueVibration(); // Vibrate at 5 seconds left
+    if (error || !playAt) return;
+
+    const targetTimestamp = parseInt(playAt, 10);
+
+    const updateCountdown = () => {
+      const now = Date.now();
+      const remaining = Math.floor((targetTimestamp - now) / 1000);
+
+      if (remaining > 0) {
+        setCountdown(remaining);
+      } else if (remaining >= -5) {
+        // Allow 5 second grace period
+        setCountdown(0);
+        setVideoReady(true);
+        if (player) {
+          player.play();
+        }
+      } else {
+        setMissed(true);
       }
-      const timer = setTimeout(() => setCountdown((c) => c! - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setVideoReady(true);
-      player.play();
+    };
+
+    // Update immediately
+    updateCountdown();
+
+    // Update every 100ms for smooth countdown
+    const interval = setInterval(updateCountdown, 100);
+
+    return () => clearInterval(interval);
+  }, [playAt, player, error]);
+
+  // Handle vibration at 5 seconds
+  useEffect(() => {
+    if (countdown === 5) {
+      triggerUniqueVibration();
     }
   }, [countdown]);
 
+  // Render error state
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <BackButton />
         <View style={styles.contentContainer}>
           <Text
             style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}
@@ -141,11 +153,11 @@ export default function VideoScreen() {
             nativeControls={false}
             player={player}
           />
-          {missed ? (
+          {missed && !player.playing ? (
             <View style={styles.countdownOverlay}>
               <Text style={styles.restricted}>You missed the video.</Text>
             </View>
-          ) : countdown! > 0 ? (
+          ) : countdown && countdown > 0 ? (
             <View style={styles.countdownOverlay}>
               <Text style={styles.countdownText}>{countdown}</Text>
             </View>

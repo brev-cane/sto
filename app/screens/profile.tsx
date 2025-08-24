@@ -9,11 +9,12 @@ import {
   Switch,
   ScrollView,
 } from "react-native";
-import { Mail, User, Shield, Bell, Save } from "lucide-react-native";
+import { Mail, User, Shield, Bell, Save, Copy } from "lucide-react-native";
 import {
   registerForPushNotificationsAsync,
   useAuth,
 } from "@/contexts/authContext";
+import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BackButton from "@/components/ui/backbutton";
 import { dbService } from "@/services/dbService";
@@ -91,7 +92,7 @@ export const UserProfileScreen: React.FC = () => {
           <Text style={styles.title}>My Profile</Text>
 
           {/* Email */}
-          <Text style={{padding:4,fontSize:18}}>Email</Text>
+          <Text style={{ padding: 4, fontSize: 18 }}>Email</Text>
           <View style={styles.inputRow}>
             <Mail size={20} color={COLORS.primary} style={styles.icon} />
             <TextInput
@@ -102,7 +103,7 @@ export const UserProfileScreen: React.FC = () => {
           </View>
 
           {/* Name */}
-           <Text style={{padding:4,fontSize:18}}>Name</Text>
+          <Text style={{ padding: 4, fontSize: 18 }}>Name</Text>
           <View style={styles.inputRow}>
             <User size={20} color={COLORS.primary} style={styles.icon} />
             <TextInput
@@ -133,6 +134,25 @@ export const UserProfileScreen: React.FC = () => {
               thumbColor={pushEnabled ? "#fff" : "#f9fafb"}
             />
           </View>
+          <Text
+            onPress={() => {
+              Clipboard.setStringAsync(userDoc.pushToken);
+              alert("Copied to clipboard");
+            }}
+            style={{ padding: 4, fontSize: 18 }}
+          >
+            Click to copy token
+          </Text>
+          <TouchableOpacity
+            onPress={() => {
+              Clipboard.setStringAsync(userDoc.pushToken);
+              alert("Copied to clipboard");
+            }}
+            style={styles.inputRow}
+          >
+            <Copy size={20} color={COLORS.primary} style={styles.icon} />
+            <Text style={styles.input}>{userDoc.pushToken}</Text>
+          </TouchableOpacity>
 
           {/* Role - only visible if admin */}
           {userDoc.role === "admin" && (

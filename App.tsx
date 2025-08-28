@@ -16,6 +16,8 @@ import LoadingScreen from "./app/screens/loading";
 import Signup from "./app/screens/sigup";
 import { UserProfileScreen } from "./app/screens/profile";
 import VideoScreen from "./app/screens/Video";
+import { timeSync } from "./services/timeSync";
+import PrivacyPolicyScreen from "./app/screens/policy";
 
 const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
@@ -33,6 +35,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   useEffect(() => {
     registerForPushNotificationsAsync().then((token) => {});
+    timeSync.initialize();
 
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -112,6 +115,11 @@ export default function App() {
             <Stack.Screen name="Video" component={VideoScreen} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Signup" component={Signup} />
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{headerShown:true,title:"Privacy Policy"}}
+            />
             <Stack.Screen name="Profile" component={UserProfileScreen} />
           </Stack.Navigator>
         </NavigationContainer>

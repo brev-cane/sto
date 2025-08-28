@@ -260,6 +260,7 @@ const Login = () => {
                   <Text style={styles.secondaryButtonText}>Sign Up</Text>
                 </TouchableOpacity>
               </View>
+              <Text onPress={()=>navigate("PrivacyPolicy")} style={{ textAlign:'center',color:COLORS.primary,textDecorationLine:"underline"}}>Privacy Policy</Text>
             </>
           )}
         </KeyboardAvoidingView>

@@ -8,6 +8,7 @@ import { useNavigation } from "expo-router";
 import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { timeSync } from "@/services/timeSync";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -95,7 +96,8 @@ export default function VideoScreen() {
     const targetTimestamp = parseInt(playAt, 10);
 
     const updateCountdown = () => {
-      const now = Date.now();
+      //const now = Date.now();
+      const now = timeSync.getSyncedTime();
       const remaining = Math.floor((targetTimestamp - now) / 1000);
 
       if (remaining > 0) {

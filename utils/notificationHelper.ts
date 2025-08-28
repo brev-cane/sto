@@ -1,4 +1,5 @@
 import { FIRESTORE_DB } from "@/FirebaseConfig";
+import { timeSync } from "@/services/timeSync";
 import { collection, getDocs } from "firebase/firestore";
 
 const isValidExpoPushToken = (token: string) => {
@@ -28,7 +29,9 @@ export const sendBatchNotifications = async (
   const BATCH_SIZE = 100;
   
   // Calculate the exact future timestamp when video should start playing
-  const playAtTimestamp = Date.now() + (delaySeconds * 1000);
+  const now=timeSync.getSyncedTime()
+  const date=new Date(now)
+  const playAtTimestamp = now + (delaySeconds * 1000);
   
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE);

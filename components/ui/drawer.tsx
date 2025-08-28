@@ -8,6 +8,7 @@ import {
   LogOut,
   Delete,
   User2,
+  Book
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "@/app/components/colors";
@@ -45,14 +46,6 @@ export default function CustomDrawer(props: any) {
   const { userDoc } = useAuth();
   const { navigate } = useNavigation();
 
-  const menuItems = [
-    {
-      key: "",
-      icon: <Home size={20} color={COLORS.primary} />,
-      label: "Settings",
-    },
-  ];
-
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -85,6 +78,11 @@ export default function CustomDrawer(props: any) {
             icon={<User size={20} color={COLORS.primary} />}
             label={"Profile"}
             onPress={() => navigate("Profile")}
+          />
+          <DrawerItem
+            icon={<Book size={20} color={COLORS.primary} />}
+            label={"Privacy Policy"}
+            onPress={() => navigate("PrivacyPolicy")}
           />
           <TouchableOpacity
             style={styles.logoutButton}

@@ -9,12 +9,18 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
 import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
+import * as Animatable from "react-native-animatable";
+import PasswordInput from "../components/password";
+
+const logoImage = require("../../assets/images/blue-logo.png");
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -86,62 +92,74 @@ const Signup = () => {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.innerContainer}
-      >
-        <Text style={styles.title}>Create Account</Text>
+      <Animatable.Image
+        animation={"pulse"}
+        easing="ease-in-out"
+        iterationCount={"infinite"}
+        source={logoImage}
+        style={{
+          width: 120,
+          height: 115,
+          alignSelf: "center",
+          marginBottom: 12,
+        }}
+        resizeMode="contain"
+      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.innerContainer}
+        >
+          <Text style={styles.title}>Create Account</Text>
 
-        <TextInput
-          value={name}
-          style={styles.input}
-          placeholder="Full Name"
-          placeholderTextColor="#999"
-          autoCapitalize="words"
-          onChangeText={setName}
-        />
-        <TextInput
-          value={email}
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          onChangeText={setEmail}
-        />
-        <TextInput
-          secureTextEntry
-          value={password}
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#999"
-          autoCapitalize="none"
-          onChangeText={setPassword}
-        />
+          <TextInput
+            value={name}
+            style={styles.input}
+            placeholder="Full Name"
+            placeholderTextColor="#999"
+            autoCapitalize="words"
+            onChangeText={setName}
+          />
+          <TextInput
+            value={email}
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+          />
+          <PasswordInput password={password} setPassword={setPassword} />
 
-        {loading ? (
-          <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
-        ) : (
-          <>
-            <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
-              onPress={() => navigate("Login")}
-            >
-              <Text style={styles.secondaryButtonText}>Already have an account? Log In</Text>
-            </TouchableOpacity>
+          {loading ? (
+            <ActivityIndicator
+              size="large"
+              color="#007AFF"
+              style={styles.loader}
+            />
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[styles.button, styles.secondaryButton]}
+                onPress={() => navigate("Login")}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  Already have an account? Log In
+                </Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.button} onPress={signUp}>
-              <Text style={styles.buttonText}>Create Account</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </KeyboardAvoidingView>
+              <TouchableOpacity style={styles.button} onPress={signUp}>
+                <Text style={styles.buttonText}>Create Account</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
     </View>
   );
 };
 
 export default Signup;
-
 
 const styles = StyleSheet.create({
   container: {

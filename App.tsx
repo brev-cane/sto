@@ -34,7 +34,6 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {});
     timeSync.initialize();
 
     const notificationListener = Notifications.addNotificationReceivedListener(
@@ -118,7 +117,7 @@ export default function App() {
             <Stack.Screen
               name="PrivacyPolicy"
               component={PrivacyPolicyScreen}
-              options={{headerShown:true,title:"Privacy Policy"}}
+              options={{ headerShown: true, title: "Privacy Policy" }}
             />
             <Stack.Screen name="Profile" component={UserProfileScreen} />
           </Stack.Navigator>

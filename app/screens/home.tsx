@@ -25,7 +25,13 @@ import * as Animatable from "react-native-animatable";
 const logoImage = require("../../assets/images/blue-logo.png");
 
 function Home() {
-  const { userDoc, firebaseUser, setUserDoc } = useAuth();
+  const {
+    userDoc,
+    firebaseUser,
+    expoPushToken,
+    registerUserForPushNotifications,
+    setUserDoc,
+  } = useAuth();
   const { navigate } = useNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
@@ -65,7 +71,6 @@ function Home() {
 
   const handleSend = async () => {
     try {
-      // set next allowed time locally so the countdown starts right away
       const nextAllowedTs = Date.now() + 1000 * 1000; // delay is in seconds
       await AsyncStorage.setItem(
         "nextAllowedNotificationTime",
@@ -140,44 +145,29 @@ function Home() {
               }}
             >
               Welcome {userDoc?.name}
-              {/* Welcome Billy */}
             </Text>
           </View>
 
           <InstructionsCard />
+          {!expoPushToken && (
+            <>
+              <Text style={styles.title}>Please enable Push Notification</Text>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={registerUserForPushNotifications}
+              >
+                <Text style={styles.buttonText}>Enable Now!</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
-          {/* <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              navigate("Video", {
-                sentAt: new Date().toISOString(),
-                delaySeconds: 10,
-                videoFile: "1.mp4",
-              });
-            }}
-            // onPress={() => notifyAllUsers()}
-          >
-            <Text style={styles.buttonText}>Try Here!</Text>
-          </TouchableOpacity> */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => {
-              handleSend();
-            }}
-          >
+          <TouchableOpacity style={styles.button} onPress={handleSend}>
             <Text style={styles.buttonText}>
               {cooldownRemaining > 0
                 ? `Try after ${cooldownRemaining} seconds`
                 : "Try Here!"}
             </Text>
           </TouchableOpacity>
-
-          {/* <TouchableOpacity
-        style={styles.button}
-        onPress={() => Linking.openURL("https://stadiumtakeover.com/charity/")}
-      >
-        <Text style={styles.buttonText}>Donations</Text>
-      </TouchableOpacity> */}
         </View>
       )}
     </Drawer>

@@ -27,6 +27,10 @@ import COLORS from "../components/colors";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { dbService } from "@/services/dbService";
 import { useAuth } from "@/contexts/authContext";
+import * as Animatable from "react-native-animatable";
+
+const logoImage = require("../../assets/images/blue-logo.png");
+
 GoogleSignin.configure({
   webClientId:
     "785465840386-ii4opp1p0932qh9gdv2grnt23ivbaj88.apps.googleusercontent.com",
@@ -189,6 +193,19 @@ const Login = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.scroll}>
+        <Animatable.Image
+          animation={"pulse"}
+          easing="ease-in-out"
+          iterationCount={"infinite"}
+          source={logoImage}
+          style={{
+            width: 120,
+            height: 115,
+            alignSelf: "center",
+            marginBottom: 12,
+          }}
+          resizeMode="contain"
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.innerContainer}
@@ -260,7 +277,16 @@ const Login = () => {
                   <Text style={styles.secondaryButtonText}>Sign Up</Text>
                 </TouchableOpacity>
               </View>
-              <Text onPress={()=>navigate("PrivacyPolicy")} style={{ textAlign:'center',color:COLORS.primary,textDecorationLine:"underline"}}>Privacy Policy</Text>
+              <Text
+                onPress={() => navigate("PrivacyPolicy")}
+                style={{
+                  textAlign: "center",
+                  color: COLORS.primary,
+                  textDecorationLine: "underline",
+                }}
+              >
+                Privacy Policy
+              </Text>
             </>
           )}
         </KeyboardAvoidingView>

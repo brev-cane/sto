@@ -11,7 +11,7 @@ export default function PasswordInput({ password, setPassword }) {
         secureTextEntry={!showPassword}
         value={password}
         style={styles.input}
-        placeholder="password"
+        placeholder="Password"
         placeholderTextColor="#999"
         autoCapitalize="none"
         onChangeText={setPassword}
@@ -39,13 +39,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 10,
     marginBottom: 16,
+    backgroundColor: "#fff",
   },
   input: {
     flex: 1,
     paddingVertical: 10,
     color: "#000",
+    minHeight: 48,
   },
   iconContainer: {
-    padding: 5,
+    padding: 12,
+    borderLeftWidth:1
   },
 });

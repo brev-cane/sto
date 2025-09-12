@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Share,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import {
@@ -8,7 +15,8 @@ import {
   LogOut,
   Delete,
   User2,
-  Book
+  Book,
+  Share as ShareIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "@/app/components/colors";
@@ -45,15 +53,33 @@ const DrawerItem = ({
 export default function CustomDrawer(props: any) {
   const { userDoc } = useAuth();
   const { navigate } = useNavigation();
+  const shareApp = async () => {
+    try {
+      const message = `🔥🎮 Check out *Stadium Takeover*! 🎮🔥
+  The ultimate sports gaming experience is here! 🏟️💥
+  
+  📱 Download now:
+  - iOS: https://apps.apple.com/ca/app/stadium-takeover/id6749230185
+  - Android: https://play.google.com/store/apps/details?id=com.stadiumtakeover.app`;
+
+      await Share.share({
+        message,
+        title: "Stadium Takeover",
+      });
+    } catch (error) {
+      console.error("Error sharing app:", error);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <LinearGradient
         colors={[
           COLORS.primary,
-          COLORS.background,
-          COLORS.background,
-          "rgba(0,0,0,0.9)",
+          "rgba(0,0,0,0.2)",
+          "rgba(0,0,0,0.2)",
+          "rgba(0,0,0,0.2)",
+          COLORS.primary,
         ]}
         style={styles.header}
       >
@@ -83,6 +109,11 @@ export default function CustomDrawer(props: any) {
             icon={<Book size={20} color={COLORS.primary} />}
             label={"Privacy Policy"}
             onPress={() => navigate("PrivacyPolicy")}
+          />
+          <DrawerItem
+            icon={<ShareIcon size={20} color={COLORS.primary} />}
+            label={"Share App"}
+            onPress={shareApp}
           />
           <TouchableOpacity
             style={styles.logoutButton}
@@ -229,7 +260,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 12,
     borderRadius: 12,
-    marginVertical:10,
-    borderBottomWidth:1
+    marginVertical: 10,
+    borderBottomWidth: 1,
   },
 });

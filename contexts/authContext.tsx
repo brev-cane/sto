@@ -13,6 +13,7 @@ import { Platform } from "react-native";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { useAlert } from "./dropdownContext";
 interface AppUser {
   id: string;
   name: string;
@@ -26,7 +27,9 @@ interface AuthContextType {
   userDoc: AppUser | null;
   loading: boolean;
   pushToken?: string | null;
+  expoPushToken: string | null;
   setUserDoc: () => void;
+  registerUserForPushNotifications: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -34,6 +37,8 @@ const AuthContext = createContext<AuthContextType>({
   userDoc: null,
   loading: true,
   pushToken: null,
+  expoPushToken: null,
+  registerUserForPushNotifications: async () => {},
   setUserDoc: () => {},
 });
 
@@ -45,14 +50,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showAlert } = useAlert();
   const pushToken = useRef<null | string>(null);
-
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const registerUserForPushNotifications = async () => {
+    try {
+      registerForPushNotificationsAsync().then((token) => {
+        if (token) {
+          pushToken.current = token;
+          setExpoPushToken(token);
+          showAlert(
+            "success",
+            "Enabled",
+            "Push Notifications has been enabled"
+          );
+        }
+      });
+    } catch (error) {
+      console.log("Error :", error);
+    }
+  };
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) {
-        pushToken.current = token;
-      }
-    });
+    registerUserForPushNotifications();
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (user) => {
       setFirebaseUser(user);
 
@@ -88,7 +107,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, userDoc, loading, pushToken, setUserDoc }}
+      value={{
+        firebaseUser,
+        userDoc,
+        loading,
+        pushToken,
+        expoPushToken,
+        registerUserForPushNotifications,
+        setUserDoc,
+      }}
     >
       {children}
     </AuthContext.Provider>

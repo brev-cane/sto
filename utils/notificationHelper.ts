@@ -27,21 +27,24 @@ export const sendBatchNotifications = async (
   videoFile: string
 ) => {
   const BATCH_SIZE = 100;
-  
+
   // Calculate the exact future timestamp when video should start playing
-  const now=timeSync.getSyncedTime()
-  const date=new Date(now)
-  const playAtTimestamp = now + (delaySeconds * 1000);
-  
+  const now = timeSync.getSyncedTime();
+  const date = new Date(now);
+  const playAtTimestamp = now + delaySeconds * 1000;
+
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
     const batch = tokens.slice(i, i + BATCH_SIZE);
     const messages = batch.map((token) => ({
       to: token,
       sound: "default",
       title: "Stadium Takeover",
-      body: `A takeover will start in ${delaySeconds} seconds!`,
+      // body: `A takeover will start in ${delaySeconds} seconds!`,
+      body: "Click HERE to join the next takeover!",
       data: {
-        screen: `stadiumtakeover://Video?playAt=${playAtTimestamp}&videoFile=${encodeURIComponent(videoFile)}`,
+        screen: `stadiumtakeover://Video?playAt=${playAtTimestamp}&videoFile=${encodeURIComponent(
+          videoFile
+        )}`,
         customVibrate: true,
       },
     }));

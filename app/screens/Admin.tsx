@@ -18,8 +18,7 @@ import {
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "../components/colors";
 import { User, Video } from "lucide-react-native";
-import SearchableDropdown from "@/components/ui/searchableDropDown";
-
+import SearchableDropdown from "@/components/ui/searchableDropDown"; 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
   { file: "2.mp4", name: "Third Down" },
@@ -61,7 +60,7 @@ export default function AdminScreen() {
   };
 
   useEffect(() => {
-    countUsers();
+    countUsers(); 
     let mounted = true;
     const interval = setInterval(async () => {
       try {

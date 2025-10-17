@@ -17,7 +17,7 @@ import {
 } from "@/utils/notificationHelper";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "../components/colors";
-import { Target, User, Video } from "lucide-react-native";
+import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 
 const videoOptions = [
@@ -26,7 +26,7 @@ const videoOptions = [
   { file: "3.mp4", name: "Shout" },
   { file: "4.mp4", name: "Where else" },
   { file: "5.mp4", name: "Mr Brightside" },
-//  { file: "6.mp4", name: "We will Rock You" },
+  //  { file: "6.mp4", name: "We will Rock You" },
   { file: "7.mp4", name: "Be Good Do Good" },
   // { file: "8.mp4", name: "Gotta feeling" },
   // { file: "9.mp4", name: "Coming in the Air Tonight" },
@@ -34,8 +34,8 @@ const videoOptions = [
   //{ file: "11.mp4", name: "Dont Need No Education" },
   //  { file: "12.mp4", name: "" },
   // { file: "13.mp4", name: "Devil Georgia" },
-  // { file: "14.mp4", name: "Gonna play Texas" },
-  // { file: "15.mp4", name: "Rainbow Connection" },
+  { file: "14.mp4", name: "Shout it Out" }, //Replace
+  { file: "15.mp4", name: "Rainbow Connection" },
 ];
 
 export default function AdminScreen() {

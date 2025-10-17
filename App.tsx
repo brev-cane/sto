@@ -18,6 +18,31 @@ import { UserProfileScreen } from "./app/screens/profile";
 import VideoScreen from "./app/screens/Video";
 import { timeSync } from "./services/timeSync";
 import PrivacyPolicyScreen from "./app/screens/policy";
+import * as Sentry from "@sentry/react-native";
+
+Sentry.init({
+  dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+  enableNative: true, // enables native crash capture
+  enableNativeCrashHandling: true, // uncaught native crashes
+  debug: true,
+  // Enable Logs
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+
+  integrations: [Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
@@ -32,7 +57,7 @@ Notifications.setNotificationHandler({
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+export default Sentry.wrap(function App() {
   useEffect(() => {
     timeSync.initialize();
 
@@ -126,7 +151,7 @@ export default function App() {
       <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
     </AlertProvider>
   );
-}
+});
 
 export async function registerForPushNotificationsAsync() {
   let token;

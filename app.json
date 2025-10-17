@@ -11,7 +11,7 @@
     "ios": {
       "icon": "./assets/images/ios.png",
       "supportsTablet": true,
-       "usesAppleSignIn": true,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.stadiumtakeover.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -58,7 +58,6 @@
         "expo-notifications",
         {
           "defaultChannel": "default",
-
           "enableBackgroundRemoteNotifications": true
         }
       ],
@@ -66,6 +65,14 @@
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.785465840386-ts6voja5vpakp8a8oeo82cm0vaetdg52"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "stadiumtakeoverapp",
+          "organization": "stadium-takeover"
         }
       ]
     ],

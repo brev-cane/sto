@@ -32,8 +32,8 @@ const videoMap = {
   //  "11.mp4": require("../../assets/videos/11.mp4"),
   //  "12.mp4": require("../../assets/videos/12.mp4"),
   // "13.mp4": require("../../assets/videos/13.mp4"),
-  // "14.mp4": require("../../assets/videos/14.mp4"),
-  // "15.mp4": require("../../assets/videos/15.mp4"),
+  "14.mp4": require("../../assets/videos/14.mp4"),
+  "15.mp4": require("../../assets/videos/15.mp4"),
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {

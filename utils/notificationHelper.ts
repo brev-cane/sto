@@ -38,9 +38,8 @@ export const sendBatchNotifications = async (
     const messages = batch.map((token) => ({
       to: token,
       sound: "default",
-      title: "Stadium Takeover",
-      // body: `A takeover will start in ${delaySeconds} seconds!`,
-      body: "Click HERE to join the next takeover!",
+      title: "Stadium Takeover", 
+      body: `CLICK HERE to join next takeover starting in ${delaySeconds} seconds`,
       data: {
         screen: `stadiumtakeover://Video?playAt=${playAtTimestamp}&videoFile=${encodeURIComponent(
           videoFile

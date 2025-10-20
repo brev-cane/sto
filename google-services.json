@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "785465840386-6svo97e1d81uia4gcg03cvuq8kl3ggu4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.stadiumtakeover.app",
+            "certificate_hash": "0b9ee66d15d8566600e33abbe99b2729e88efd3f"
+          }
+        },
+        {
           "client_id": "785465840386-snpm73hlgtmkmn4im11m1ff02vkqo1ul.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

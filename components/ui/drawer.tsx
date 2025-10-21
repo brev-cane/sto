@@ -55,9 +55,9 @@ export default function CustomDrawer(props: any) {
   const { navigate } = useNavigation();
   const shareApp = async () => {
     try {
-      const message = `🔥🎮 Check out *Stadium Takeover*! 🎮🔥
-  The ultimate sports gaming experience is here! 🏟️💥
-  
+      const message = `🔥🏈🤳🦬Check out *Stadium Takeover*! 🔥🏈🤳🦬
+  Make EVERY Bills game a Home Game! 🏟️💥 Shout song, Mr Brightside, Train Horn and more!  Simultaneously played on everyone’s phones throughout all away games!
+  *Enable Notifications*
   📱 Download now:
   - iOS: https://apps.apple.com/ca/app/stadium-takeover/id6749230185
   - Android: https://play.google.com/store/apps/details?id=com.stadiumtakeover.app`;

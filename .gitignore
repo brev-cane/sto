@@ -4,6 +4,8 @@ ios
 package-lock.json
 yarn.lock
 .vscode
+*.aab
+*.ipa
 *.apk
 *.ipa
 # dependencies

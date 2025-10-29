@@ -1,7 +1,6 @@
 import {
   ActivityIndicator,
   Alert,
-  Image,
   StatusBar,
   StyleSheet,
   Text,

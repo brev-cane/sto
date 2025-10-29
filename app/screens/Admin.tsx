@@ -11,29 +11,22 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import {
-  getValidPushTokens,
-  sendBatchNotifications,
-} from "@/utils/notificationHelper";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "../components/colors";
 import { User, Video } from "lucide-react-native";
-import SearchableDropdown from "@/components/ui/searchableDropDown"; 
+import SearchableDropdown from "@/components/ui/searchableDropDown";
+import { httpsCallable } from "firebase/functions";
+import { functions, FIREBASE_AUTH } from "@/FirebaseConfig"; // Add FIREBASE_AUTH
+
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
   { file: "2.mp4", name: "Third Down" },
   { file: "3.mp4", name: "Shout" },
   { file: "4.mp4", name: "Where else" },
   { file: "5.mp4", name: "Mr Brightside" },
-  //  { file: "6.mp4", name: "We will Rock You" },
   { file: "7.mp4", name: "Be Good Do Good" },
-  // { file: "8.mp4", name: "Gotta feeling" },
-  // { file: "9.mp4", name: "Coming in the Air Tonight" },
   { file: "10.mp4", name: "Shout Corey" },
-  //{ file: "11.mp4", name: "Dont Need No Education" },
-  //  { file: "12.mp4", name: "" },
-  // { file: "13.mp4", name: "Devil Georgia" },
-  { file: "14.mp4", name: "Shout it Out" }, //Replace
+  { file: "14.mp4", name: "Shout it Out" },
   { file: "15.mp4", name: "Rainbow Connection" },
 ];
 
@@ -41,79 +34,145 @@ export default function AdminScreen() {
   const [video, setVideo] = useState("");
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
-  const [tokens, setTokens] = useState([]);
-  const { userDoc } = useAuth();
+  const [tokensCount, setTokensCount] = useState(0);
+  const { userDoc } = useAuth(); // Add 'user' from auth context
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const [isEnabled, setIsEnabled] = useState(false);
   const [customUsers, setCustomUsers] = useState(false);
-  const [customUsersToken, setCustomUsersToken] = useState([]);
-  const [token, setToken] = useState("");
+  const [customUsersToken, setCustomUsersToken] = useState<string[]>([]);
+  const [token, setToken] = useState(""); // This is now a user ID, not a token
+  const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
+
+  // Count users with push tokens - now using Cloud Function
   const countUsers = async () => {
     try {
-      const tokens = await getValidPushTokens();
-      setTokens(tokens);
-    } catch (error) {
-      console.log("error", error);
+      // Check if user is authenticated first
+      const currentUser = FIREBASE_AUTH.currentUser;
+      if (!currentUser) {
+        console.log("User not authenticated yet");
+        return;
+      }
+
+      console.log("Fetching user count as:", currentUser.uid);
+
+      const getUserCount = httpsCallable(
+        functions,
+        "getUsersWithPushTokensCount"
+      );
+      const result = await getUserCount();
+      const data = result.data as any;
+
+      if (data.success) {
+        setTokensCount(data.count);
+        console.log("User count fetched:", data.count);
+      }
+    } catch (error: any) {
+      console.error("Error counting users:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+
+      if (error.code === "functions/unauthenticated") {
+        Alert.alert("Authentication Error", "Please log in again");
+      } else if (error.code === "functions/permission-denied") {
+        Alert.alert("Permission Denied", "Admin access required");
+      }
     }
   };
 
   useEffect(() => {
-    countUsers(); 
+    // Only fetch count when user is authenticated and loaded
+    if (user && userDoc) {
+      console.log("User authenticated:", user.uid);
+      console.log("User role:", userDoc.role);
+      countUsers();
+    } else {
+      console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
+    }
+
     let mounted = true;
-    const interval = setInterval(async () => {
-      try {
-        const nextAllowed = await AsyncStorage.getItem(
-          "nextAllowedNotificationTimeAdmin"
-        );
-        const ts = parseInt(nextAllowed ?? "0", 10); // avoid NaN
-        const diff = Math.max(0, ts - Date.now());
-        if (mounted) setCooldownRemaining(Math.ceil(diff / 1000));
-      } catch {
-        if (mounted) setCooldownRemaining(0);
-      }
-    }, 1000);
+    // const interval = setInterval(async () => {
+    //   try {
+    //     const nextAllowed = await AsyncStorage.getItem(
+    //       "nextAllowedNotificationTimeAdmin"
+    //     );
+    //     const ts = parseInt(nextAllowed ?? "0", 10);
+    //     const diff = Math.max(0, ts - Date.now());
+    //     if (mounted) setCooldownRemaining(Math.ceil(diff / 1000));
+    //   } catch {
+    //     if (mounted) setCooldownRemaining(0);
+    //   }
+    // }, 1000);
 
     return () => {
       mounted = false;
-      clearInterval(interval);
+      // clearInterval(interval);
     };
-  }, []);
+  }, [user, userDoc]); // Add dependencies
 
   const handleSend = async () => {
     if (!video) {
-      alert("Please select a video");
+      Alert.alert("Error", "Please select a video");
       return;
     }
+
+    // if (cooldownRemaining > 0) {
+    //   Alert.alert(
+    //     "Cooldown Active",
+    //     `Please wait ${cooldownRemaining} seconds`
+    //   );
+    //   return;
+    // }
+
     try {
       setLoading(true);
 
-      // set next allowed time locally so the countdown starts right away
-      const nextAllowedTs = Date.now() + delay * 1000; // delay is in seconds
-      await AsyncStorage.setItem(
-        "nextAllowedNotificationTimeAdmin",
-        String(nextAllowedTs)
-      );
-      setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
-      const tokens = await getValidPushTokens();
-      if (tokens.length === 0) {
-        console.log("No valid push tokens found.");
-        return;
-      }
-      await sendBatchNotifications(
-        isEnabled
-          ? [userDoc?.pushToken as string]
-          : customUsers
-          ? customUsersToken
-          : tokens,
-        delay,
-        video
+      // Set local cooldown immediately for UI feedback
+      // const nextAllowedTs = Date.now() + delay * 1000;
+      // await AsyncStorage.setItem(
+      //   "nextAllowedNotificationTimeAdmin",
+      //   String(nextAllowedTs)
+      // );
+      // setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
+
+      // Call the Cloud Function
+      const sendNotification = httpsCallable(
+        functions,
+        "sendStadiumTakeoverNotification"
       );
 
-      Alert.alert("✅ Success", "Notification sent!");
+      const result = await sendNotification({
+        videoFile: video,
+        delaySeconds: delay,
+        adminOnly: isEnabled,
+        customTokens: customUsers ? customUsersToken : null,
+      });
+
+     // const data = result.data as any;
+
+      // if (data.success) {
+      //   Alert.alert(
+      //     "✅ Success",
+      //     `Notifications sent to ${data.results.successful} users!\n` +
+      //       `Failed: ${data.results.failed}`
+      //   );
+      // } else {
+      //   Alert.alert("⚠️ Warning", "Notifications sent with some errors");
+      // }
     } catch (err: any) {
-      Alert.alert("⚠️ Error", err.message);
+      console.error("Error sending notification:", err);
+
+      // Handle specific Firebase errors
+      if (err.code === "functions/unauthenticated") {
+        Alert.alert("Error", "You must be logged in to send notifications");
+      } else if (err.code === "functions/permission-denied") {
+        Alert.alert("Error", "You don't have permission to send notifications");
+      } else if (err.code === "functions/resource-exhausted") {
+        Alert.alert("Cooldown Active", err.message);
+      } else {
+        Alert.alert("⚠️ Error", err.message || "Failed to send notifications");
+      }
     } finally {
       setLoading(false);
     }
@@ -126,41 +185,24 @@ export default function AdminScreen() {
     >
       <View style={styles.container}>
         <Text style={styles.title}>📢 Stadium Takeover</Text>
-        <View
-          style={{
-            flexDirection: "row",
-            padding: 10,
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+
+        {/* User Count */}
+        <View style={styles.infoRow}>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>Users</Text>
-            <Text style={{ fontSize: 14 }}>
+            <Text style={styles.infoTitle}>Users</Text>
+            <Text style={styles.infoSubtitle}>
               Total users who have enabled {"\n"} push notifications
             </Text>
           </View>
-          <View style={{ flexDirection: "row" }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
             <User color={COLORS.primary} />
-
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
-              {tokens.length}
-            </Text>
+            <Text style={styles.infoCount}>{tokensCount}</Text>
           </View>
         </View>
+
         {/* Video Picker */}
         <Text style={styles.label}>Select Video</Text>
-
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            borderWidth: 1,
-            borderRadius: 8,
-            borderColor: COLORS.primary,
-            padding: 10,
-          }}
-        >
+        <View style={styles.videoPickerContainer}>
           <Video color={COLORS.primary} />
           <SearchableDropdown
             options={videoOptions}
@@ -183,18 +225,11 @@ export default function AdminScreen() {
           thumbTintColor={COLORS.primary}
         />
 
-        {/* Send Button */}
-        <View
-          style={{
-            flexDirection: "row",
-            padding: 10,
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+        {/* Admin Only Toggle */}
+        <View style={styles.infoRow}>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>Admin Only</Text>
-            <Text style={{ fontSize: 14 }}>
+            <Text style={styles.infoTitle}>Admin Only</Text>
+            <Text style={styles.infoSubtitle}>
               Send notifications to yourself only
             </Text>
           </View>
@@ -206,19 +241,12 @@ export default function AdminScreen() {
             value={isEnabled}
           />
         </View>
-        <View
-          style={{
-            flexDirection: "row",
-            padding: 10,
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
+
+        {/* Custom Users Toggle */}
+        <View style={styles.infoRow}>
           <View>
-            <Text style={{ fontSize: 18, fontWeight: "bold" }}>
-              Custom Users only
-            </Text>
-            <Text style={{ fontSize: 14 }}>
+            <Text style={styles.infoTitle}>Custom Users only</Text>
+            <Text style={styles.infoSubtitle}>
               Send notifications to selected users only
             </Text>
           </View>
@@ -230,35 +258,63 @@ export default function AdminScreen() {
             value={customUsers}
           />
         </View>
+
+        {/* Custom Users Input */}
         {customUsers && (
           <>
             <Text style={styles.title}>{customUsersToken.length} users</Text>
             <View style={styles.inputRow}>
               <TextInput
-                placeholder="Past push token"
+                placeholder="Enter User ID"
                 style={styles.input}
                 value={token}
                 onChangeText={setToken}
+                autoCapitalize="none"
               />
               <TouchableOpacity
-                style={[styles.pickerContainer, { padding: 12, margin: 5 }]}
+                style={styles.addButton}
                 onPress={() => {
-                  setCustomUsersToken([...customUsersToken, token]);
-                  setToken("");
+                  if (token.trim()) {
+                    setCustomUsersToken([...customUsersToken, token.trim()]);
+                    setToken("");
+                  }
                 }}
               >
                 <Text style={{ color: "#fff" }}>Add</Text>
               </TouchableOpacity>
             </View>
+            {customUsersToken.length > 0 && (
+              <View style={styles.userIdList}>
+                {customUsersToken.map((userId, index) => (
+                  <View key={index} style={styles.userIdChip}>
+                    <Text style={styles.userIdText}>{userId}</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setCustomUsersToken(
+                          customUsersToken.filter((_, i) => i !== index)
+                        );
+                      }}
+                    >
+                      <Text style={styles.removeButton}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         )}
+
+        {/* Send Button */}
         <View style={{ marginTop: 20 }}>
           <TouchableOpacity
-            style={styles.button}
+            style={[
+              styles.button,
+              (loading || cooldownRemaining > 0) && styles.buttonDisabled,
+            ]}
             onPress={handleSend}
-            disabled={loading}
+            disabled={loading || cooldownRemaining > 0}
           >
-            <Text>
+            <Text style={styles.buttonText}>
               {cooldownRemaining > 0
                 ? `Wait ${cooldownRemaining}s`
                 : loading
@@ -278,6 +334,42 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: "#fff",
   },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  infoRow: {
+    flexDirection: "row",
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  infoSubtitle: {
+    fontSize: 14,
+    color: "#666",
+  },
+  infoCount: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginLeft: 5,
+  },
+  label: {
+    fontSize: 16,
+    marginTop: 15,
+  },
+  videoPickerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 8,
+    borderColor: COLORS.primary,
+    padding: 10,
+  },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -288,20 +380,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  icon: {
-    marginRight: 8,
-  },
   input: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
     color: "#111827",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-
-    marginBottom: 20,
+  addButton: {
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    margin: 5,
+    borderRadius: 8,
   },
   button: {
     backgroundColor: "transparent",
@@ -316,17 +405,37 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
-  label: {
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+  buttonText: {
+    color: "#007AFF",
     fontSize: 16,
-    marginTop: 15,
+    fontWeight: "600",
   },
-  pickerContainer: {
+  userIdList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 10,
+  },
+  userIdChip: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    overflow: "hidden",
-    marginTop: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  picker: {
-    color: "white",
+  userIdText: {
+    color: "#fff",
+    fontSize: 14,
+    marginRight: 6,
+  },
+  removeButton: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
   },
 });

@@ -21,6 +21,7 @@ import InstructionsCard from "@/components/ui/instructions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dbService } from "@/services/dbService";
 import * as Animatable from "react-native-animatable";
+import PushPermissionComponent from "@/components/ui/pushPermission";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -149,17 +150,6 @@ function Home() {
           </View>
 
           <InstructionsCard />
-          {!expoPushToken && (
-            <>
-              <Text style={styles.title}>Please enable Push Notification</Text>
-              <TouchableOpacity
-                style={styles.button}
-                onPress={registerUserForPushNotifications}
-              >
-                <Text style={styles.buttonText}>Enable Now!</Text>
-              </TouchableOpacity>
-            </>
-          )}
 
           <TouchableOpacity style={styles.button} onPress={handleSend}>
             <Text style={styles.buttonText}>
@@ -170,6 +160,8 @@ function Home() {
           </TouchableOpacity>
         </View>
       )}
+
+      <PushPermissionComponent />
     </Drawer>
   );
 }

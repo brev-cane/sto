@@ -30,7 +30,6 @@ export const sendBatchNotifications = async (
 
   // Calculate the exact future timestamp when video should start playing
   const now = timeSync.getSyncedTime();
-  const date = new Date(now);
   const playAtTimestamp = now + delaySeconds * 1000;
 
   for (let i = 0; i < tokens.length; i += BATCH_SIZE) {

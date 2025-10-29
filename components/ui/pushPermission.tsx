@@ -10,11 +10,15 @@ import {
 } from "react-native";
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/contexts/authContext";
+import { registerForPushNotificationsAsync } from "@/App";
+import { dbService } from "@/services/dbService";
 
 export default function ImprovedPushPermissionComponent() {
   const [allowed, setAllowed] = useState(null);
   const [blocked, setBlocked] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const { userDoc, setUserDoc } = useAuth();
 
   useEffect(() => {
     loadHidden();
@@ -55,7 +59,14 @@ export default function ImprovedPushPermissionComponent() {
     const isBlocked =
       settings.ios?.status === Notifications.IosAuthorizationStatus.DENIED ||
       (!settings.canAskAgain && !settings.granted);
-
+    registerForPushNotificationsAsync().then(async (pushToken) => {
+      if (pushToken) {
+        await dbService
+          .collection("users")
+          .update(userDoc?.id, { pushToken: pushToken });
+        setUserDoc({ ...userDoc, pushToken: pushToken });
+      }
+    });
     setAllowed(isGranted);
     setBlocked(isBlocked);
 

@@ -80,11 +80,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userData = await dbService
             .collection<AppUser>("users")
             .getById(user.uid);
-          if (pushToken) {
+          if (pushToken && userData) {
             await dbService
               .collection<AppUser>("users")
               .update(user.uid, { pushToken: pushToken.current as string });
-            setUserDoc({ ...userData, pushToken: pushToken.current } ?? null);
+            setUserDoc({ ...userData, pushToken: pushToken.current || "" });
 
             console.log("Push token updated");
           }

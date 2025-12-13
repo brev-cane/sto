@@ -1,7 +1,7 @@
 import { RouteProp, useRoute } from "@react-navigation/native";
-import { useEventListener } from "expo";
+import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
 import COLORS from "../components/colors";
 import { useNavigation } from "expo-router";
@@ -9,7 +9,13 @@ import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { timeSync } from "@/services/timeSync";
-
+import { Image } from "expo-image";
+import { useSharedValue } from "react-native-reanimated";
+import Carousel, {
+  ICarouselInstance,
+  Pagination,
+} from "react-native-reanimated-carousel";
+const width = Dimensions.get("window").width;
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 type VideoScreenRouteParams = {
@@ -34,6 +40,9 @@ const videoMap = {
   // "13.mp4": require("../../assets/videos/13.mp4"),
   "14.mp4": require("../../assets/videos/14.mp4"),
   "15.mp4": require("../../assets/videos/15.mp4"),
+  "16.mp4": require("../../assets/videos/16.mp4"),
+  "17.mp4": require("../../assets/videos/17.mp4"),
+  "18.mp4": require("../../assets/videos/18.mp4"),
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {
@@ -50,7 +59,19 @@ export default function VideoScreen() {
   const [missed, setMissed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const ref = useRef<ICarouselInstance>(null);
+  const progress = useSharedValue<number>(0);
 
+  const onPressPagination = (index: number) => {
+    ref.current?.scrollTo({
+      /**
+       * Calculate the difference between the current index and the target index
+       * to ensure that the carousel scrolls to the nearest index
+       */
+      count: index - progress.value,
+      animated: true,
+    });
+  };
   // Extract params safely with defaults
   const videoFile = params?.videoFile;
   const playAt = params?.playAt;
@@ -63,6 +84,15 @@ export default function VideoScreen() {
       player.loop = false;
     }
   });
+  // const videoSource =
+  //   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+
+  // const player = useVideoPlayer(videoSource, (player) => {
+  //   if (player) {
+  //     player.loop = false;
+  //     player.play();
+  //   }
+  // });
 
   useEventListener(player, "playToEnd", () => {
     navigate("Home");
@@ -130,7 +160,7 @@ export default function VideoScreen() {
     }
   }, [countdown]);
 
-  // Render error state
+  // // Render error state
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -146,25 +176,110 @@ export default function VideoScreen() {
     );
   }
 
+  const dataAd = [
+    {
+      id: 1,
+      url: require("../../assets/ads/1.jpg"),
+    },
+    {
+      id: 2,
+      url: require("../../assets/ads/2.jpg"),
+    },
+    {
+      id: 3,
+      url: require("../../assets/ads/3.jpg"),
+    },
+    {
+      id: 4,
+      url: require("../../assets/ads/4.jpg"),
+    },
+    {
+      id: 5,
+      url: require("../../assets/ads/5.jpg"),
+    },
+    {
+      id: 6,
+      url: require("../../assets/ads/default_ad.jpeg"),
+    },
+  ];
+  const defaultData = [
+    {
+      id: 6,
+      url: require("../../assets/ads/default_ad.jpeg"),
+    },
+  ];
+  console.log("assetId:", assetId);
+  const data = videoFile === "10.mp4" ? dataAd : defaultData;
+  const w = Dimensions.get("window").width;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <View style={styles.contentContainer}>
-        <View style={styles.videoWrapper}>
-          <VideoView
-            style={styles.video}
-            nativeControls={false}
-            player={player}
-          />
-          {missed && !player.playing ? (
-            <View style={styles.countdownOverlay}>
-              <Text style={styles.restricted}>You missed the video.</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <VideoView
+          style={styles.video}
+          nativeControls={false}
+          player={player}
+        />
+        {missed && !player.playing ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>You missed the video.</Text>
+          </View>
+        ) : countdown && countdown > 0 ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.countdownText}>{countdown}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Carousel
+          ref={ref}
+          style={{ width, height: width / 2 }}
+          data={data}
+          width={width}
+          loop
+          autoPlay
+          autoPlayInterval={1000}
+          onProgressChange={progress}
+          renderItem={({ index, item }) => (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              <Image
+                source={item.url}
+                contentFit="contain"
+                style={{
+                  width: w,
+                  height: 300,
+                  borderRadius: 30,
+                  overflow: "hidden",
+                }}
+              />
             </View>
-          ) : countdown && countdown > 0 ? (
-            <View style={styles.countdownOverlay}>
-              <Text style={styles.countdownText}>{countdown}</Text>
-            </View>
-          ) : null}
-        </View>
+          )}
+        />
+
+        <Pagination.Basic
+          progress={progress}
+          data={data}
+          dotStyle={{ backgroundColor: COLORS.primary, borderRadius: 50 }}
+          containerStyle={{ gap: 5, marginTop: 10 }}
+          onPress={onPressPagination}
+        />
       </View>
     </SafeAreaView>
   );
@@ -179,6 +294,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   videoWrapper: {
+    flex: 1,
     width: screenWidth,
     height: screenHeight,
     justifyContent: "center",
@@ -186,7 +302,7 @@ const styles = StyleSheet.create({
   },
   video: {
     width: "100%",
-    height: "100%",
+    height: 300,
   },
   countdownOverlay: {
     position: "absolute",

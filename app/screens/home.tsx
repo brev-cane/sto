@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import COLORS from "../components/colors";
-import { useAuth } from "@/contexts/authContext";
+import { AppUser, useAuth } from "@/contexts/authContext";
 import { sendBatchNotifications } from "@/utils/notificationHelper";
 import { useNavigation } from "@react-navigation/native";
 import AdminScreen from "./Admin";
@@ -27,9 +27,7 @@ const logoImage = require("../../assets/images/blue-logo.png");
 function Home() {
   const {
     userDoc,
-    firebaseUser,
-    expoPushToken,
-    registerUserForPushNotifications,
+    firebaseUser, 
     setUserDoc,
   } = useAuth();
   const { navigate } = useNavigation();
@@ -37,10 +35,11 @@ function Home() {
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const getUser = async () => {
     try {
+      if(!firebaseUser) return;
       const userData = await dbService
         .collection("users")
         .getById(firebaseUser?.uid);
-      setUserDoc(userData);
+      setUserDoc(userData as AppUser);
     } catch (error) {
       console.log("error :", error);
     }
@@ -84,10 +83,7 @@ function Home() {
         return;
       }
       const tokens = [userDoc.pushToken];
-      console.log("tokens ", tokens);
       await sendBatchNotifications(tokens, 30, "1.mp4");
-
-      Alert.alert("✅ Success", "Notification sent!");
     } catch (err: any) {
       Alert.alert("⚠️ Error", err.message);
     } finally {

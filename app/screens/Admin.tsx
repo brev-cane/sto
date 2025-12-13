@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   Switch,
   TextInput,
+  ScrollView,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useAuth } from "@/contexts/authContext";
@@ -17,6 +18,7 @@ import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import { httpsCallable } from "firebase/functions";
 import { functions, FIREBASE_AUTH } from "@/FirebaseConfig"; // Add FIREBASE_AUTH
+import { useNavigation } from "@react-navigation/native";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
@@ -28,6 +30,9 @@ const videoOptions = [
   { file: "10.mp4", name: "Shout Corey" },
   { file: "14.mp4", name: "Shout it Out" },
   { file: "15.mp4", name: "Rainbow Connection" },
+  { file: "16.mp4", name: "Don’t Want A Lot" },
+  { file: "17.mp4", name: "Run Run Reindeer" },
+  { file: "18.mp4", name: "Mistletoe" },
 ];
 
 export default function AdminScreen() {
@@ -44,7 +49,7 @@ export default function AdminScreen() {
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
-
+  const navigation = useNavigation();
   // Count users with push tokens - now using Cloud Function
   const countUsers = async () => {
     try {
@@ -141,15 +146,17 @@ export default function AdminScreen() {
         functions,
         "sendStadiumTakeoverNotification"
       );
-
-      const result = await sendNotification({
+      const params = {
         videoFile: video,
         delaySeconds: delay,
         adminOnly: isEnabled,
         customTokens: customUsers ? customUsersToken : null,
-      });
+      };
 
-     // const data = result.data as any;
+      console.log("Params :", params);
+      const result = await sendNotification(params);
+      Sentry.captureMessage(JSON.stringify(result.data));
+      // const data = result.data as any;
 
       // if (data.success) {
       //   Alert.alert(
@@ -161,6 +168,7 @@ export default function AdminScreen() {
       //   Alert.alert("⚠️ Warning", "Notifications sent with some errors");
       // }
     } catch (err: any) {
+      Sentry.captureException(err);
       console.error("Error sending notification:", err);
 
       // Handle specific Firebase errors
@@ -283,24 +291,32 @@ export default function AdminScreen() {
                 <Text style={{ color: "#fff" }}>Add</Text>
               </TouchableOpacity>
             </View>
-            {customUsersToken.length > 0 && (
-              <View style={styles.userIdList}>
-                {customUsersToken.map((userId, index) => (
-                  <View key={index} style={styles.userIdChip}>
-                    <Text style={styles.userIdText}>{userId}</Text>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setCustomUsersToken(
-                          customUsersToken.filter((_, i) => i !== index)
-                        );
-                      }}
-                    >
-                      <Text style={styles.removeButton}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
+            <ScrollView horizontal>
+              {customUsersToken.length > 0 && (
+                <View style={styles.userIdList}>
+                  {customUsersToken.map((userId, index) => (
+                    <View key={index} style={styles.userIdChip}>
+                      <Text
+                        ellipsizeMode="tail"
+                        numberOfLines={1}
+                        style={[styles.userIdText, { maxWidth: 100 }]}
+                      >
+                        {userId}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setCustomUsersToken(
+                            customUsersToken.filter((_, i) => i !== index)
+                          );
+                        }}
+                      >
+                        <Text style={styles.removeButton}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
           </>
         )}
 
@@ -323,6 +339,24 @@ export default function AdminScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+        {/* <TouchableOpacity
+          style={[
+            styles.button,
+            (loading || cooldownRemaining > 0) && styles.buttonDisabled,
+          ]}
+          onPress={() => {
+            navigation.navigate("Video", { videoFile: 1, platAt: Date.now() });
+          }}
+          disabled={loading || cooldownRemaining > 0}
+        >
+          <Text style={styles.buttonText}>
+            {cooldownRemaining > 0
+              ? `Wait ${cooldownRemaining}s`
+              : loading
+              ? "Sending..."
+              : "Send Notification Video"}
+          </Text>
+        </TouchableOpacity> */}
       </View>
     </KeyboardAwareScrollView>
   );

@@ -9,7 +9,17 @@ import {
   Switch,
   ScrollView,
 } from "react-native";
-import { Mail, User, Shield, Bell, Save, Copy } from "lucide-react-native";
+import {
+  Mail,
+  User,
+  Shield,
+  Bell,
+  Save,
+  Copy,
+  CheckCircle,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react-native";
 import {
   registerForPushNotificationsAsync,
   useAuth,
@@ -21,12 +31,19 @@ import { dbService } from "@/services/dbService";
 import COLORS from "../components/colors";
 
 export const UserProfileScreen: React.FC = () => {
-  const { userDoc, loading, firebaseUser, setUserDoc } = useAuth();
+  const {
+    userDoc,
+    loading,
+    firebaseUser,
+    setUserDoc,
+    pushTokenSynced,
+    syncingRef,
+    syncPushTokenWithBackend,
+  } = useAuth();
   const [name, setName] = useState(userDoc?.name || "");
   const [pushEnabled, setPushEnabled] = useState(
     userDoc?.pushToken ? true : false
   );
-  console.log("user ", userDoc?.pushToken ? true : false, userDoc);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -59,10 +76,10 @@ export const UserProfileScreen: React.FC = () => {
 
       if (pushEnabled) {
         const token = await registerForPushNotificationsAsync();
-        updatedData.pushToken = token ?? null;
+        updatedData.pushToken = token ?? "";
         updatedData = { name, pushToken: token };
       } else {
-        updatedData.pushToken = null;
+        updatedData.pushToken = "";
       }
 
       await dbService.collection("users").update(firebaseUser.uid, updatedData);
@@ -83,7 +100,6 @@ export const UserProfileScreen: React.FC = () => {
       setSaving(false);
     }
   };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <BackButton />
@@ -153,7 +169,34 @@ export const UserProfileScreen: React.FC = () => {
             <Copy size={20} color={COLORS.primary} style={styles.icon} />
             <Text style={styles.input}>{userDoc.pushToken}</Text>
           </TouchableOpacity>
+          <View style={styles.syncRow}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {syncingRef?.current ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : pushTokenSynced ? (
+                <CheckCircle size={18} color="#16a34a" style={styles.icon} />
+              ) : (
+                <AlertTriangle size={18} color="#dc2626" style={styles.icon} />
+              )}
 
+              <Text style={styles.syncText}>
+                {syncingRef?.current
+                  ? "Syncing..."
+                  : pushTokenSynced
+                  ? "Synced with backend"
+                  : "Not synced with backend"}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.syncButton, syncingRef?.current && { opacity: 0.6 }]}
+              onPress={() => syncPushTokenWithBackend()}
+              disabled={!!syncingRef?.current}
+            >
+              <RefreshCw size={16} color="#064e3b" style={{ marginRight: 8 }} />
+              <Text style={styles.syncButtonText}>Resync</Text>
+            </TouchableOpacity>
+          </View>
           {/* Role - only visible if admin */}
           {userDoc.role === "admin" && (
             <View style={styles.inputRow}>
@@ -244,5 +287,34 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#111827",
+  },
+  syncRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 16,
+    backgroundColor: "#fff",
+  },
+  syncText: {
+    fontSize: 15,
+    color: "#111827",
+    marginLeft: 2,
+  },
+  syncButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  syncButtonText: {
+    color: "#064e3b",
+    fontWeight: "600",
   },
 });

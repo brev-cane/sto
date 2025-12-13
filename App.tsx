@@ -19,6 +19,7 @@ import VideoScreen from "./app/screens/Video";
 import { timeSync } from "./services/timeSync";
 import PrivacyPolicyScreen from "./app/screens/policy";
 import * as Sentry from "@sentry/react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
@@ -27,11 +28,11 @@ Sentry.init({
   // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
 
-  // Enable Logs
-  enableLogs: true,
+  // Enable Logs 
   enableNative: true, // enables native crash capture
   enableNativeCrashHandling: true, // uncaught native crashes
   debug: true,
+
   // Enable Logs
 
   // Configure Session Replay
@@ -79,77 +80,80 @@ export default Sentry.wrap(function App() {
   }, []);
 
   return (
-    <AlertProvider>
-      <AuthProvider>
-        <NavigationContainer
-          linking={{
-            prefixes: [Linking.createURL("/")],
-            config: {
-              screens: {
-                Video: "Video",
+    <GestureHandlerRootView>
+      <AlertProvider>
+        <AuthProvider>
+          <NavigationContainer
+            linking={{
+              prefixes: [Linking.createURL("/")],
+              config: {
+                screens: {
+                  Video: "Video",
+                },
               },
-            },
-            async getInitialURL() {
-              const url = await Linking.getInitialURL();
+              async getInitialURL() {
+                const url = await Linking.getInitialURL();
 
-              if (url != null) {
-                return url;
-              }
+                if (url != null) {
+                  return url;
+                }
 
-              const response =
-                await Notifications.getLastNotificationResponseAsync();
-              console.log(
-                "url received 1:",
-                response?.notification.request.content.data.screen
-              );
-              return response?.notification.request.content.data.screen;
-            },
-            subscribe(listener) {
-              const onReceiveURL = ({ url }: { url: string }) => listener(url);
+                const response =
+                  await Notifications.getLastNotificationResponseAsync();
+                console.log(
+                  "url received 1:",
+                  response?.notification.request.content.data.screen
+                );
+                return response?.notification.request.content.data.screen;
+              },
+              subscribe(listener) {
+                const onReceiveURL = ({ url }: { url: string }) =>
+                  listener(url);
 
-              const eventListenerSubscription = Linking.addEventListener(
-                "url",
-                onReceiveURL
-              );
-
-              const subscription =
-                Notifications.addNotificationResponseReceivedListener(
-                  (response) => {
-                    const url =
-                      response.notification.request.content.data.screen;
-                    console.log("url received 2:", url);
-                    listener(url);
-                  }
+                const eventListenerSubscription = Linking.addEventListener(
+                  "url",
+                  onReceiveURL
                 );
 
-              return () => {
-                eventListenerSubscription.remove();
-                subscription.remove();
-              };
-            },
-          }}
-        >
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen
-              name="Loading"
-              component={LoadingScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen name="Home" component={Home} />
-            <Stack.Screen name="Video" component={VideoScreen} />
-            <Stack.Screen name="Login" component={Login} />
-            <Stack.Screen name="Signup" component={Signup} />
-            <Stack.Screen
-              name="PrivacyPolicy"
-              component={PrivacyPolicyScreen}
-              options={{ headerShown: true, title: "Privacy Policy" }}
-            />
-            <Stack.Screen name="Profile" component={UserProfileScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </AuthProvider>
-      <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
-    </AlertProvider>
+                const subscription =
+                  Notifications.addNotificationResponseReceivedListener(
+                    (response) => {
+                      const url =
+                        response.notification.request.content.data.screen;
+                      console.log("url received 2:", url);
+                      listener(url);
+                    }
+                  );
+
+                return () => {
+                  eventListenerSubscription.remove();
+                  subscription.remove();
+                };
+              },
+            }}
+          >
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen
+                name="Loading"
+                component={LoadingScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="Home" component={Home} />
+              <Stack.Screen name="Video" component={VideoScreen} />
+              <Stack.Screen name="Login" component={Login} />
+              <Stack.Screen name="Signup" component={Signup} />
+              <Stack.Screen
+                name="PrivacyPolicy"
+                component={PrivacyPolicyScreen}
+                options={{ headerShown: true, title: "Privacy Policy" }}
+              />
+              <Stack.Screen name="Profile" component={UserProfileScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </AuthProvider>
+        <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
+      </AlertProvider>
+    </GestureHandlerRootView>
   );
 });
 

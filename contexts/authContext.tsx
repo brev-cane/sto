@@ -14,7 +14,7 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { useAlert } from "./dropdownContext";
-interface AppUser {
+export interface AppUser {
   id: string;
   name: string;
   email: string;
@@ -26,20 +26,26 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   userDoc: AppUser | null;
   loading: boolean;
-  pushToken?: string | null;
+  pushToken: React.RefObject<string | null>;
   expoPushToken: string | null;
-  setUserDoc: () => void;
+  pushTokenSynced: boolean;
+  syncingRef: React.RefObject<boolean>;
+  setUserDoc: (user: AppUser | null) => void;
   registerUserForPushNotifications: () => Promise<void>;
+  syncPushTokenWithBackend: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   firebaseUser: null,
   userDoc: null,
   loading: true,
-  pushToken: null,
+  pushToken: { current: null },
   expoPushToken: null,
   registerUserForPushNotifications: async () => {},
   setUserDoc: () => {},
+  syncingRef: { current: false },
+  pushTokenSynced: false,
+  syncPushTokenWithBackend: async () => {},
 });
 
 interface AuthProviderProps {
@@ -52,26 +58,63 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const { showAlert } = useAlert();
   const pushToken = useRef<null | string>(null);
-  const [expoPushToken, setExpoPushToken] = useState("");
+  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [pushTokenSynced, setPushTokenSynced] = useState(false);
+  const syncingRef = useRef(false);
   const registerUserForPushNotifications = async () => {
     try {
-      registerForPushNotificationsAsync().then((token) => {
-        if (token) {
-          pushToken.current = token;
-          setExpoPushToken(token);
-          showAlert(
-            "success",
-            "Enabled",
-            "Push Notifications has been enabled"
-          );
-        }
-      });
+      const token = await registerForPushNotificationsAsync();
+
+      if (token) {
+        setExpoPushToken(token);
+        pushToken.current = token;
+        setExpoPushToken(token);
+        showAlert("success", "Enabled", "Push Notifications has been enabled");
+      }
     } catch (error) {
       console.log("Error :", error);
     }
   };
+  const syncPushTokenWithBackend = async () => {
+    if (syncingRef.current || !firebaseUser || !expoPushToken || !userDoc) {
+      return;
+    }
+
+    // Already synced
+    if (userDoc.pushToken === expoPushToken) {
+      setPushTokenSynced(true);
+      return;
+    }
+
+    try {
+      syncingRef.current = true;
+
+      await dbService.collection<AppUser>("users").update(firebaseUser.uid, {
+        pushToken: expoPushToken,
+      });
+
+      setUserDoc({
+        ...userDoc,
+        pushToken: expoPushToken,
+      });
+
+      setPushTokenSynced(true);
+      console.log("✅ Push token synced");
+    } catch (error) {
+      console.error("❌ Failed to sync push token:", error);
+      setPushTokenSynced(false);
+    } finally {
+      syncingRef.current = false;
+    }
+  };
+
   useEffect(() => {
     registerUserForPushNotifications();
+  }, []);
+  useEffect(() => {
+    syncPushTokenWithBackend();
+  }, [expoPushToken, userDoc, firebaseUser]);
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(FIREBASE_AUTH, async (user) => {
       setFirebaseUser(user);
 
@@ -80,17 +123,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const userData = await dbService
             .collection<AppUser>("users")
             .getById(user.uid);
-          if (pushToken && userData) {
-            await dbService
-              .collection<AppUser>("users")
-              .update(user.uid, { pushToken: pushToken.current as string });
-            setUserDoc({ ...userData, pushToken: pushToken.current || "" });
 
-            console.log("Push token updated");
-          }
-          if (!pushToken) {
-            setUserDoc(userData ?? null);
-          }
+          setUserDoc(userData ?? null);
         } catch (error) {
           console.error("Failed to fetch user document:", error);
           setUserDoc(null);
@@ -102,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   return (
@@ -113,8 +147,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         loading,
         pushToken,
         expoPushToken,
+        pushTokenSynced,
+        syncingRef,
         registerUserForPushNotifications,
         setUserDoc,
+        syncPushTokenWithBackend,
       }}
     >
       {children}

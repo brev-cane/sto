@@ -17,6 +17,7 @@ import {
   User2,
   Book,
   Share as ShareIcon,
+  DeleteIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import COLORS from "@/app/components/colors";
@@ -123,13 +124,13 @@ export default function CustomDrawer(props: any) {
               signOut(FIREBASE_AUTH).then(() => navigate("Loading"));
             }}
           >
-            <LogOut size={20} color={COLORS.error} />
-            <Text style={[styles.drawerItemText, { color: COLORS.error }]}>
+            <LogOut size={20} color={COLORS.primary} />
+            <Text style={[styles.drawerItemText, { color:"#000" }]}>
               Logout
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.logoutButton}
+            style={[styles.logoutButton,{borderTopWidth:1}]}
             onPress={() => {
               Alert.alert(
                 "Confirm Deletion",
@@ -168,7 +169,7 @@ export default function CustomDrawer(props: any) {
               );
             }}
           >
-            <User2 size={20} color={COLORS.error} />
+            <DeleteIcon size={20} color={COLORS.error} />
             <Text style={[styles.drawerItemText, { color: COLORS.error }]}>
               Delete
             </Text>
@@ -258,7 +259,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 12,
     borderRadius: 12,
-    marginVertical: 10,
-    borderBottomWidth: 1,
+    marginVertical: 10, 
   },
 });

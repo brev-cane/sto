@@ -197,15 +197,19 @@ export default function VideoScreen() {
       id: 5,
       url: require("../../assets/ads/5.jpg"),
     },
-    {
-      id: 6,
-      url: require("../../assets/ads/default_ad.jpeg"),
-    },
   ];
   const defaultData = [
     {
-      id: 6,
-      url: require("../../assets/ads/default_ad.jpeg"),
+      id: 1,
+      url: require("../../assets/defaultAds/1.jpeg"),
+    },
+    {
+      id: 2,
+      url: require("../../assets/defaultAds/2.jpeg"),
+    },
+    {
+      id: 3,
+      url: require("../../assets/defaultAds/3.jpeg"),
     },
   ];
   console.log("assetId:", assetId);

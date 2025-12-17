@@ -253,7 +253,7 @@ export default function VideoScreen() {
           width={width}
           loop
           autoPlay
-          autoPlayInterval={1000}
+          autoPlayInterval={2000}
           onProgressChange={progress}
           renderItem={({ index, item }) => (
             <View

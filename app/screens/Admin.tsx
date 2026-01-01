@@ -17,8 +17,7 @@ import COLORS from "../components/colors";
 import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import { httpsCallable } from "firebase/functions";
-import { functions, FIREBASE_AUTH } from "@/FirebaseConfig"; // Add FIREBASE_AUTH
-import { useNavigation } from "@react-navigation/native";
+import { functions, FIREBASE_AUTH } from "@/FirebaseConfig";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
@@ -36,21 +35,20 @@ const videoOptions = [
 ];
 
 export default function AdminScreen() {
-  const [video, setVideo] = useState("");
+  const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
+  // const [video, setVideo] = useState("");
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
-  const { userDoc } = useAuth(); // Add 'user' from auth context
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [isEnabled, setIsEnabled] = useState(false);
+  const { userDoc } = useAuth(); // Add 'user' from auth context 
+  const [isEnabled, setIsEnabled] = useState(__DEV__ ? true : false);
   const [customUsers, setCustomUsers] = useState(false);
   const [customUsersToken, setCustomUsersToken] = useState<string[]>([]);
   const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
-  const navigation = useNavigation();
-  // Count users with push tokens - now using Cloud Function
+
   const countUsers = async () => {
     try {
       // Check if user is authenticated first
@@ -96,58 +94,25 @@ export default function AdminScreen() {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
 
-    let mounted = true;
-    // const interval = setInterval(async () => {
-    //   try {
-    //     const nextAllowed = await AsyncStorage.getItem(
-    //       "nextAllowedNotificationTimeAdmin"
-    //     );
-    //     const ts = parseInt(nextAllowed ?? "0", 10);
-    //     const diff = Math.max(0, ts - Date.now());
-    //     if (mounted) setCooldownRemaining(Math.ceil(diff / 1000));
-    //   } catch {
-    //     if (mounted) setCooldownRemaining(0);
-    //   }
-    // }, 1000);
-
-    return () => {
-      mounted = false;
-      // clearInterval(interval);
-    };
   }, [user, userDoc]); // Add dependencies
 
   const handleSend = async () => {
-    if (!video) {
-      Alert.alert("Error", "Please select a video");
+    if (selectedVideos.length === 0) {
+      Alert.alert("Error", "Please select at least one video");
       return;
     }
 
-    // if (cooldownRemaining > 0) {
-    //   Alert.alert(
-    //     "Cooldown Active",
-    //     `Please wait ${cooldownRemaining} seconds`
-    //   );
-    //   return;
-    // }
+
 
     try {
       setLoading(true);
 
-      // Set local cooldown immediately for UI feedback
-      // const nextAllowedTs = Date.now() + delay * 1000;
-      // await AsyncStorage.setItem(
-      //   "nextAllowedNotificationTimeAdmin",
-      //   String(nextAllowedTs)
-      // );
-      // setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
-
-      // Call the Cloud Function
       const sendNotification = httpsCallable(
         functions,
         "sendStadiumTakeoverNotification"
       );
       const params = {
-        videoFile: video,
+        videoFile: selectedVideos.join(","),
         delaySeconds: delay,
         adminOnly: isEnabled,
         customTokens: customUsers ? customUsersToken : null,
@@ -156,17 +121,6 @@ export default function AdminScreen() {
       console.log("Params :", params);
       const result = await sendNotification(params);
       Sentry.captureMessage(JSON.stringify(result.data));
-      // const data = result.data as any;
-
-      // if (data.success) {
-      //   Alert.alert(
-      //     "✅ Success",
-      //     `Notifications sent to ${data.results.successful} users!\n` +
-      //       `Failed: ${data.results.failed}`
-      //   );
-      // } else {
-      //   Alert.alert("⚠️ Warning", "Notifications sent with some errors");
-      // }
     } catch (err: any) {
       Sentry.captureException(err);
       console.error("Error sending notification:", err);
@@ -209,15 +163,43 @@ export default function AdminScreen() {
         </View>
 
         {/* Video Picker */}
-        <Text style={styles.label}>Select Video</Text>
+        <Text style={styles.label}>Select Video(s)</Text>
         <View style={styles.videoPickerContainer}>
           <Video color={COLORS.primary} />
           <SearchableDropdown
             options={videoOptions}
             placeholder={"-- Choose a Video --"}
-            onSelect={(item) => setVideo(item.file)}
+            onSelect={(item) => {
+              setSelectedVideos([...selectedVideos, item.file]);
+            }}
           />
         </View>
+
+        {/* Selected Videos List */}
+        <ScrollView horizontal style={{ marginTop: 10 }}>
+          <View style={styles.userIdList}>
+            {selectedVideos.map((v, index) => {
+              const videoName =
+                videoOptions.find((opt) => opt.file === v)?.name || v;
+              return (
+                <View key={index} style={styles.userIdChip}>
+                  <Text style={styles.userIdText}>
+                    {index + 1}. {videoName}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedVideos(
+                        selectedVideos.filter((_, i) => i !== index)
+                      );
+                    }}
+                  >
+                    <Text style={styles.removeButton}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
 
         {/* Delay Slider */}
         <Text style={styles.label}>Delay: {delay} seconds</Text>
@@ -325,38 +307,17 @@ export default function AdminScreen() {
           <TouchableOpacity
             style={[
               styles.button,
-              (loading || cooldownRemaining > 0) && styles.buttonDisabled,
+              (loading) && styles.buttonDisabled,
             ]}
             onPress={handleSend}
-            disabled={loading || cooldownRemaining > 0}
+            disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {cooldownRemaining > 0
-                ? `Wait ${cooldownRemaining}s`
-                : loading
-                ? "Sending..."
-                : "Send Notification"}
+              {loading ? "Sending..." : "Send Notification"}
             </Text>
           </TouchableOpacity>
         </View>
-        {/* <TouchableOpacity
-          style={[
-            styles.button,
-            (loading || cooldownRemaining > 0) && styles.buttonDisabled,
-          ]}
-          onPress={() => {
-            navigation.navigate("Video", { videoFile: 1, platAt: Date.now() });
-          }}
-          disabled={loading || cooldownRemaining > 0}
-        >
-          <Text style={styles.buttonText}>
-            {cooldownRemaining > 0
-              ? `Wait ${cooldownRemaining}s`
-              : loading
-              ? "Sending..."
-              : "Send Notification Video"}
-          </Text>
-        </TouchableOpacity> */}
+
       </View>
     </KeyboardAwareScrollView>
   );

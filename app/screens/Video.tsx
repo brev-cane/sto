@@ -15,6 +15,7 @@ import Carousel, {
   ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
+import { TouchableOpacity } from "react-native-gesture-handler";
 const width = Dimensions.get("window").width;
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -22,6 +23,7 @@ type VideoScreenRouteParams = {
   videoFile: string;
   sentAt: string;
   delaySeconds: string;
+  playAt: string;
 };
 
 const videoMap = {
@@ -53,11 +55,12 @@ export default function VideoScreen() {
   const route =
     useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
   const params = route.params;
-  const { navigate } = useNavigation();
+  const { navigate } = useNavigation<any>();
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [missed, setMissed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<ICarouselInstance>(null);
   const progress = useSharedValue<number>(0);
@@ -73,29 +76,35 @@ export default function VideoScreen() {
     });
   };
   // Extract params safely with defaults
-  const videoFile = params?.videoFile;
+  const videoFileParam = params?.videoFile;
   const playAt = params?.playAt;
+
+  // Create playlist
+  const playlist = videoFileParam ? videoFileParam.split(",") : [];
+  const currentVideoFile = playlist[currentVideoIndex];
 
   // Always initialize player (with a default or null check)
   const assetId =
-    videoFile && isValidVideoFile(videoFile) ? videoMap[videoFile] : null;
+    currentVideoFile && isValidVideoFile(currentVideoFile)
+      ? videoMap[currentVideoFile]
+      : null;
+
   const player = useVideoPlayer(assetId, (player) => {
     if (player) {
       player.loop = false;
+      // Auto-play if we are moving to next video in playlist (index > 0)
+      if (currentVideoIndex > 0) {
+        player.play();
+      }
     }
   });
-  // const videoSource =
-  //   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-
-  // const player = useVideoPlayer(videoSource, (player) => {
-  //   if (player) {
-  //     player.loop = false;
-  //     player.play();
-  //   }
-  // });
 
   useEventListener(player, "playToEnd", () => {
-    navigate("Home");
+    if (currentVideoIndex < playlist.length - 1) {
+      setCurrentVideoIndex(currentVideoIndex + 1);
+    } else {
+      navigate("Home");
+    }
   });
 
   // Validate params and set errors
@@ -105,8 +114,8 @@ export default function VideoScreen() {
       return;
     }
 
-    if (!videoFile || !isValidVideoFile(videoFile)) {
-      setError("Invalid or missing video file.");
+    if (!playlist.length || !playlist.some(isValidVideoFile)) {
+      setError("Invalid or missing video file(s).");
       return;
     }
 
@@ -117,7 +126,7 @@ export default function VideoScreen() {
 
     // Clear any previous errors
     setError(null);
-  }, [params, videoFile, playAt]);
+  }, [params, videoFileParam, playAt]);
 
   // Sync countdown with server timestamp
   useEffect(() => {
@@ -213,7 +222,7 @@ export default function VideoScreen() {
     },
   ];
   console.log("assetId:", assetId);
-  const data = videoFile === "10.mp4" ? dataAd : defaultData;
+  const data = currentVideoFile === "10.mp4" ? dataAd : defaultData;
   const w = Dimensions.get("window").width;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -325,5 +334,16 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: COLORS.text,
     textAlign: "center",
+  },
+  controlsOverlay: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+  },
+  controlButton: {
+    padding: 10,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

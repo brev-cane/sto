@@ -102,7 +102,19 @@ export default function VideoScreen() {
 
   useEventListener(player, "playToEnd", () => {
     if (currentVideoIndex < playlist.length - 1) {
-      setCurrentVideoIndex(currentVideoIndex + 1);
+      const nextIndex = currentVideoIndex + 1;
+      const nextVideo = playlist[nextIndex];
+      const currentVideo = playlist[currentVideoIndex];
+
+      // If the next video is the same as current, we need to seek to beginning and replay
+      // because useVideoPlayer won't reinitialize with the same assetId
+      if (nextVideo === currentVideo && player) {
+        console.log("Same video repeating, seeking to beginning");
+        player.currentTime = 0;
+        player.play();
+      }
+
+      setCurrentVideoIndex(nextIndex);
       setPlaying(true);
     } else {
       navigate("Home");

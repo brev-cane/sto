@@ -63,6 +63,7 @@ export default function VideoScreen() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<ICarouselInstance>(null);
+  const [playing, setPlaying] = useState(false);
   const progress = useSharedValue<number>(0);
 
   const onPressPagination = (index: number) => {
@@ -82,7 +83,7 @@ export default function VideoScreen() {
   // Create playlist
   const playlist = videoFileParam ? videoFileParam.split(",") : [];
   const currentVideoFile = playlist[currentVideoIndex];
-
+  console.log("parms,playlist :")
   // Always initialize player (with a default or null check)
   const assetId =
     currentVideoFile && isValidVideoFile(currentVideoFile)
@@ -102,10 +103,12 @@ export default function VideoScreen() {
   useEventListener(player, "playToEnd", () => {
     if (currentVideoIndex < playlist.length - 1) {
       setCurrentVideoIndex(currentVideoIndex + 1);
+      setPlaying(true);
     } else {
       navigate("Home");
     }
   });
+
 
   // Validate params and set errors
   useEffect(() => {
@@ -147,6 +150,7 @@ export default function VideoScreen() {
         setVideoReady(true);
         if (player) {
           player.play();
+          setPlaying(true)
         }
       } else {
         setMissed(true);
@@ -162,14 +166,12 @@ export default function VideoScreen() {
     return () => clearInterval(interval);
   }, [playAt, player, error]);
 
-  // Handle vibration at 5 seconds
   useEffect(() => {
     if (countdown === 5) {
       triggerUniqueVibration();
     }
   }, [countdown]);
 
-  // // Render error state
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -238,7 +240,7 @@ export default function VideoScreen() {
           nativeControls={false}
           player={player}
         />
-        {missed && !player.playing ? (
+        {missed && !playing ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>
           </View>

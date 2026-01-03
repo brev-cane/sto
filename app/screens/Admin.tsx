@@ -176,30 +176,28 @@ export default function AdminScreen() {
         </View>
 
         {/* Selected Videos List */}
-        <ScrollView horizontal style={{ marginTop: 10 }}>
-          <View style={styles.userIdList}>
-            {selectedVideos.map((v, index) => {
-              const videoName =
-                videoOptions.find((opt) => opt.file === v)?.name || v;
-              return (
-                <View key={index} style={styles.userIdChip}>
-                  <Text style={styles.userIdText}>
-                    {index + 1}. {videoName}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setSelectedVideos(
-                        selectedVideos.filter((_, i) => i !== index)
-                      );
-                    }}
-                  >
-                    <Text style={styles.removeButton}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <View style={styles.userIdList}>
+          {selectedVideos.map((v, index) => {
+            const videoName =
+              videoOptions.find((opt) => opt.file === v)?.name || v;
+            return (
+              <View key={index} style={styles.userIdChip}>
+                <Text style={styles.userIdText}>
+                  {index + 1}. {videoName}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSelectedVideos(
+                      selectedVideos.filter((_, i) => i !== index)
+                    );
+                  }}
+                >
+                  <Text style={styles.removeButton}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </View>
 
         {/* Delay Slider */}
         <Text style={styles.label}>Delay: {delay} seconds</Text>
@@ -411,7 +409,7 @@ const styles = StyleSheet.create({
   userIdList: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 10,
+    marginVertical: 10,
   },
   userIdChip: {
     flexDirection: "row",

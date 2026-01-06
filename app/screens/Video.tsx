@@ -15,7 +15,6 @@ import Carousel, {
   ICarouselInstance,
   Pagination,
 } from "react-native-reanimated-carousel";
-import { TouchableOpacity } from "react-native-gesture-handler";
 const width = Dimensions.get("window").width;
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -41,10 +40,9 @@ const videoMap = {
   //  "12.mp4": require("../../assets/videos/12.mp4"),
   // "13.mp4": require("../../assets/videos/13.mp4"),
   "14.mp4": require("../../assets/videos/14.mp4"),
-  "15.mp4": require("../../assets/videos/15.mp4"),
-  "16.mp4": require("../../assets/videos/16.mp4"),
-  "17.mp4": require("../../assets/videos/17.mp4"),
-  "18.mp4": require("../../assets/videos/18.mp4"),
+
+  "19.mp4": require("../../assets/videos/19.mp4"),
+  "20.mp4": require("../../assets/videos/20.mp4"),
 };
 
 function isValidVideoFile(file: string): file is keyof typeof videoMap {
@@ -83,7 +81,7 @@ export default function VideoScreen() {
   // Create playlist
   const playlist = videoFileParam ? videoFileParam.split(",") : [];
   const currentVideoFile = playlist[currentVideoIndex];
-  console.log("parms,playlist :")
+  console.log("parms,playlist :");
   // Always initialize player (with a default or null check)
   const assetId =
     currentVideoFile && isValidVideoFile(currentVideoFile)
@@ -120,7 +118,6 @@ export default function VideoScreen() {
       navigate("Home");
     }
   });
-
 
   // Validate params and set errors
   useEffect(() => {
@@ -162,7 +159,7 @@ export default function VideoScreen() {
         setVideoReady(true);
         if (player) {
           player.play();
-          setPlaying(true)
+          setPlaying(true);
         }
       } else {
         setMissed(true);
@@ -236,7 +233,10 @@ export default function VideoScreen() {
     },
   ];
   console.log("assetId:", assetId);
-  const data = currentVideoFile === "10.mp4" ? dataAd : defaultData;
+  const data =
+    currentVideoFile === "10.mp4" || currentVideoFile === "3.mp4"
+      ? dataAd
+      : defaultData;
   const w = Dimensions.get("window").width;
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>

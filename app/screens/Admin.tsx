@@ -28,10 +28,8 @@ const videoOptions = [
   { file: "7.mp4", name: "Be Good Do Good" },
   { file: "10.mp4", name: "Shout Corey" },
   { file: "14.mp4", name: "Shout it Out" },
-  { file: "15.mp4", name: "Rainbow Connection" },
-  { file: "16.mp4", name: "Don’t Want A Lot" },
-  { file: "17.mp4", name: "Run Run Reindeer" },
-  { file: "18.mp4", name: "Mistletoe" },
+  { file: "19.mp4", name: "99 Red Balloons" },
+  { file: "20.mp4", name: "Give Me a Break" },
 ];
 
 export default function AdminScreen() {
@@ -40,12 +38,13 @@ export default function AdminScreen() {
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
-  const { userDoc } = useAuth(); // Add 'user' from auth context 
+  const { userDoc } = useAuth(); // Add 'user' from auth context
   const [isEnabled, setIsEnabled] = useState(__DEV__ ? true : false);
   const [customUsers, setCustomUsers] = useState(false);
   const [customUsersToken, setCustomUsersToken] = useState<string[]>([]);
   const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
+  const [title, setTitle] = useState("Stadium Takeover");
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
@@ -93,7 +92,6 @@ export default function AdminScreen() {
     } else {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
-
   }, [user, userDoc]); // Add dependencies
 
   const handleSend = async () => {
@@ -101,8 +99,6 @@ export default function AdminScreen() {
       Alert.alert("Error", "Please select at least one video");
       return;
     }
-
-
 
     try {
       setLoading(true);
@@ -112,6 +108,7 @@ export default function AdminScreen() {
         "sendStadiumTakeoverNotification"
       );
       const params = {
+        title: title,
         videoFile: selectedVideos.join(","),
         delaySeconds: delay,
         adminOnly: isEnabled,
@@ -160,6 +157,17 @@ export default function AdminScreen() {
             <User color={COLORS.primary} />
             <Text style={styles.infoCount}>{tokensCount}</Text>
           </View>
+        </View>
+
+        {/* Notification Title */}
+        <Text style={styles.label}>Notification Title</Text>
+        <View style={styles.inputRow}>
+          <TextInput
+            placeholder="Stadium Takeover"
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+          />
         </View>
 
         {/* Video Picker */}
@@ -303,10 +311,7 @@ export default function AdminScreen() {
         {/* Send Button */}
         <View style={{ marginTop: 20 }}>
           <TouchableOpacity
-            style={[
-              styles.button,
-              (loading) && styles.buttonDisabled,
-            ]}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSend}
             disabled={loading}
           >
@@ -315,7 +320,6 @@ export default function AdminScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-
       </View>
     </KeyboardAwareScrollView>
   );

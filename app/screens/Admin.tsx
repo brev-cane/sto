@@ -179,6 +179,7 @@ export default function AdminScreen() {
             placeholder={"-- Choose a Video --"}
             onSelect={(item) => {
               setSelectedVideos([...selectedVideos, item.file]);
+              setTitle(`Stadium Takeover - ${item.name}`);
             }}
           />
         </View>

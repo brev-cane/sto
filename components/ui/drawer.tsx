@@ -51,7 +51,7 @@ const DrawerItem = ({
   </TouchableOpacity>
 );
 
-export default function CustomDrawer(props: any) {
+export default function CustomDrawer() {
   const { userDoc } = useAuth();
   const { navigate } = useNavigation();
   const shareApp = async () => {

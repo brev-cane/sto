@@ -83,22 +83,11 @@ export default function ImprovedPushPermissionComponent() {
   }
 
   // ❌ Hide only when allowed AND user hid it
-  if (hidden && allowed) return null;
+  if (allowed) return null;
 
   return (
     <View style={styles.container}>
-      {allowed ? (
-        <View style={styles.allowedBox}>
-          <Text style={styles.title}>🎉 Notifications Enabled!</Text>
-          <Text style={styles.text}>
-            You're officially part of the crowd — all set!
-          </Text>
-
-          <TouchableOpacity style={styles.smallButton} onPress={saveHidden}>
-            <Text style={styles.smallButtonText}>👋 Don’t show again</Text>
-          </TouchableOpacity>
-        </View>
-      ) : blocked ? (
+      {blocked && (
         <View style={styles.notAllowedBox}>
           <Text style={styles.title}>🔕 Notifications Disabled</Text>
           <Text style={styles.text}>
@@ -122,17 +111,6 @@ export default function ImprovedPushPermissionComponent() {
           </TouchableOpacity>
 
           <Text style={styles.footerText}>We’ll save you a seat 💌</Text>
-        </View>
-      ) : (
-        <View style={styles.notAllowedBox}>
-          <Text style={styles.title}>🔔 Stay Connected</Text>
-          <Text style={styles.text}>
-            Join the crowd — enable notifications!
-          </Text>
-
-          <TouchableOpacity style={styles.button} onPress={openSettings}>
-            <Text style={styles.buttonText}>👉 Enable Notifications</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>

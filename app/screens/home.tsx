@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -25,17 +26,13 @@ import PushPermissionComponent from "@/components/ui/pushPermission";
 const logoImage = require("../../assets/images/blue-logo.png");
 
 function Home() {
-  const {
-    userDoc,
-    firebaseUser, 
-    setUserDoc,
-  } = useAuth();
+  const { userDoc, firebaseUser, setUserDoc } = useAuth();
   const { navigate } = useNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const getUser = async () => {
     try {
-      if(!firebaseUser) return;
+      if (!firebaseUser) return;
       const userData = await dbService
         .collection("users")
         .getById(firebaseUser?.uid);
@@ -118,42 +115,44 @@ function Home() {
       {userDoc?.role === "admin" ? (
         <AdminScreen />
       ) : (
-        <View style={styles.container}>
-          {/* used for testing */}
-          <View style={styles.card}>
-            <View style={styles.logoContainer}>
-              <Animatable.Image
-                animation={"pulse"}
-                easing="ease-in-out"
-                iterationCount={"infinite"}
-                source={logoImage}
-                style={styles.logo}
-                resizeMode="contain"
-              />
+        <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
+          <View style={styles.container}>
+            {/* used for testing */}
+            <View style={styles.card}>
+              <View style={styles.logoContainer}>
+                <Animatable.Image
+                  animation={"pulse"}
+                  easing="ease-in-out"
+                  iterationCount={"infinite"}
+                  source={logoImage}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text
+                style={{
+                  color: "#000",
+                  marginVertical: 6,
+                  fontSize: 18,
+                  textAlign: "center",
+                  fontWeight: "bold",
+                }}
+              >
+                Welcome {userDoc?.name}
+              </Text>
             </View>
-            <Text
-              style={{
-                color: "#000",
-                marginVertical: 6,
-                fontSize: 18,
-                textAlign: "center",
-                fontWeight: "bold",
-              }}
-            >
-              Welcome {userDoc?.name}
-            </Text>
+
+            <InstructionsCard />
+
+            <TouchableOpacity style={styles.button} onPress={handleSend}>
+              <Text style={styles.buttonText}>
+                {cooldownRemaining > 0
+                  ? `Try after ${cooldownRemaining} seconds`
+                  : "Try Here!"}
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          <InstructionsCard />
-
-          <TouchableOpacity style={styles.button} onPress={handleSend}>
-            <Text style={styles.buttonText}>
-              {cooldownRemaining > 0
-                ? `Try after ${cooldownRemaining} seconds`
-                : "Try Here!"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       )}
 
       <PushPermissionComponent />

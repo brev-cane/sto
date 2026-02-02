@@ -1,0 +1,11 @@
+
+
+
+
+
+
+
+
+
+export const stadiumImage = 'https://media.istockphoto.com/id/1434062157/photo/soccer-stadium-field-soccer-background-3d-rendering.jpg?s=612x612&w=0&k=20&c=WrYqBbsMSgttmxZkOWOp6QiwnNF6h7scvoA-4QI6vvU='
+export const parkingArea = 'https://raicdn.nl/cdn-cgi/image/width=3840,quality=75,format=auto,sharpen=1/https://edge.sitecorecloud.io/raiamsterda13f7-raidigitalpdb6c-productionf3f5-ef30/media/project/rai-amsterdam-xmc/intertraffic/intertraffic/news/2022/9/parkingshape1-550-x-300-px.png'

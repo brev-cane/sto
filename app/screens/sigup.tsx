@@ -14,11 +14,11 @@ import {
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
-import { registerForPushNotificationsAsync } from "../components/notifications";
 import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
 import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
+import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 

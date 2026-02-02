@@ -1,51 +1,39 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useEffect } from "react";
 import * as Linking from "expo-linking";
+import { useEffect } from "react";
 // Screens
-import Home from "./app/screens/home";
+import { StatusBar, Vibration } from "react-native";
+import TabNavigator from "./app/navigation/TabNavigator";
 import Login from "./app/screens/Login";
-import { Platform, StatusBar, Vibration } from "react-native";
 
-import * as Device from "expo-device";
-import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
-import { AlertProvider } from "./contexts/dropdownContext";
-import { AuthProvider } from "./contexts/authContext";
-import LoadingScreen from "./app/screens/loading";
-import Signup from "./app/screens/sigup";
-import { UserProfileScreen } from "./app/screens/profile";
-import VideoScreen from "./app/screens/Video";
-import { timeSync } from "./services/timeSync";
-import PrivacyPolicyScreen from "./app/screens/policy";
 import * as Sentry from "@sentry/react-native";
+import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import LoadingScreen from "./app/screens/loading";
+import PrivacyPolicyScreen from "./app/screens/policy";
+import { UserProfileScreen } from "./app/screens/profile";
+import Signup from "./app/screens/sigup";
+import VideoScreen from "./app/screens/Video";
+import ParkingDetail from "./app/screens/ParkingDetail";
+import StadiumDetail from "./app/screens/StadiumDetail";
+import { AuthProvider } from "./contexts/authContext";
+import { AlertProvider } from "./contexts/dropdownContext";
+import { timeSync } from "./services/timeSync";
+import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
   sendDefaultPii: true,
-
-  // Enable Logs 
   enableNative: true, // enables native crash capture
   enableNativeCrashHandling: true, // uncaught native crashes
   debug: true,
-
-  // Enable Logs
-
-  // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
 
   integrations: [Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
 });
 
-const UNIQUE_VIBRATION_PATTERN = [0, 400, 200, 400, 200, 800];
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -138,7 +126,7 @@ export default Sentry.wrap(function App() {
                 component={LoadingScreen}
                 options={{ headerShown: false }}
               />
-              <Stack.Screen name="Home" component={Home} />
+              <Stack.Screen name="Main" component={TabNavigator} />
               <Stack.Screen name="Video" component={VideoScreen} />
               <Stack.Screen name="Login" component={Login} />
               <Stack.Screen name="Signup" component={Signup} />
@@ -148,6 +136,8 @@ export default Sentry.wrap(function App() {
                 options={{ headerShown: true, title: "Privacy Policy" }}
               />
               <Stack.Screen name="Profile" component={UserProfileScreen} />
+              <Stack.Screen name="ParkingDetail" component={ParkingDetail} />
+              <Stack.Screen name="StadiumDetail" component={StadiumDetail} />
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
@@ -157,45 +147,4 @@ export default Sentry.wrap(function App() {
   );
 });
 
-export async function registerForPushNotificationsAsync() {
-  let token;
 
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
-      name: "Custom Notification Channel",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: UNIQUE_VIBRATION_PATTERN,
-      lightColor: "#FF231F7C",
-    });
-  }
-
-  if (Device.isDevice) {
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    try {
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
-      if (!projectId) {
-        throw new Error("Project ID not found");
-      }
-      token = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data;
-      console.log(token);
-    } catch (e) {
-      token = `${e}`;
-    }
-  } else {
-    alert("Must use physical device for Push Notifications");
-  }
-
-  return token;
-}

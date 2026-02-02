@@ -11,8 +11,8 @@ import {
 import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/authContext";
-import { registerForPushNotificationsAsync } from "@/App";
 import { dbService } from "@/services/dbService";
+import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 
 export default function ImprovedPushPermissionComponent() {
   const [allowed, setAllowed] = useState(null);
@@ -60,7 +60,7 @@ export default function ImprovedPushPermissionComponent() {
       settings.ios?.status === Notifications.IosAuthorizationStatus.DENIED ||
       (!settings.canAskAgain && !settings.granted);
     registerForPushNotificationsAsync().then(async (pushToken) => {
-      if (pushToken) {
+      if (pushToken && userDoc?.id) {
         await dbService
           .collection("users")
           .update(userDoc?.id, { pushToken: pushToken });

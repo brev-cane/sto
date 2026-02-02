@@ -1,33 +1,33 @@
+import BackButton from "@/components/ui/backbutton";
+import {
+  useAuth,
+} from "@/contexts/authContext";
+import { dbService } from "@/services/dbService";
+import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
+import * as Clipboard from "expo-clipboard";
+import {
+  AlertTriangle,
+  Bell,
+  CheckCircle,
+  Copy,
+  Mail,
+  RefreshCw,
+  Save,
+  Shield,
+  User,
+} from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Switch,
-  ScrollView,
+  View,
 } from "react-native";
-import {
-  Mail,
-  User,
-  Shield,
-  Bell,
-  Save,
-  Copy,
-  CheckCircle,
-  AlertTriangle,
-  RefreshCw,
-} from "lucide-react-native";
-import {
-  registerForPushNotificationsAsync,
-  useAuth,
-} from "@/contexts/authContext";
-import * as Clipboard from "expo-clipboard";
 import { SafeAreaView } from "react-native-safe-area-context";
-import BackButton from "@/components/ui/backbutton";
-import { dbService } from "@/services/dbService";
 import COLORS from "../components/colors";
 
 export const UserProfileScreen: React.FC = () => {
@@ -183,8 +183,8 @@ export const UserProfileScreen: React.FC = () => {
                 {syncingRef?.current
                   ? "Syncing..."
                   : pushTokenSynced
-                  ? "Synced with backend"
-                  : "Not synced with backend"}
+                    ? "Synced with backend"
+                    : "Not synced with backend"}
               </Text>
             </View>
 

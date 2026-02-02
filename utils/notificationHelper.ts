@@ -1,6 +1,12 @@
 import { FIRESTORE_DB } from "@/FirebaseConfig";
 import { timeSync } from "@/services/timeSync";
 import { collection, getDocs } from "firebase/firestore";
+import { Platform } from "react-native";
+
+import Constants from "expo-constants";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import { UNIQUE_VIBRATION_PATTERN } from "./vibrationHelper";
 
 const isValidExpoPushToken = (token: string) => {
   return typeof token === "string" && token.startsWith("ExponentPushToken[");
@@ -37,7 +43,7 @@ export const sendBatchNotifications = async (
     const messages = batch.map((token) => ({
       to: token,
       sound: "default",
-      title: "Stadium Takeover", 
+      title: "Stadium Takeover",
       body: `CLICK HERE to join next takeover starting in ${delaySeconds} seconds`,
       data: {
         screen: `stadiumtakeover://Video?playAt=${playAtTimestamp}&videoFile=${encodeURIComponent(
@@ -64,3 +70,47 @@ export const sendBatchNotifications = async (
     }
   }
 };
+
+
+export async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
+      name: "Custom Notification Channel",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: UNIQUE_VIBRATION_PATTERN,
+      lightColor: "#FF231F7C",
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error("Project ID not found");
+      }
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })
+      ).data;
+      console.log(token);
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert("Must use physical device for Push Notifications");
+  }
+
+  return token;
+}

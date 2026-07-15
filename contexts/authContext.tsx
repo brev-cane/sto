@@ -11,12 +11,17 @@ import React, {
   useState,
 } from "react";
 import { useAlert } from "./dropdownContext";
+import { UserLocation } from "@/types/notifications";
 export interface AppUser {
   id: string;
   name: string;
   email: string;
   pushToken: string;
   role?: "admin" | null;
+  /** Last known device location, used for geo-targeted alerts */
+  location?: UserLocation | null;
+  /** Opt-in to receive every alert regardless of geo-targeting */
+  receiveAllNotifications?: boolean;
 }
 
 interface AuthContextType {

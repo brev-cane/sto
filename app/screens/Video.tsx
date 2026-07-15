@@ -4,7 +4,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
 import COLORS from "../components/colors";
-import { useNavigation } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
 import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";

@@ -22,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { dbService } from "@/services/dbService";
 import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
+import LocationPermissionCard from "@/components/ui/locationPermission";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -155,6 +156,7 @@ function Home() {
         </ScrollView>
       )}
 
+      <LocationPermissionCard />
       <PushPermissionComponent />
     </Drawer>
   );

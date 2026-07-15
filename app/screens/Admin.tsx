@@ -16,8 +16,14 @@ import { useAuth } from "@/contexts/authContext";
 import COLORS from "../components/colors";
 import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
+import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
 import { functions, FIREBASE_AUTH } from "@/FirebaseConfig";
+import {
+  GEO_RADIUS_DEFAULT_M,
+  GeoCenter,
+  GeoMode,
+} from "@/types/notifications";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
@@ -45,6 +51,12 @@ export default function AdminScreen() {
   const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const [title, setTitle] = useState("Stadium Takeover");
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [geoMode, setGeoMode] = useState<GeoMode>("within");
+  const [radiusMeters, setRadiusMeters] = useState(GEO_RADIUS_DEFAULT_M);
+  const [geoCenter, setGeoCenter] = useState<GeoCenter | null>(null);
+  const [estimatedReach, setEstimatedReach] = useState<number | null>(null);
+  const [reachLoading, setReachLoading] = useState(false);
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
@@ -94,9 +106,59 @@ export default function AdminScreen() {
     }
   }, [user, userDoc]); // Add dependencies
 
+  // Debounced "estimated reach" preview for geo-targeted sends
+  useEffect(() => {
+    const active = !!(geoEnabled && geoCenter);
+    const timer = setTimeout(
+      async () => {
+        if (!active || !geoCenter) {
+          setEstimatedReach(null);
+          setReachLoading(false);
+          return;
+        }
+        setReachLoading(true);
+        try {
+          const getUserCount = httpsCallable(
+            functions,
+            "getUsersWithPushTokensCount"
+          );
+          const result = await getUserCount({
+            geoFilter: {
+              enabled: true,
+              mode: geoMode,
+              radiusMeters,
+              center: {
+                latitude: geoCenter.latitude,
+                longitude: geoCenter.longitude,
+              },
+            },
+          });
+          const data = result.data as any;
+          setEstimatedReach(data.success ? data.count : null);
+        } catch (error) {
+          console.log("Failed to estimate reach:", error);
+          setEstimatedReach(null);
+        } finally {
+          setReachLoading(false);
+        }
+      },
+      active ? 800 : 0
+    );
+
+    return () => clearTimeout(timer);
+  }, [geoEnabled, geoCenter, geoMode, radiusMeters]);
+
   const handleSend = async () => {
     if (selectedVideos.length === 0) {
       Alert.alert("Error", "Please select at least one video");
+      return;
+    }
+
+    if (geoEnabled && !geoCenter) {
+      Alert.alert(
+        "Error",
+        "Choose a trigger location for geo-targeting, or turn geo-targeting off"
+      );
       return;
     }
 
@@ -113,6 +175,19 @@ export default function AdminScreen() {
         delaySeconds: delay,
         adminOnly: isEnabled,
         customTokens: customUsers ? customUsersToken : null,
+        geoFilter:
+          geoEnabled && geoCenter
+            ? {
+                enabled: true,
+                mode: geoMode,
+                radiusMeters,
+                center: {
+                  latitude: geoCenter.latitude,
+                  longitude: geoCenter.longitude,
+                },
+                label: geoCenter.label ?? null,
+              }
+            : null,
       };
 
       console.log("Params :", params);
@@ -140,7 +215,7 @@ export default function AdminScreen() {
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="always"
-      contentContainerStyle={{ flex: 1, backgroundColor: "#fff" }}
+      contentContainerStyle={{ flexGrow: 1, backgroundColor: "#fff" }}
     >
       <View style={styles.container}>
         <Text style={styles.title}>📢 Stadium Takeover</Text>
@@ -220,6 +295,20 @@ export default function AdminScreen() {
           minimumTrackTintColor={COLORS.primary}
           maximumTrackTintColor="#ccc"
           thumbTintColor={COLORS.primary}
+        />
+
+        {/* Geo-Targeting */}
+        <GeoTargetingSection
+          enabled={geoEnabled}
+          onEnabledChange={setGeoEnabled}
+          mode={geoMode}
+          onModeChange={setGeoMode}
+          radiusMeters={radiusMeters}
+          onRadiusChange={setRadiusMeters}
+          center={geoCenter}
+          onCenterChange={setGeoCenter}
+          estimatedReach={estimatedReach}
+          reachLoading={reachLoading}
         />
 
         {/* Admin Only Toggle */}

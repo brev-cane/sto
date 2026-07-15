@@ -34,7 +34,7 @@ const TabNavigator = () => {
                     ),
                 }}
             />
-            <Tab.Screen
+            {/* <Tab.Screen
                 name="ParkingTab"
                 component={ParkingScreen}
                 options={{
@@ -43,7 +43,7 @@ const TabNavigator = () => {
                         <Globe color={color} size={size} />
                     ),
                 }}
-            />
+            /> */}
         </Tab.Navigator>
     );
 };

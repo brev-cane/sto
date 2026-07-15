@@ -3,22 +3,35 @@ import {
   useAuth,
 } from "@/contexts/authContext";
 import { dbService } from "@/services/dbService";
+import {
+  clearStoredLocation,
+  getLocationPermission,
+  isLocationSharingOptedOut,
+  requestLocationPermission,
+  setLocationSharingOptOut,
+  syncLocationToFirestore,
+} from "@/services/locationService";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import * as Clipboard from "expo-clipboard";
 import {
   AlertTriangle,
   Bell,
+  BellRing,
   CheckCircle,
   Copy,
   Mail,
+  MapPin,
   RefreshCw,
   Save,
   Shield,
   User,
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -46,6 +59,77 @@ export const UserProfileScreen: React.FC = () => {
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [locationEnabled, setLocationEnabled] = useState(false);
+  const [locationBusy, setLocationBusy] = useState(false);
+  const [receiveAll, setReceiveAll] = useState(
+    userDoc?.receiveAllNotifications === true
+  );
+
+  useEffect(() => {
+    (async () => {
+      const permission = await getLocationPermission();
+      const optedOut = await isLocationSharingOptedOut();
+      setLocationEnabled(permission.granted && !optedOut);
+    })();
+  }, []);
+
+  const handleLocationToggle = async (value: boolean) => {
+    if (!userDoc?.id || locationBusy) return;
+    setLocationBusy(true);
+    try {
+      if (value) {
+        await setLocationSharingOptOut(false);
+        const permission = await getLocationPermission();
+        const granted = permission.granted
+          ? true
+          : permission.canAskAgain
+            ? await requestLocationPermission()
+            : false;
+        if (granted) {
+          await syncLocationToFirestore(userDoc.id, { force: true });
+          setLocationEnabled(true);
+        } else {
+          setLocationEnabled(false);
+          Alert.alert(
+            "Location Disabled",
+            "Location permission is turned off for this app. Enable it in Settings to share your location.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Open Settings",
+                onPress: () =>
+                  Platform.OS === "ios"
+                    ? Linking.openURL("app-settings:")
+                    : Linking.openSettings(),
+              },
+            ]
+          );
+        }
+      } else {
+        await setLocationSharingOptOut(true);
+        await clearStoredLocation(userDoc.id);
+        setLocationEnabled(false);
+      }
+    } catch (error) {
+      console.error("Failed to update location sharing:", error);
+    } finally {
+      setLocationBusy(false);
+    }
+  };
+
+  const handleReceiveAllToggle = async (value: boolean) => {
+    if (!userDoc?.id) return;
+    setReceiveAll(value);
+    try {
+      await dbService
+        .collection("users")
+        .update(userDoc.id, { receiveAllNotifications: value });
+      setUserDoc({ ...userDoc, receiveAllNotifications: value });
+    } catch (error) {
+      console.error("Failed to update notification preference:", error);
+      setReceiveAll(!value);
+    }
+  };
 
   if (loading) {
     return (
@@ -87,7 +171,7 @@ export const UserProfileScreen: React.FC = () => {
         .collection("users")
         .getById(firebaseUser.uid);
 
-      setUserDoc(userData);
+      setUserDoc(userData as typeof userDoc);
       // Reset state to match saved values
       setName(updatedData.name || "");
       setPushEnabled(!!updatedData.pushToken);
@@ -150,6 +234,55 @@ export const UserProfileScreen: React.FC = () => {
               thumbColor={pushEnabled ? "#fff" : "#f9fafb"}
             />
           </View>
+
+          {/* Location Sharing Toggle */}
+          <View
+            style={[
+              styles.inputRow,
+              { justifyContent: "space-between", height: 50 },
+            ]}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MapPin size={20} color={COLORS.primary} style={styles.icon} />
+              <Text style={{ fontSize: 16, color: "#111827" }}>
+                Location Sharing
+              </Text>
+            </View>
+            <Switch
+              value={locationEnabled}
+              onValueChange={handleLocationToggle}
+              disabled={locationBusy}
+              trackColor={{ false: "#d1d5db", true: COLORS.primary }}
+              thumbColor={locationEnabled ? "#fff" : "#f9fafb"}
+            />
+          </View>
+          <Text style={styles.helperText}>
+            Used to send you alerts targeted near (or away from) the stadium.
+          </Text>
+
+          {/* Receive All Alerts Toggle */}
+          <View
+            style={[
+              styles.inputRow,
+              { justifyContent: "space-between", height: 50 },
+            ]}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <BellRing size={20} color={COLORS.primary} style={styles.icon} />
+              <Text style={{ fontSize: 16, color: "#111827" }}>
+                Receive All Alerts
+              </Text>
+            </View>
+            <Switch
+              value={receiveAll}
+              onValueChange={handleReceiveAllToggle}
+              trackColor={{ false: "#d1d5db", true: COLORS.primary }}
+              thumbColor={receiveAll ? "#fff" : "#f9fafb"}
+            />
+          </View>
+          <Text style={styles.helperText}>
+            Get every alert even when it&apos;s targeted by location.
+          </Text>
           <Text
             onPress={() => {
               Clipboard.setStringAsync(userDoc.pushToken);
@@ -287,6 +420,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: "#111827",
+  },
+  helperText: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: -12,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   syncRow: {
     flexDirection: "row",

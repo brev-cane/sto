@@ -15,6 +15,10 @@ import { UserLocation } from "@/types/notifications";
 export interface AppUser {
   id: string;
   name: string;
+  /** Unique public handle shown to other users */
+  username?: string;
+  /** Download URL of the profile picture in Firebase Storage */
+  photoURL?: string;
   email: string;
   pushToken: string;
   role?: "admin" | null;

@@ -1,7 +1,6 @@
 import BackButton from "@/components/ui/backbutton";
-import {
-  useAuth,
-} from "@/contexts/authContext";
+import { useAuth } from "@/contexts/authContext";
+import { FIREBASE_STORAGE } from "@/FirebaseConfig";
 import { dbService } from "@/services/dbService";
 import {
   clearStoredLocation,
@@ -14,12 +13,17 @@ import {
 import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import * as Clipboard from "expo-clipboard";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
-  AlertTriangle,
+  AtSign,
   Bell,
   BellRing,
+  Camera,
   CheckCircle,
   Copy,
+  LucideIcon,
   Mail,
   MapPin,
   RefreshCw,
@@ -42,6 +46,62 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
+
+/** iOS Settings-style icon tile colors (white glyph on colored tile) */
+const iconTints = {
+  blue: "#007AFF",
+  indigo: "#5856D6",
+  gray: "#8E8E93",
+  red: "#FF3B30",
+  orange: "#FF9500",
+  green: "#34C759",
+  teal: "#5AC8FA",
+  purple: "#AF52DE",
+};
+
+interface SettingsRowProps {
+  icon: LucideIcon;
+  iconTint: string;
+  title: string;
+  description?: string;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  isLast?: boolean;
+}
+
+const SettingsRow: React.FC<SettingsRowProps> = ({
+  icon: Icon,
+  iconTint,
+  title,
+  description,
+  right,
+  onPress,
+  isLast,
+}) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <TouchableOpacity
+      style={[styles.row, isLast && styles.rowLast]}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.6 : 1}
+    >
+      <View style={[styles.rowIconTile, { backgroundColor: iconTint }]}>
+        <Icon size={17} color="#FFFFFF" strokeWidth={2.2} />
+      </View>
+      <View style={styles.rowBody}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        {description ? (
+          <Text style={styles.rowDescription} numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      {right ? <View style={styles.rowRight}>{right}</View> : null}
+    </TouchableOpacity>
+  );
+};
 
 export const UserProfileScreen: React.FC = () => {
   const {
@@ -50,17 +110,18 @@ export const UserProfileScreen: React.FC = () => {
     firebaseUser,
     setUserDoc,
     pushTokenSynced,
-    syncingRef,
     syncPushTokenWithBackend,
   } = useAuth();
   const [name, setName] = useState(userDoc?.name || "");
+  const [username, setUsername] = useState(userDoc?.username || "");
   const [pushEnabled, setPushEnabled] = useState(
     userDoc?.pushToken ? true : false
   );
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
   const [receiveAll, setReceiveAll] = useState(
     userDoc?.receiveAllNotifications === true
   );
@@ -133,6 +194,49 @@ export const UserProfileScreen: React.FC = () => {
     }
   };
 
+  const handleResync = async () => {
+    if (resyncing) return;
+    setResyncing(true);
+    try {
+      await syncPushTokenWithBackend();
+    } finally {
+      setResyncing(false);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    if (!firebaseUser || !userDoc || photoUploading) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+
+    setPhotoUploading(true);
+    try {
+      const response = await fetch(result.assets[0].uri);
+      const blob = await response.blob();
+      const storageRef = ref(
+        FIREBASE_STORAGE,
+        `profilePictures/${firebaseUser.uid}.jpg`
+      );
+      await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
+      const photoURL = await getDownloadURL(storageRef);
+      await dbService
+        .collection("users")
+        .update(firebaseUser.uid, { photoURL });
+      setUserDoc({ ...userDoc, photoURL });
+      Toast.show({ type: "success", text1: "Profile picture updated" });
+    } catch (error) {
+      console.error("Failed to upload profile picture:", error);
+      Toast.show({ type: "error", text1: "Failed to update picture" });
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -151,19 +255,22 @@ export const UserProfileScreen: React.FC = () => {
   }
 
   const hasChanges =
-    name !== (userDoc?.name || "") || pushEnabled !== !!userDoc?.pushToken;
+    name !== (userDoc.name || "") ||
+    username !== (userDoc.username || "") ||
+    pushEnabled !== !!userDoc.pushToken;
 
   const handleSave = async () => {
     if (!firebaseUser || !hasChanges) return;
     setSaving(true);
-    setMessage("");
     try {
-      let updatedData: Partial<typeof userDoc> = { name };
+      const updatedData: Partial<typeof userDoc> = {
+        name: name.trim(),
+        username: username.trim().toLowerCase(),
+      };
 
       if (pushEnabled) {
         const token = await registerForPushNotificationsAsync();
         updatedData.pushToken = token ?? "";
-        updatedData = { name, pushToken: token };
       } else {
         updatedData.pushToken = "";
       }
@@ -176,205 +283,247 @@ export const UserProfileScreen: React.FC = () => {
       setUserDoc(userData as typeof userDoc);
       // Reset state to match saved values
       setName(updatedData.name || "");
+      setUsername(updatedData.username || "");
       setPushEnabled(!!updatedData.pushToken);
 
-      setMessage("✅ Profile updated successfully");
+      Toast.show({ type: "success", text1: "Profile updated" });
     } catch (error) {
       console.error(error);
-      setMessage("❌ Failed to update profile");
+      Toast.show({ type: "error", text1: "Failed to update profile" });
     } finally {
       setSaving(false);
     }
   };
+
+  const initials = (name || userDoc.name || userDoc.email || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  const switchProps = {
+    trackColor: { false: colors.border, true: colors.primary },
+    ...(Platform.OS === "android" && {
+      thumbColor: colors.onPrimary,
+    }),
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <BackButton />
-      <ScrollView>
-        <View style={styles.container}>
-          <Text style={styles.title}>My Profile</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>My Profile</Text>
 
-          {/* Email */}
-          <Text style={styles.label}>Email</Text>
-          <View style={styles.inputRow}>
-            <Mail size={20} color={colors.primary} style={styles.icon} />
-            <TextInput
-              style={[styles.input, styles.inputDisabled]}
-              value={userDoc.email}
-              editable={false}
-            />
-          </View>
-
-          {/* Name */}
-          <Text style={styles.label}>Name</Text>
-          <View style={styles.inputRow}>
-            <User size={20} color={colors.primary} style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
-
-          {/* Push Notifications Toggle */}
-          <View
-            style={[
-              styles.inputRow,
-              { justifyContent: "space-between", height: 50 },
-            ]}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Bell size={20} color={colors.primary} style={styles.icon} />
-              <Text style={styles.rowLabel}>Push Notifications</Text>
-            </View>
-            <Switch
-              value={pushEnabled}
-              onValueChange={setPushEnabled}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={pushEnabled ? colors.onPrimary : colors.surfaceVariant}
-            />
-          </View>
-
-          {/* Location Sharing Toggle */}
-          <View
-            style={[
-              styles.inputRow,
-              { justifyContent: "space-between", height: 50 },
-            ]}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <MapPin size={20} color={colors.primary} style={styles.icon} />
-              <Text style={styles.rowLabel}>Location Sharing</Text>
-            </View>
-            <Switch
-              value={locationEnabled}
-              onValueChange={handleLocationToggle}
-              disabled={locationBusy}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={
-                locationEnabled ? colors.onPrimary : colors.surfaceVariant
-              }
-            />
-          </View>
-          <Text style={styles.helperText}>
-            Used to send you alerts targeted near (or away from) the stadium.
-          </Text>
-
-          {/* Receive All Alerts Toggle */}
-          <View
-            style={[
-              styles.inputRow,
-              { justifyContent: "space-between", height: 50 },
-            ]}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <BellRing size={20} color={colors.primary} style={styles.icon} />
-              <Text style={styles.rowLabel}>Receive All Alerts</Text>
-            </View>
-            <Switch
-              value={receiveAll}
-              onValueChange={handleReceiveAllToggle}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={receiveAll ? colors.onPrimary : colors.surfaceVariant}
-            />
-          </View>
-          <Text style={styles.helperText}>
-            Get every alert even when it&apos;s targeted by location.
-          </Text>
-          <Text
-            onPress={() => {
-              Clipboard.setStringAsync(userDoc.pushToken);
-              alert("Copied to clipboard");
-            }}
-            style={styles.label}
-          >
-            Click to copy token
-          </Text>
+        {/* Avatar */}
+        <View style={styles.avatarSection}>
           <TouchableOpacity
-            onPress={() => {
-              Clipboard.setStringAsync(userDoc.pushToken);
-              alert("Copied to clipboard");
-            }}
-            style={styles.inputRow}
+            onPress={handlePickPhoto}
+            activeOpacity={0.8}
+            disabled={photoUploading}
           >
-            <Copy size={20} color={colors.primary} style={styles.icon} />
-            <Text style={styles.input}>{userDoc.pushToken}</Text>
-          </TouchableOpacity>
-          <View style={styles.syncRow}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              {syncingRef?.current ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : pushTokenSynced ? (
-                <CheckCircle
-                  size={18}
-                  color={colors.success}
-                  style={styles.icon}
-                />
-              ) : (
-                <AlertTriangle
-                  size={18}
-                  color={colors.error}
-                  style={styles.icon}
-                />
-              )}
-
-              <Text style={styles.syncText}>
-                {syncingRef?.current
-                  ? "Syncing..."
-                  : pushTokenSynced
-                    ? "Synced with backend"
-                    : "Not synced with backend"}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.syncButton, syncingRef?.current && { opacity: 0.6 }]}
-              onPress={() => syncPushTokenWithBackend()}
-              disabled={!!syncingRef?.current}
-            >
-              <RefreshCw
-                size={16}
-                color={colors.success}
-                style={{ marginRight: 8 }}
+            {userDoc.photoURL ? (
+              <Image
+                source={{ uri: userDoc.photoURL }}
+                style={styles.avatar}
+                contentFit="cover"
+                transition={200}
               />
-              <Text style={styles.syncButtonText}>Resync</Text>
-            </TouchableOpacity>
-          </View>
-          {/* Role - only visible if admin */}
-          {userDoc.role === "admin" && (
-            <View style={styles.inputRow}>
-              <Shield size={20} color={colors.primary} style={styles.icon} />
-              <TextInput
-                style={[styles.input, styles.inputDisabled]}
-                value="Admin"
-                editable={false}
-              />
-            </View>
-          )}
-
-          {/* Save button */}
-          <TouchableOpacity
-            style={[styles.button, (saving || !hasChanges) && { opacity: 0.5 }]}
-            onPress={handleSave}
-            disabled={saving || !hasChanges}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.onPrimary} />
             ) : (
-              <>
-                <Save
-                  size={18}
-                  color={colors.onPrimary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.buttonText}>Save Changes</Text>
-              </>
+              <View style={[styles.avatar, styles.avatarFallback]}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
             )}
+            {photoUploading && (
+              <View style={styles.avatarOverlay}>
+                <ActivityIndicator color="#FFFFFF" />
+              </View>
+            )}
+            <View style={styles.cameraBadge}>
+              <Camera size={14} color={colors.onPrimary} strokeWidth={2.4} />
+            </View>
           </TouchableOpacity>
-
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          <Text style={styles.avatarName}>{userDoc.name || "Your Name"}</Text>
+          {userDoc.username ? (
+            <Text style={styles.avatarUsername}>@{userDoc.username}</Text>
+          ) : null}
         </View>
+
+        {/* Account */}
+        <Text style={styles.sectionHeader}>Account</Text>
+        <View style={styles.section}>
+          <SettingsRow
+            icon={User}
+            iconTint={iconTints.blue}
+            title="Name"
+            right={
+              <TextInput
+                style={styles.rowInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+                placeholderTextColor={colors.placeholder}
+                autoCapitalize="words"
+                returnKeyType="done"
+              />
+            }
+          />
+          <SettingsRow
+            icon={AtSign}
+            iconTint={iconTints.indigo}
+            title="Username"
+            right={
+              <TextInput
+                style={styles.rowInput}
+                value={username}
+                onChangeText={(text) =>
+                  setUsername(text.replace(/\s/g, "").toLowerCase())
+                }
+                placeholder="username"
+                placeholderTextColor={colors.placeholder}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+              />
+            }
+          />
+          <SettingsRow
+            icon={Mail}
+            iconTint={iconTints.gray}
+            title="Email"
+            right={
+              <Text style={styles.rowValue} numberOfLines={1}>
+                {userDoc.email}
+              </Text>
+            }
+            isLast={userDoc.role !== "admin"}
+          />
+          {userDoc.role === "admin" && (
+            <SettingsRow
+              icon={Shield}
+              iconTint={iconTints.purple}
+              title="Role"
+              right={<Text style={styles.rowValue}>Admin</Text>}
+              isLast
+            />
+          )}
+        </View>
+
+        {/* Notifications */}
+        <Text style={styles.sectionHeader}>Notifications</Text>
+        <View style={styles.section}>
+          <SettingsRow
+            icon={Bell}
+            iconTint={iconTints.red}
+            title="Push Notifications"
+            description="Receive game-day alerts on this device"
+            right={
+              <Switch
+                value={pushEnabled}
+                onValueChange={setPushEnabled}
+                {...switchProps}
+              />
+            }
+          />
+          <SettingsRow
+            icon={BellRing}
+            iconTint={iconTints.orange}
+            title="Receive All Alerts"
+            description="Get every alert even when it's targeted by location"
+            right={
+              <Switch
+                value={receiveAll}
+                onValueChange={handleReceiveAllToggle}
+                {...switchProps}
+              />
+            }
+            isLast
+          />
+        </View>
+
+        {/* Privacy */}
+        <Text style={styles.sectionHeader}>Privacy</Text>
+        <View style={styles.section}>
+          <SettingsRow
+            icon={MapPin}
+            iconTint={iconTints.green}
+            title="Location Sharing"
+            description="Used to send you alerts targeted near (or away from) the stadium"
+            right={
+              <Switch
+                value={locationEnabled}
+                onValueChange={handleLocationToggle}
+                disabled={locationBusy}
+                {...switchProps}
+              />
+            }
+            isLast
+          />
+        </View>
+
+        {/* Push token */}
+        <Text style={styles.sectionHeader}>Push Token</Text>
+        <View style={styles.section}>
+          <SettingsRow
+            icon={Copy}
+            iconTint={iconTints.teal}
+            title="Copy Token"
+            description={userDoc.pushToken || "No token registered"}
+            onPress={() => {
+              if (!userDoc.pushToken) return;
+              Clipboard.setStringAsync(userDoc.pushToken);
+              Toast.show({ type: "success", text1: "Copied to clipboard" });
+            }}
+          />
+          <SettingsRow
+            icon={pushTokenSynced ? CheckCircle : RefreshCw}
+            iconTint={pushTokenSynced ? iconTints.green : iconTints.gray}
+            title="Backend Sync"
+            description={
+              resyncing
+                ? "Syncing..."
+                : pushTokenSynced
+                  ? "Synced with backend"
+                  : "Not synced with backend"
+            }
+            right={
+              resyncing ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <TouchableOpacity
+                  style={styles.syncButton}
+                  onPress={handleResync}
+                >
+                  <RefreshCw
+                    size={14}
+                    color={colors.success}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.syncButtonText}>Resync</Text>
+                </TouchableOpacity>
+              )
+            }
+            isLast
+          />
+        </View>
+
+        {/* Save button */}
+        <TouchableOpacity
+          style={[styles.button, (saving || !hasChanges) && { opacity: 0.5 }]}
+          onPress={handleSave}
+          disabled={saving || !hasChanges}
+        >
+          {saving ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <>
+              <Save
+                size={18}
+                color={colors.onPrimary}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.buttonText}>Save Changes</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -386,9 +535,9 @@ const makeStyles = ({ colors, typography }: Theme) =>
       flex: 1,
       backgroundColor: colors.background,
     },
-    container: {
-      flex: 1,
-      padding: 20,
+    scrollContent: {
+      padding: 16,
+      paddingBottom: 40,
     },
     centered: {
       flex: 1,
@@ -404,39 +553,141 @@ const makeStyles = ({ colors, typography }: Theme) =>
     title: {
       ...typography.h3,
       textAlign: "center",
-      marginBottom: 20,
+      marginBottom: 16,
       color: colors.text,
     },
-    label: {
+    avatarSection: {
+      alignItems: "center",
+      marginBottom: 24,
+    },
+    avatar: {
+      width: 96,
+      height: 96,
+      borderRadius: 48,
+      backgroundColor: colors.surfaceVariant,
+    },
+    avatarFallback: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+    },
+    avatarInitials: {
+      ...typography.h1,
+      color: colors.primary,
+    },
+    avatarOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderRadius: 48,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cameraBadge: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+      borderColor: colors.background,
+    },
+    avatarName: {
       ...typography.title,
       color: colors.text,
-      padding: 4,
+      marginTop: 12,
     },
-    rowLabel: {
-      ...typography.body,
-      color: colors.text,
+    avatarUsername: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      marginTop: 2,
     },
-    inputRow: {
+    sectionHeader: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 6,
+      marginLeft: 16,
+    },
+    section: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      marginBottom: 22,
+      overflow: "hidden",
+    },
+    row: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.surface,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+      minHeight: 48,
+      paddingLeft: 14,
+      paddingRight: 12,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
     },
-    icon: {
-      marginRight: 8,
+    rowLast: {
+      borderBottomWidth: 0,
     },
-    input: {
-      ...typography.body,
+    rowIconTile: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 12,
+    },
+    rowBody: {
       flex: 1,
-      paddingVertical: 12,
+      justifyContent: "center",
+      paddingRight: 8,
+    },
+    rowTitle: {
+      ...typography.body,
       color: colors.text,
     },
-    inputDisabled: {
+    rowDescription: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    rowRight: {
+      flexShrink: 1,
+      maxWidth: "55%",
+      alignItems: "flex-end",
+      justifyContent: "center",
+    },
+    rowInput: {
+      ...typography.body,
+      color: colors.text,
+      textAlign: "right",
+      minWidth: 140,
+      paddingVertical: 4,
+    },
+    rowValue: {
+      ...typography.body,
       color: colors.textMuted,
+    },
+    syncButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    syncButtonText: {
+      ...typography.label,
+      color: colors.success,
     },
     button: {
       flexDirection: "row",
@@ -444,53 +695,11 @@ const makeStyles = ({ colors, typography }: Theme) =>
       justifyContent: "center",
       backgroundColor: colors.primary,
       paddingVertical: 14,
-      borderRadius: 8,
-      marginTop: 10,
+      borderRadius: 12,
+      marginTop: 4,
     },
     buttonText: {
       ...typography.button,
       color: colors.onPrimary,
-    },
-    message: {
-      ...typography.bodySmall,
-      textAlign: "center",
-      marginTop: 12,
-      color: colors.text,
-    },
-    helperText: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-      marginTop: -12,
-      marginBottom: 16,
-      paddingHorizontal: 4,
-    },
-    syncRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 10,
-      paddingVertical: 12,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: 16,
-      backgroundColor: colors.surface,
-    },
-    syncText: {
-      ...typography.body,
-      color: colors.text,
-      marginLeft: 2,
-    },
-    syncButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.surfaceVariant,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-    },
-    syncButtonText: {
-      ...typography.label,
-      color: colors.success,
     },
   });

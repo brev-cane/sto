@@ -5,30 +5,29 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 // Screens
 import { Vibration } from "react-native";
+import TabNavigator from "./app/navigation/TabNavigator";
+import Login from "./app/screens/Login";
 import {
   navigationDarkTheme,
   navigationLightTheme,
   useTheme,
 } from "./theme";
-import TabNavigator from "./app/navigation/TabNavigator";
-import Login from "./app/screens/Login";
 
 import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Toast from 'react-native-toast-message';
 import LoadingScreen from "./app/screens/loading";
+import LocationSearchScreen from "./app/screens/LocationSearch";
+import ParkingDetail from "./app/screens/ParkingDetail";
 import PrivacyPolicyScreen from "./app/screens/policy";
 import { UserProfileScreen } from "./app/screens/profile";
 import Signup from "./app/screens/sigup";
-import VideoScreen from "./app/screens/Video";
-import ParkingDetail from "./app/screens/ParkingDetail";
 import StadiumDetail from "./app/screens/StadiumDetail";
-import LocationSearchScreen from "./app/screens/LocationSearch";
+import VideoScreen from "./app/screens/Video";
 import { AuthProvider } from "./contexts/authContext";
-import { AlertProvider } from "./contexts/dropdownContext";
 import { timeSync } from "./services/timeSync";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
-import Toast from 'react-native-toast-message';
 
 
 Sentry.init({
@@ -77,7 +76,6 @@ export default Sentry.wrap(function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AlertProvider>
         <AuthProvider>
           <NavigationContainer
             theme={isDark ? navigationDarkTheme : navigationLightTheme}
@@ -160,7 +158,6 @@ export default Sentry.wrap(function App() {
           </NavigationContainer>
         </AuthProvider>
         <StatusBar style={isDark ? "light" : "dark"} />
-      </AlertProvider>
        <Toast />
     </GestureHandlerRootView>
   );

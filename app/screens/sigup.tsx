@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
-import { useAlert } from "@/contexts/dropdownContext";
+import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
@@ -28,7 +28,6 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { showAlert } = useAlert();
   const { navigate } = useNavigation();
   const auth = FIREBASE_AUTH;
   const { colors } = useTheme();
@@ -37,7 +36,7 @@ const Signup = () => {
   const signUp = async () => {
     setLoading(true);
     if (!email || !password || !name) {
-      showAlert("error", "Error", "Please fill all the fields");
+      Toast.show({ type: "error", text1: "Error", text2: "Please fill all the fields" });
       setLoading(false);
       return;
     }
@@ -87,7 +86,7 @@ const Signup = () => {
           message = error.message;
           break;
       }
-      showAlert("error", "Error", message);
+      Toast.show({ type: "error", text1: "Error", text2: message });
     } finally {
       setLoading(false);
     }

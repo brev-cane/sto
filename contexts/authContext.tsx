@@ -10,7 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAlert } from "./dropdownContext";
+import Toast from "react-native-toast-message";
 import { UserLocation } from "@/types/notifications";
 export interface AppUser {
   id: string;
@@ -58,7 +58,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { showAlert } = useAlert();
   const pushToken = useRef<null | string>(null);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [pushTokenSynced, setPushTokenSynced] = useState(false);
@@ -71,7 +70,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setExpoPushToken(token);
         pushToken.current = token;
         setExpoPushToken(token);
-        showAlert("success", "Enabled", "Push Notifications has been enabled");
+        Toast.show({
+          type: "success",
+          text1: "Enabled",
+          text2: "Push Notifications has been enabled",
+        });
       }
     } catch (error) {
       console.log("Error :", error);

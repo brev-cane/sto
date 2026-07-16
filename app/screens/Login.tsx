@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { useAlert } from "@/contexts/dropdownContext";
+import Toast from "react-native-toast-message";
 import { useNavigation } from "@react-navigation/native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
@@ -43,7 +43,6 @@ const Login = () => {
   const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
   const { setUserDoc } = useAuth();
-  const { showAlert } = useAlert();
   const { navigate } = useNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -70,7 +69,7 @@ const Login = () => {
             doc(FIRESTORE_DB, "users", userCredential.user.uid)
           );
           if (res1.exists()) {
-            showAlert("success", "Welcome", "Logged in successfully");
+            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
             navigate("Loading");
             return;
           }
@@ -87,13 +86,13 @@ const Login = () => {
             userObject
           ).then(() => {
             setLoading(false);
-            showAlert("success", "Welcome", "Logged in successfully");
+            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
             navigate("Loading");
           });
         }
       }
     } catch (error) {
-      showAlert("error", "Error", "Something went wrong!");
+      Toast.show({ type: "error", text1: "Error", text2: "Something went wrong!" });
       setLoading(false);
       console.log("error", error);
     }
@@ -114,7 +113,7 @@ const Login = () => {
           );
           if (res1.exists()) {
             console.log("user exists");
-            showAlert("success", "Welcome", "Logged in successfully");
+            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
             navigate("Loading");
             return;
           }
@@ -132,7 +131,7 @@ const Login = () => {
             userObject
           ).then(() => {
             setLoading(false);
-            showAlert("success", "Welcome", "Logged in successfully");
+            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
             navigate("Loading");
           });
           const userData = await dbService
@@ -159,7 +158,7 @@ const Login = () => {
         password
       );
       console.log(response);
-      showAlert("success", "Welcome", "Logged in successfully");
+      Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
       navigate("Loading");
     } catch (error: any) {
       console.log(error);
@@ -187,7 +186,7 @@ const Login = () => {
           message = error.message;
           break;
       }
-      showAlert("error", "Error", message);
+      Toast.show({ type: "error", text1: "Error", text2: message });
     } finally {
       setLoading(false);
     }

@@ -51,7 +51,6 @@
     "react-native": "0.86.0",
     "react-native-animatable": "^1.4.0",
     "react-native-drawer-layout": "^4.1.12",
-    "react-native-dropdownalert": "^5.2.0",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-google-places-autocomplete": "^2.6.4",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",

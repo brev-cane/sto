@@ -1,6 +1,6 @@
 import BackButton from "@/components/ui/backbutton";
 import { useAuth } from "@/contexts/authContext";
-import { FIREBASE_STORAGE } from "@/FirebaseConfig";
+import { FIREBASE_AUTH, FIREBASE_STORAGE } from "@/FirebaseConfig";
 import { dbService } from "@/services/dbService";
 import {
   clearStoredLocation,
@@ -12,9 +12,12 @@ import {
 } from "@/services/locationService";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { useNavigation } from "@react-navigation/native";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { deleteUser } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
   AtSign,
@@ -29,6 +32,7 @@ import {
   RefreshCw,
   Save,
   Shield,
+  Trash2,
   User,
 } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
@@ -68,6 +72,7 @@ interface SettingsRowProps {
   right?: React.ReactNode;
   onPress?: () => void;
   isLast?: boolean;
+  destructive?: boolean;
 }
 
 const SettingsRow: React.FC<SettingsRowProps> = ({
@@ -78,6 +83,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
   right,
   onPress,
   isLast,
+  destructive,
 }) => {
   const styles = useThemedStyles(makeStyles);
   return (
@@ -91,7 +97,9 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
         <Icon size={17} color="#FFFFFF" strokeWidth={2.2} />
       </View>
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={[styles.rowTitle, destructive && styles.rowTitleDestructive]}>
+          {title}
+        </Text>
         {description ? (
           <Text style={styles.rowDescription} numberOfLines={2}>
             {description}
@@ -122,6 +130,8 @@ export const UserProfileScreen: React.FC = () => {
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
   const [resyncing, setResyncing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { navigate } = useNavigation();
   const [receiveAll, setReceiveAll] = useState(
     userDoc?.receiveAllNotifications === true
   );
@@ -202,6 +212,42 @@ export const UserProfileScreen: React.FC = () => {
     } finally {
       setResyncing(false);
     }
+  };
+
+  const handleDeleteAccount = () => {
+    if (deleting) return;
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? All your data will be permanently removed. This action cannot be reversed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const user = FIREBASE_AUTH.currentUser;
+            if (!user) return;
+            setDeleting(true);
+            try {
+              if (GoogleSignin.getCurrentUser()) {
+                GoogleSignin.signOut();
+              }
+              await dbService.collection("users").delete(user.uid);
+              await deleteUser(user);
+              navigate("Loading" as never);
+            } catch (error: any) {
+              console.error("Failed to delete account:", error);
+              Alert.alert(
+                "Error",
+                error?.message ?? "Failed to delete account. Please try again."
+              );
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePickPhoto = async () => {
@@ -524,6 +570,27 @@ export const UserProfileScreen: React.FC = () => {
             </>
           )}
         </TouchableOpacity>
+
+        {/* Danger zone */}
+        <Text style={[styles.sectionHeader, styles.dangerHeader]}>
+          Danger Zone
+        </Text>
+        <View style={[styles.section, styles.dangerSection]}>
+          <SettingsRow
+            icon={Trash2}
+            iconTint={iconTints.red}
+            title="Delete Account"
+            description="Permanently remove your account and all data"
+            destructive
+            onPress={handleDeleteAccount}
+            right={
+              deleting ? (
+                <ActivityIndicator size="small" color={colors.error} />
+              ) : undefined
+            }
+            isLast
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -654,6 +721,17 @@ const makeStyles = ({ colors, typography }: Theme) =>
     rowTitle: {
       ...typography.body,
       color: colors.text,
+    },
+    rowTitleDestructive: {
+      color: colors.error,
+    },
+    dangerHeader: {
+      marginTop: 22,
+      color: colors.error,
+    },
+    dangerSection: {
+      borderColor: colors.error,
+      marginBottom: 0,
     },
     rowDescription: {
       ...typography.caption,

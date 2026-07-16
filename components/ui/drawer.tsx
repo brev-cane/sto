@@ -218,7 +218,7 @@ const makeStyles = ({ colors, typography }: Theme) =>
     },
     version: {
       ...typography.caption,
-      color: colors.primary,
+      color: colors.textSecondary,
       marginBottom: 10,
       textAlign: "center",
       borderTopWidth: 1,
@@ -227,7 +227,7 @@ const makeStyles = ({ colors, typography }: Theme) =>
     },
     copyright: {
       ...typography.caption,
-      color: colors.primary,
+      color: colors.textSecondary,
       textAlign: "center",
     },
   });

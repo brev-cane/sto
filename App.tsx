@@ -74,7 +74,7 @@ export default Sentry.wrap(function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <AlertProvider>
         <AuthProvider>
           <NavigationContainer
@@ -157,7 +157,6 @@ export default Sentry.wrap(function App() {
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
-        <StatusBar style={isDark ? "light" : "dark"} />
       </AlertProvider>
     </GestureHandlerRootView>
   );

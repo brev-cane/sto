@@ -9,7 +9,7 @@ interface IHeader {
 export default function Header({ onPress }: IHeader) {
   const { colors } = useTheme();
   return (
-    <SafeAreaView style={{ backgroundColor: colors.background }}>
+    <SafeAreaView style={{flex: 1, backgroundColor: colors.background }}>
       <View
         style={{
           flexDirection: "row",

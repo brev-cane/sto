@@ -1,4 +1,5 @@
 import { useTheme } from "@/theme";
+import { StatusBar } from "expo-status-bar";
 import React, { createContext, useContext, useRef } from "react";
 import DropdownAlert from "react-native-dropdownalert";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,7 +27,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const alertRef = useRef<any>(null);
   const dismissRef = useRef<() => void>(() => {});
-  const { colors } = useTheme();
+  const { colors,isDark } = useTheme();
 
   const showAlert: AlertContextType["showAlert"] = (type, title, message) => {
     if (alertRef.current) {
@@ -43,7 +44,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}> 
       <AlertContext.Provider value={{ showAlert, dismissAlert }}>
         {children}
         <DropdownAlert
@@ -51,7 +52,7 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({
           dismiss={(func) => (dismissRef.current = func)}
           errorColor={colors.error}
           successColor={colors.primary}
-          zIndex={10}
+          zIndex={10} 
         />
       </AlertContext.Provider>
     </SafeAreaView>

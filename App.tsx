@@ -28,6 +28,8 @@ import { AuthProvider } from "./contexts/authContext";
 import { AlertProvider } from "./contexts/dropdownContext";
 import { timeSync } from "./services/timeSync";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
+import Toast from 'react-native-toast-message';
+
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
@@ -157,7 +159,9 @@ export default Sentry.wrap(function App() {
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
+        <StatusBar style={isDark ? "light" : "dark"} />
       </AlertProvider>
+       <Toast />
     </GestureHandlerRootView>
   );
 });

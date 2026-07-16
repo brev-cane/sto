@@ -60,7 +60,15 @@ export default function ImprovedPushPermissionComponent() {
       settings.ios?.status === Notifications.IosAuthorizationStatus.DENIED ||
       (!settings.canAskAgain && !settings.granted);
     registerForPushNotificationsAsync().then(async (pushToken) => {
-      if (pushToken && userDoc?.id) {
+      // Only write when the token is real and actually changed — this runs
+      // on every app foreground, so an unconditional update would cost a
+      // Firestore write per open
+      if (
+        pushToken &&
+        pushToken.startsWith("ExponentPushToken[") &&
+        userDoc?.id &&
+        pushToken !== userDoc.pushToken
+      ) {
         await dbService
           .collection("users")
           .update(userDoc?.id, { pushToken: pushToken });

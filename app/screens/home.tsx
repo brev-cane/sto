@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import COLORS from "../components/colors";
-import { AppUser, useAuth } from "@/contexts/authContext";
+import { useAuth } from "@/contexts/authContext";
 import { sendBatchNotifications } from "@/utils/notificationHelper";
 import { useNavigation } from "@react-navigation/native";
 import AdminScreen from "./Admin";
@@ -19,7 +19,6 @@ import Header from "@/components/ui/header";
 import CustomDrawer from "@/components/ui/drawer";
 import InstructionsCard from "@/components/ui/instructions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { dbService } from "@/services/dbService";
 import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
 import LocationPermissionCard from "@/components/ui/locationPermission";
@@ -27,24 +26,10 @@ import LocationPermissionCard from "@/components/ui/locationPermission";
 const logoImage = require("../../assets/images/blue-logo.png");
 
 function Home() {
-  const { userDoc, firebaseUser, setUserDoc } = useAuth();
+  const { userDoc } = useAuth();
   const { navigate } = useNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const getUser = async () => {
-    try {
-      if (!firebaseUser) return;
-      const userData = await dbService
-        .collection("users")
-        .getById(firebaseUser?.uid);
-      setUserDoc(userData as AppUser);
-    } catch (error) {
-      console.log("error :", error);
-    }
-  };
-  useEffect(() => {
-    getUser();
-  }, []);
   useEffect(() => {
     let mounted = true;
     const interval = setInterval(async () => {

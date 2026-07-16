@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -29,9 +29,8 @@ import {
   getLocationPermission,
   requestLocationPermission,
 } from "@/services/locationService";
-import LocationPickerSheet, {
-  LocationPickerSheetHandle,
-} from "./locationPickerSheet";
+import { setLocationPickHandler } from "@/services/locationPickHandoff";
+import { useNavigation } from "@react-navigation/native";
 
 interface GeoTargetingSectionProps {
   enabled: boolean;
@@ -64,7 +63,7 @@ export default function GeoTargetingSection({
   estimatedReach = null,
   reachLoading = false,
 }: GeoTargetingSectionProps) {
-  const pickerSheet = useRef<LocationPickerSheetHandle>(null);
+  const navigation = useNavigation<any>();
   const [locating, setLocating] = useState(false);
 
   const modeColor = mode === "within" ? COLORS.success : COLORS.accent;
@@ -196,7 +195,10 @@ export default function GeoTargetingSection({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.locationButton}
-              onPress={() => pickerSheet.current?.present()}
+              onPress={() => {
+                setLocationPickHandler(onCenterChange);
+                navigation.navigate("LocationSearch");
+              }}
             >
               <Search size={18} color={COLORS.primary} />
               <Text style={styles.locationButtonText}>Search location</Text>
@@ -257,8 +259,6 @@ export default function GeoTargetingSection({
           )}
         </View>
       )}
-
-      <LocationPickerSheet ref={pickerSheet} onSelect={onCenterChange} />
     </View>
   );
 }

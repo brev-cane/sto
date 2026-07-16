@@ -27,6 +27,20 @@ export const GEO_RADIUS_MAX_M = 5000;
 export const GEO_RADIUS_STEP_M = 100;
 export const GEO_RADIUS_DEFAULT_M = 500;
 
+/**
+ * 100m-ring distance histogram returned by getUsersWithPushTokensCount for
+ * a geo filter — lets the client preview any radius/mode without another
+ * function invocation. Last bucket = users beyond GEO_RADIUS_MAX_M.
+ */
+export interface ReachHistogram {
+  bucketSizeMeters: number;
+  buckets: number[];
+  /** Users who opted into all alerts — included in every geo send */
+  optIn: number;
+  noLocation?: number;
+  stale?: number;
+}
+
 /** Last known device location stored on users/{uid} */
 export interface UserLocation {
   latitude: number;

@@ -17,6 +17,7 @@ import Signup from "./app/screens/sigup";
 import VideoScreen from "./app/screens/Video";
 import ParkingDetail from "./app/screens/ParkingDetail";
 import StadiumDetail from "./app/screens/StadiumDetail";
+import LocationSearchScreen from "./app/screens/LocationSearch";
 import { AuthProvider } from "./contexts/authContext";
 import { AlertProvider } from "./contexts/dropdownContext";
 import { timeSync } from "./services/timeSync";
@@ -27,11 +28,8 @@ Sentry.init({
   sendDefaultPii: true,
   enableNative: true, // enables native crash capture
   enableNativeCrashHandling: true, // uncaught native crashes
-  debug: true,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-
-  integrations: [Sentry.feedbackIntegration()],
 });
 
 
@@ -138,6 +136,15 @@ export default Sentry.wrap(function App() {
               <Stack.Screen name="Profile" component={UserProfileScreen} />
               <Stack.Screen name="ParkingDetail" component={ParkingDetail} />
               <Stack.Screen name="StadiumDetail" component={StadiumDetail} />
+              <Stack.Screen
+                name="LocationSearch"
+                component={LocationSearchScreen}
+                options={{
+                  headerShown: true,
+                  title: "Search Location",
+                  presentation: "modal",
+                }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>

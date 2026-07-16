@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   GEO_RADIUS_DEFAULT_M,
   GeoCenter,
   GeoMode,
+  ReachHistogram,
 } from "@/types/notifications";
 
 const videoOptions = [
@@ -55,7 +56,9 @@ export default function AdminScreen() {
   const [geoMode, setGeoMode] = useState<GeoMode>("within");
   const [radiusMeters, setRadiusMeters] = useState(GEO_RADIUS_DEFAULT_M);
   const [geoCenter, setGeoCenter] = useState<GeoCenter | null>(null);
-  const [estimatedReach, setEstimatedReach] = useState<number | null>(null);
+  const [reachHistogram, setReachHistogram] = useState<ReachHistogram | null>(
+    null
+  );
   const [reachLoading, setReachLoading] = useState(false);
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
@@ -96,7 +99,8 @@ export default function AdminScreen() {
   };
 
   useEffect(() => {
-    // Only fetch count when user is authenticated and loaded
+    // Only fetch count when user is authenticated and loaded. Keyed on ids
+    // (not object identity) so userDoc refreshes don't refetch the count
     if (user && userDoc) {
       console.log("User authenticated:", user.uid);
       console.log("User role:", userDoc.role);
@@ -104,15 +108,18 @@ export default function AdminScreen() {
     } else {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
-  }, [user, userDoc]); // Add dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, userDoc?.id]);
 
-  // Debounced "estimated reach" preview for geo-targeted sends
+  // Reach preview: one invocation per chosen location — the returned
+  // distance histogram lets radius/mode changes recompute the estimate
+  // locally without calling the function again
   useEffect(() => {
     const active = !!(geoEnabled && geoCenter);
     const timer = setTimeout(
       async () => {
         if (!active || !geoCenter) {
-          setEstimatedReach(null);
+          setReachHistogram(null);
           setReachLoading(false);
           return;
         }
@@ -125,8 +132,10 @@ export default function AdminScreen() {
           const result = await getUserCount({
             geoFilter: {
               enabled: true,
-              mode: geoMode,
-              radiusMeters,
+              // mode/radius don't affect the histogram; fixed values keep
+              // this effect keyed on the center only
+              mode: "within",
+              radiusMeters: GEO_RADIUS_DEFAULT_M,
               center: {
                 latitude: geoCenter.latitude,
                 longitude: geoCenter.longitude,
@@ -134,19 +143,35 @@ export default function AdminScreen() {
             },
           });
           const data = result.data as any;
-          setEstimatedReach(data.success ? data.count : null);
+          setReachHistogram(
+            data.success && data.histogram ? data.histogram : null
+          );
         } catch (error) {
           console.log("Failed to estimate reach:", error);
-          setEstimatedReach(null);
+          setReachHistogram(null);
         } finally {
           setReachLoading(false);
         }
       },
-      active ? 800 : 0
+      active ? 500 : 0
     );
 
     return () => clearTimeout(timer);
-  }, [geoEnabled, geoCenter, geoMode, radiusMeters]);
+  }, [geoEnabled, geoCenter]);
+
+  const estimatedReach = useMemo(() => {
+    if (!reachHistogram?.buckets?.length) return null;
+    const { bucketSizeMeters, buckets, optIn } = reachHistogram;
+    const withinBucketCount = Math.min(
+      Math.floor(radiusMeters / bucketSizeMeters),
+      buckets.length
+    );
+    const within = buckets
+      .slice(0, withinBucketCount)
+      .reduce((sum, n) => sum + n, 0);
+    const located = buckets.reduce((sum, n) => sum + n, 0);
+    return (geoMode === "within" ? within : located - within) + optIn;
+  }, [reachHistogram, geoMode, radiusMeters]);
 
   const handleSend = async () => {
     if (selectedVideos.length === 0) {

@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import COLORS from "./colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 export default function PasswordInput({ password, setPassword }) {
   const [showPassword, setShowPassword] = useState(false);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <View style={styles.passwordContainer}>
@@ -12,7 +14,7 @@ export default function PasswordInput({ password, setPassword }) {
         value={password}
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor="#999"
+        placeholderTextColor={colors.placeholder}
         autoCapitalize="none"
         onChangeText={setPassword}
       />
@@ -21,34 +23,36 @@ export default function PasswordInput({ password, setPassword }) {
         onPress={() => setShowPassword((prev) => !prev)}
       >
         {showPassword ? (
-          <Ionicons name="eye-off-outline" size={24} color={COLORS.primary} />
+          <Ionicons name="eye-off-outline" size={24} color={colors.primary} />
         ) : (
-          <Ionicons name="eye-outline" size={24} color={COLORS.primary} />
+          <Ionicons name="eye-outline" size={24} color={colors.primary} />
         )}
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  passwordContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-    backgroundColor: "#fff",
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 10,
-    color: "#000",
-    minHeight: 48,
-  },
-  iconContainer: {
-    padding: 12,
-    borderLeftWidth:1
-  },
-});
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    passwordContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      marginBottom: 16,
+      backgroundColor: colors.inputBackground,
+    },
+    input: {
+      flex: 1,
+      paddingVertical: 10,
+      color: colors.text,
+      minHeight: 48,
+    },
+    iconContainer: {
+      padding: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
+    },
+  });

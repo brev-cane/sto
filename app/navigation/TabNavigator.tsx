@@ -1,4 +1,4 @@
-import COLORS from '@/app/components/colors';
+import { useTheme } from '@/theme';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home as HomeIcon } from 'lucide-react-native';
 import Home from '../screens/home';
@@ -6,27 +6,25 @@ import Home from '../screens/home';
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
+    const { colors, typography } = useTheme();
+
     return (
-        <Tab.Navigator 
+        <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: 'gray',
-                
-                
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.tabBarInactive,
                 tabBarStyle: {
                     paddingBottom: 5,
                     height: 60,
                     borderTopRightRadius: 20,
                     borderTopLeftRadius: 20,
-                    backgroundColor: "#fff",
+                    backgroundColor: colors.tabBarBackground,
                     overflow: "hidden",
-               
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
+                    fontSize: typography.caption.fontSize,
                     marginBottom: 5,
-                    
                 }
             }}
         >

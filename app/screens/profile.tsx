@@ -11,6 +11,7 @@ import {
   setLocationSharingOptOut,
   syncLocationToFirestore,
 } from "@/services/locationService";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import * as Clipboard from "expo-clipboard";
 import {
@@ -41,7 +42,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import COLORS from "../components/colors";
 
 export const UserProfileScreen: React.FC = () => {
   const {
@@ -64,6 +64,8 @@ export const UserProfileScreen: React.FC = () => {
   const [receiveAll, setReceiveAll] = useState(
     userDoc?.receiveAllNotifications === true
   );
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   useEffect(() => {
     (async () => {
@@ -134,8 +136,8 @@ export const UserProfileScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ marginTop: 10 }}>Loading profile...</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
   }
@@ -143,7 +145,7 @@ export const UserProfileScreen: React.FC = () => {
   if (!userDoc) {
     return (
       <View style={styles.centered}>
-        <Text>No user profile found.</Text>
+        <Text style={styles.loadingText}>No user profile found.</Text>
       </View>
     );
   }
@@ -185,32 +187,33 @@ export const UserProfileScreen: React.FC = () => {
     }
   };
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={styles.safeArea}>
       <BackButton />
       <ScrollView>
         <View style={styles.container}>
           <Text style={styles.title}>My Profile</Text>
 
           {/* Email */}
-          <Text style={{ padding: 4, fontSize: 18 }}>Email</Text>
+          <Text style={styles.label}>Email</Text>
           <View style={styles.inputRow}>
-            <Mail size={20} color={COLORS.primary} style={styles.icon} />
+            <Mail size={20} color={colors.primary} style={styles.icon} />
             <TextInput
-              style={[styles.input, { color: "#666" }]}
+              style={[styles.input, styles.inputDisabled]}
               value={userDoc.email}
               editable={false}
             />
           </View>
 
           {/* Name */}
-          <Text style={{ padding: 4, fontSize: 18 }}>Name</Text>
+          <Text style={styles.label}>Name</Text>
           <View style={styles.inputRow}>
-            <User size={20} color={COLORS.primary} style={styles.icon} />
+            <User size={20} color={colors.primary} style={styles.icon} />
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
               placeholder="Enter your name"
+              placeholderTextColor={colors.placeholder}
             />
           </View>
 
@@ -222,16 +225,14 @@ export const UserProfileScreen: React.FC = () => {
             ]}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Bell size={20} color={COLORS.primary} style={styles.icon} />
-              <Text style={{ fontSize: 16, color: "#111827" }}>
-                Push Notifications
-              </Text>
+              <Bell size={20} color={colors.primary} style={styles.icon} />
+              <Text style={styles.rowLabel}>Push Notifications</Text>
             </View>
             <Switch
               value={pushEnabled}
               onValueChange={setPushEnabled}
-              trackColor={{ false: "#d1d5db", true: COLORS.primary }}
-              thumbColor={pushEnabled ? "#fff" : "#f9fafb"}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={pushEnabled ? colors.onPrimary : colors.surfaceVariant}
             />
           </View>
 
@@ -243,17 +244,17 @@ export const UserProfileScreen: React.FC = () => {
             ]}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <MapPin size={20} color={COLORS.primary} style={styles.icon} />
-              <Text style={{ fontSize: 16, color: "#111827" }}>
-                Location Sharing
-              </Text>
+              <MapPin size={20} color={colors.primary} style={styles.icon} />
+              <Text style={styles.rowLabel}>Location Sharing</Text>
             </View>
             <Switch
               value={locationEnabled}
               onValueChange={handleLocationToggle}
               disabled={locationBusy}
-              trackColor={{ false: "#d1d5db", true: COLORS.primary }}
-              thumbColor={locationEnabled ? "#fff" : "#f9fafb"}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={
+                locationEnabled ? colors.onPrimary : colors.surfaceVariant
+              }
             />
           </View>
           <Text style={styles.helperText}>
@@ -268,16 +269,14 @@ export const UserProfileScreen: React.FC = () => {
             ]}
           >
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <BellRing size={20} color={COLORS.primary} style={styles.icon} />
-              <Text style={{ fontSize: 16, color: "#111827" }}>
-                Receive All Alerts
-              </Text>
+              <BellRing size={20} color={colors.primary} style={styles.icon} />
+              <Text style={styles.rowLabel}>Receive All Alerts</Text>
             </View>
             <Switch
               value={receiveAll}
               onValueChange={handleReceiveAllToggle}
-              trackColor={{ false: "#d1d5db", true: COLORS.primary }}
-              thumbColor={receiveAll ? "#fff" : "#f9fafb"}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={receiveAll ? colors.onPrimary : colors.surfaceVariant}
             />
           </View>
           <Text style={styles.helperText}>
@@ -288,7 +287,7 @@ export const UserProfileScreen: React.FC = () => {
               Clipboard.setStringAsync(userDoc.pushToken);
               alert("Copied to clipboard");
             }}
-            style={{ padding: 4, fontSize: 18 }}
+            style={styles.label}
           >
             Click to copy token
           </Text>
@@ -299,17 +298,25 @@ export const UserProfileScreen: React.FC = () => {
             }}
             style={styles.inputRow}
           >
-            <Copy size={20} color={COLORS.primary} style={styles.icon} />
+            <Copy size={20} color={colors.primary} style={styles.icon} />
             <Text style={styles.input}>{userDoc.pushToken}</Text>
           </TouchableOpacity>
           <View style={styles.syncRow}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               {syncingRef?.current ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : pushTokenSynced ? (
-                <CheckCircle size={18} color="#16a34a" style={styles.icon} />
+                <CheckCircle
+                  size={18}
+                  color={colors.success}
+                  style={styles.icon}
+                />
               ) : (
-                <AlertTriangle size={18} color="#dc2626" style={styles.icon} />
+                <AlertTriangle
+                  size={18}
+                  color={colors.error}
+                  style={styles.icon}
+                />
               )}
 
               <Text style={styles.syncText}>
@@ -326,16 +333,20 @@ export const UserProfileScreen: React.FC = () => {
               onPress={() => syncPushTokenWithBackend()}
               disabled={!!syncingRef?.current}
             >
-              <RefreshCw size={16} color="#064e3b" style={{ marginRight: 8 }} />
+              <RefreshCw
+                size={16}
+                color={colors.success}
+                style={{ marginRight: 8 }}
+              />
               <Text style={styles.syncButtonText}>Resync</Text>
             </TouchableOpacity>
           </View>
           {/* Role - only visible if admin */}
           {userDoc.role === "admin" && (
             <View style={styles.inputRow}>
-              <Shield size={20} color={COLORS.primary} style={styles.icon} />
+              <Shield size={20} color={colors.primary} style={styles.icon} />
               <TextInput
-                style={[styles.input, { color: "#666" }]}
+                style={[styles.input, styles.inputDisabled]}
                 value="Admin"
                 editable={false}
               />
@@ -349,10 +360,14 @@ export const UserProfileScreen: React.FC = () => {
             disabled={saving || !hasChanges}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <>
-                <Save size={18} color="#fff" style={{ marginRight: 6 }} />
+                <Save
+                  size={18}
+                  color={colors.onPrimary}
+                  style={{ marginRight: 6 }}
+                />
                 <Text style={styles.buttonText}>Save Changes</Text>
               </>
             )}
@@ -365,96 +380,117 @@ export const UserProfileScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 20,
-    color: "#111827",
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  icon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#111827",
-  },
-  button: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.primary,
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  message: {
-    textAlign: "center",
-    marginTop: 12,
-    fontSize: 14,
-    color: "#111827",
-  },
-  helperText: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: -12,
-    marginBottom: 16,
-    paddingHorizontal: 4,
-  },
-  syncRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 16,
-    backgroundColor: "#fff",
-  },
-  syncText: {
-    fontSize: 15,
-    color: "#111827",
-    marginLeft: 2,
-  },
-  syncButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#dcfce7",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  syncButtonText: {
-    color: "#064e3b",
-    fontWeight: "600",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      padding: 20,
+    },
+    centered: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    loadingText: {
+      ...typography.body,
+      color: colors.text,
+      marginTop: 10,
+    },
+    title: {
+      ...typography.h3,
+      textAlign: "center",
+      marginBottom: 20,
+      color: colors.text,
+    },
+    label: {
+      ...typography.title,
+      color: colors.text,
+      padding: 4,
+    },
+    rowLabel: {
+      ...typography.body,
+      color: colors.text,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    icon: {
+      marginRight: 8,
+    },
+    input: {
+      ...typography.body,
+      flex: 1,
+      paddingVertical: 12,
+      color: colors.text,
+    },
+    inputDisabled: {
+      color: colors.textMuted,
+    },
+    button: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primary,
+      paddingVertical: 14,
+      borderRadius: 8,
+      marginTop: 10,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    message: {
+      ...typography.bodySmall,
+      textAlign: "center",
+      marginTop: 12,
+      color: colors.text,
+    },
+    helperText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      marginTop: -12,
+      marginBottom: 16,
+      paddingHorizontal: 4,
+    },
+    syncRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 10,
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 16,
+      backgroundColor: colors.surface,
+    },
+    syncText: {
+      ...typography.body,
+      color: colors.text,
+      marginLeft: 2,
+    },
+    syncButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surfaceVariant,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+    },
+    syncButtonText: {
+      ...typography.label,
+      color: colors.success,
+    },
+  });

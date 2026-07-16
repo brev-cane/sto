@@ -23,7 +23,7 @@ import { useAlert } from "@/contexts/dropdownContext";
 import { useNavigation } from "@react-navigation/native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
-import COLORS from "../components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { dbService } from "@/services/dbService";
 import { useAuth } from "@/contexts/authContext";
@@ -45,6 +45,8 @@ const Login = () => {
   const { setUserDoc } = useAuth();
   const { showAlert } = useAlert();
   const { navigate } = useNavigation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const handeleAppleAuthentication = async () => {
     try {
       setLoading(true);
@@ -215,7 +217,7 @@ const Login = () => {
             value={email}
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholder}
             autoCapitalize="none"
             onChangeText={(text) => setEmail(text)}
           ></TextInput>
@@ -224,7 +226,7 @@ const Login = () => {
           {loading ? (
             <ActivityIndicator
               size="large"
-              color={COLORS.primary}
+              color={colors.primary}
               style={styles.loader}
             />
           ) : (
@@ -238,7 +240,7 @@ const Login = () => {
                 style={[styles.button, styles.googleButton]}
                 onPress={loginByGoogle}
               >
-                <Ionicons name="logo-google" size={24} color={COLORS.primary} />
+                <Ionicons name="logo-google" size={24} color={colors.primary} />
                 <Text style={styles.googleButtonText}>
                   {" "}
                   Sign in with Google
@@ -253,7 +255,7 @@ const Login = () => {
                   <Ionicons
                     name="logo-apple"
                     size={24}
-                    color={COLORS.primary}
+                    color={colors.primary}
                   />
                   <Text style={styles.googleButtonText}>
                     {" "}
@@ -279,11 +281,7 @@ const Login = () => {
               </View>
               <Text
                 onPress={() => navigate("PrivacyPolicy")}
-                style={{
-                  textAlign: "center",
-                  color: COLORS.primary,
-                  textDecorationLine: "underline",
-                }}
+                style={styles.privacyLink}
               >
                 Privacy Policy
               </Text>
@@ -296,88 +294,90 @@ const Login = () => {
 };
 
 export default Login;
-const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  scroll: {
-    backgroundColor: "#F9FAFB",
-    padding: 10,
-    width: "100%",
-  },
-  innerContainer: {
-    width: "100%",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-    marginBottom: 24,
-    color: "#111827",
-    textAlign: "center",
-  },
-  input: {
-    height: 52,
-    borderColor: "#D1D5DB",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 16,
-    fontSize: 16,
-    color: "#111827",
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  secondaryButton: {
-    alignItems: "center",
-  },
-  secondaryButtonText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-    fontSize: 16,
-    textDecorationLine: "underline",
-  },
-  subtitleText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#545f75",
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  googleButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    textAlign: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  googleButtonText: {
-    textAlign: "center",
-    color: COLORS.primary,
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  loader: {
-    marginTop: 20,
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flexGrow: 1,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingHorizontal: 24,
+    },
+    scroll: {
+      backgroundColor: colors.background,
+      padding: 10,
+      width: "100%",
+    },
+    innerContainer: {
+      width: "100%",
+    },
+    title: {
+      ...typography.h2,
+      marginBottom: 24,
+      color: colors.text,
+      textAlign: "center",
+    },
+    input: {
+      height: 52,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      backgroundColor: colors.inputBackground,
+      marginBottom: 16,
+      fontSize: typography.body.fontSize,
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      borderRadius: 10,
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    secondaryButton: {
+      alignItems: "center",
+    },
+    secondaryButtonText: {
+      ...typography.button,
+      color: colors.primary,
+      textDecorationLine: "underline",
+    },
+    subtitleText: {
+      ...typography.subtitle,
+      color: colors.textSecondary,
+      textAlign: "center",
+      marginBottom: 12,
+    },
+    googleButton: {
+      backgroundColor: "transparent",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      textAlign: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      paddingVertical: 16,
+      borderRadius: 10,
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    googleButtonText: {
+      ...typography.button,
+      textAlign: "center",
+      color: colors.primary,
+    },
+    privacyLink: {
+      ...typography.body,
+      textAlign: "center",
+      color: colors.primary,
+      textDecorationLine: "underline",
+    },
+    loader: {
+      marginTop: 20,
+    },
+  });

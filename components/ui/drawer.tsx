@@ -20,7 +20,7 @@ import {
   DeleteIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
-import COLORS from "@/app/components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { useNavigation } from "@react-navigation/native";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { deleteUser, signOut } from "firebase/auth";
@@ -37,23 +37,28 @@ const DrawerItem = ({
   label: string;
   onPress: () => void;
   isSelected?: boolean;
-}) => (
-  <TouchableOpacity
-    style={[styles.drawerItem, isSelected && styles.selectedItem]}
-    onPress={onPress}
-  >
-    {icon}
-    <Text
-      style={[styles.drawerItemText, isSelected && styles.selectedItemText]}
+}) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <TouchableOpacity
+      style={[styles.drawerItem, isSelected && styles.selectedItem]}
+      onPress={onPress}
     >
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+      {icon}
+      <Text
+        style={[styles.drawerItemText, isSelected && styles.selectedItemText]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function CustomDrawer() {
   const { userDoc } = useAuth();
   const { navigate } = useNavigation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const shareApp = async () => {
     try {
       const message = `🔥🏈🤳🦬Check out *Stadium Takeover*! 🔥🏈🤳🦬
@@ -74,11 +79,11 @@ export default function CustomDrawer() {
     <View style={styles.container}>
       <LinearGradient
         colors={[
-          COLORS.primary,
+          colors.primary,
           "rgba(0,0,0,0.2)",
           "rgba(0,0,0,0.2)",
           "rgba(0,0,0,0.2)",
-          COLORS.primary,
+          colors.primary,
         ]}
         style={styles.header}
       >
@@ -100,17 +105,17 @@ export default function CustomDrawer() {
       <View style={styles.content}>
         <View style={styles.bottomSection}>
           <DrawerItem
-            icon={<User size={20} color={COLORS.primary} />}
+            icon={<User size={20} color={colors.primary} />}
             label={"Profile"}
             onPress={() => navigate("Profile")}
           />
           <DrawerItem
-            icon={<Book size={20} color={COLORS.primary} />}
+            icon={<Book size={20} color={colors.primary} />}
             label={"Privacy Policy"}
             onPress={() => navigate("PrivacyPolicy")}
           />
           <DrawerItem
-            icon={<ShareIcon size={20} color={COLORS.primary} />}
+            icon={<ShareIcon size={20} color={colors.primary} />}
             label={"Share App"}
             onPress={shareApp}
           />
@@ -124,13 +129,13 @@ export default function CustomDrawer() {
               signOut(FIREBASE_AUTH).then(() => navigate("Loading"));
             }}
           >
-            <LogOut size={20} color={COLORS.primary} />
-            <Text style={[styles.drawerItemText, { color:"#000" }]}>
+            <LogOut size={20} color={colors.primary} />
+            <Text style={styles.drawerItemText}>
               Logout
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.logoutButton,{borderTopWidth:1}]}
+            style={[styles.logoutButton, { borderTopWidth: 1, borderTopColor: colors.border }]}
             onPress={() => {
               Alert.alert(
                 "Confirm Deletion",
@@ -169,8 +174,8 @@ export default function CustomDrawer() {
               );
             }}
           >
-            <DeleteIcon size={20} color={COLORS.error} />
-            <Text style={[styles.drawerItemText, { color: COLORS.error }]}>
+            <DeleteIcon size={20} color={colors.error} />
+            <Text style={[styles.drawerItemText, { color: colors.error }]}>
               Delete
             </Text>
           </TouchableOpacity>
@@ -180,85 +185,82 @@ export default function CustomDrawer() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 12,
-    paddingHorizontal: 12,
-  },
-  headerContent: {
-    alignItems: "center",
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.background,
-    marginBottom: 12,
-  },
-  userInfo: {
-    alignItems: "center",
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.background,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: COLORS.background,
-    opacity: 0.8,
-  },
-  content: {
-    flex: 1,
-  },
-  menuItems: {
-    paddingTop: 12,
-  },
-  drawerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-  },
-  selectedItem: {
-    backgroundColor: COLORS.primary,
-  },
-  drawerItemText: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    marginLeft: 12,
-    fontWeight: "500",
-  },
-  selectedItemText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-  bottomSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopColor: COLORS.primary,
-  },
-  languageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-    marginVertical: 10, 
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingTop: 50,
+      paddingBottom: 12,
+      paddingHorizontal: 12,
+    },
+    headerContent: {
+      alignItems: "center",
+    },
+    appName: {
+      ...typography.h2,
+      color: colors.onPrimary,
+      marginBottom: 12,
+    },
+    userInfo: {
+      alignItems: "center",
+    },
+    userName: {
+      ...typography.title,
+      color: colors.onPrimary,
+    },
+    userEmail: {
+      ...typography.bodySmall,
+      color: colors.onPrimary,
+      opacity: 0.8,
+    },
+    content: {
+      flex: 1,
+    },
+    menuItems: {
+      paddingTop: 12,
+    },
+    drawerItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+    },
+    selectedItem: {
+      backgroundColor: colors.primaryMuted,
+    },
+    drawerItemText: {
+      ...typography.subtitle,
+      color: colors.text,
+      marginLeft: 12,
+    },
+    selectedItemText: {
+      color: colors.primary,
+    },
+    bottomSection: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopColor: colors.border,
+    },
+    languageButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+    },
+    logoutButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+      marginVertical: 10,
+    },
+  });

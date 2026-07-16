@@ -13,7 +13,7 @@ import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useAuth } from "@/contexts/authContext";
-import COLORS from "../components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import GeoTargetingSection from "@/components/ui/geoTargetingSection";
@@ -60,6 +60,8 @@ export default function AdminScreen() {
     null
   );
   const [reachLoading, setReachLoading] = useState(false);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
@@ -240,7 +242,7 @@ export default function AdminScreen() {
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="always"
-      contentContainerStyle={{ flexGrow: 1, backgroundColor: "#fff" }}
+      contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background }}
     >
       <View style={styles.container}>
         <Text style={styles.title}>📢 Stadium Takeover</Text>
@@ -254,7 +256,7 @@ export default function AdminScreen() {
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <User color={COLORS.primary} />
+            <User color={colors.primary} />
             <Text style={styles.infoCount}>{tokensCount}</Text>
           </View>
         </View>
@@ -264,6 +266,7 @@ export default function AdminScreen() {
         <View style={styles.inputRow}>
           <TextInput
             placeholder="Stadium Takeover"
+            placeholderTextColor={colors.placeholder}
             style={styles.input}
             value={title}
             onChangeText={setTitle}
@@ -273,7 +276,7 @@ export default function AdminScreen() {
         {/* Video Picker */}
         <Text style={styles.label}>Select Video(s)</Text>
         <View style={styles.videoPickerContainer}>
-          <Video color={COLORS.primary} />
+          <Video color={colors.primary} />
           <SearchableDropdown
             options={videoOptions}
             placeholder={"-- Choose a Video --"}
@@ -317,9 +320,9 @@ export default function AdminScreen() {
           step={5}
           value={delay}
           onValueChange={setDelay}
-          minimumTrackTintColor={COLORS.primary}
-          maximumTrackTintColor="#ccc"
-          thumbTintColor={COLORS.primary}
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.primary}
         />
 
         {/* Geo-Targeting */}
@@ -337,7 +340,7 @@ export default function AdminScreen() {
         />
 
         {/* Admin Only Toggle */}
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <View>
             <Text style={styles.infoTitle}>Admin Only</Text>
             <Text style={styles.infoSubtitle}>
@@ -345,13 +348,12 @@ export default function AdminScreen() {
             </Text>
           </View>
           <Switch
-            trackColor={{ false: "#767577", true: COLORS.primary }}
-            thumbColor={isEnabled ? "#FFF" : "#f4f3f4"}
-            ios_backgroundColor="#3e3e3e"
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={isEnabled ? colors.onPrimary : colors.surfaceVariant}
             onValueChange={toggleSwitch}
             value={isEnabled}
           />
-        </View>
+        </View> */}
 
         {/* Custom Users Toggle */}
         <View style={styles.infoRow}>
@@ -362,9 +364,9 @@ export default function AdminScreen() {
             </Text>
           </View>
           <Switch
-            trackColor={{ false: "#767577", true: COLORS.primary }}
-            thumbColor={customUsers ? "#FFF" : "#f4f3f4"}
-            ios_backgroundColor="#3e3e3e"
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={customUsers ? colors.onPrimary : colors.surfaceVariant}
+            ios_backgroundColor={colors.border}
             onValueChange={toggleSwitch2}
             value={customUsers}
           />
@@ -377,6 +379,7 @@ export default function AdminScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 placeholder="Enter User ID"
+                placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={token}
                 onChangeText={setToken}
@@ -391,7 +394,7 @@ export default function AdminScreen() {
                   }
                 }}
               >
-                <Text style={{ color: "#fff" }}>Add</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal>
@@ -440,114 +443,118 @@ export default function AdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  infoRow: {
-    flexDirection: "row",
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  infoSubtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  infoCount: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginLeft: 5,
-  },
-  label: {
-    fontSize: 16,
-    marginTop: 15,
-  },
-  videoPickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 8,
-    borderColor: COLORS.primary,
-    padding: 10,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#111827",
-  },
-  addButton: {
-    backgroundColor: COLORS.primary,
-    padding: 12,
-    margin: 5,
-    borderRadius: 8,
-  },
-  button: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#007AFF",
-    textAlign: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  userIdList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginVertical: 10,
-  },
-  userIdChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  userIdText: {
-    color: "#fff",
-    fontSize: 14,
-    marginRight: 6,
-  },
-  removeButton: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    title: {
+      ...typography.h2,
+      color: colors.text,
+      marginBottom: 20,
+    },
+    infoRow: {
+      flexDirection: "row",
+      padding: 10,
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    infoTitle: {
+      ...typography.title,
+      color: colors.text,
+    },
+    infoSubtitle: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+    },
+    infoCount: {
+      ...typography.title,
+      color: colors.text,
+      marginLeft: 5,
+    },
+    label: {
+      ...typography.subtitle,
+      color: colors.text,
+      marginTop: 15,
+    },
+    videoPickerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderRadius: 8,
+      borderColor: colors.primary,
+      padding: 10,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.inputBackground,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    input: {
+      ...typography.body,
+      flex: 1,
+      paddingVertical: 12,
+      color: colors.text,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      padding: 12,
+      margin: 5,
+      borderRadius: 8,
+    },
+    addButtonText: {
+      ...typography.label,
+      color: colors.onPrimary,
+    },
+    button: {
+      backgroundColor: "transparent",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      textAlign: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      paddingVertical: 16,
+      borderRadius: 10,
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.primary,
+    },
+    userIdList: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginVertical: 10,
+    },
+    userIdChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    userIdText: {
+      ...typography.bodySmall,
+      color: colors.onPrimary,
+      marginRight: 6,
+    },
+    removeButton: {
+      ...typography.title,
+      color: colors.onPrimary,
+    },
+  });

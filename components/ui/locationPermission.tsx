@@ -16,6 +16,7 @@ import {
   requestLocationPermission,
   syncLocationToFirestore,
 } from "@/services/locationService";
+import { Theme, useThemedStyles } from "@/theme";
 
 const HIDE_KEY = "hideLocationPermissionCard";
 
@@ -29,6 +30,7 @@ const HIDE_KEY = "hideLocationPermissionCard";
  */
 export default function LocationPermissionCard() {
   const { userDoc, setUserDoc } = useAuth();
+  const styles = useThemedStyles(makeStyles);
   const [granted, setGranted] = useState<boolean | null>(null);
   const [canAskAgain, setCanAskAgain] = useState(true);
   const [hidden, setHidden] = useState(true); // start hidden to avoid a flash
@@ -167,57 +169,55 @@ export default function LocationPermissionCard() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#007AFF",
-    borderRadius: 12,
-    marginHorizontal: 8,
-    marginBottom: 8,
-    padding: 20,
-    alignItems: "center",
-  },
-  dismissButton: {
-    position: "absolute",
-    top: 8,
-    right: 12,
-    padding: 4,
-  },
-  dismissText: {
-    fontSize: 16,
-    color: "#999",
-    fontWeight: "bold",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  text: {
-    fontSize: 15,
-    textAlign: "center",
-    color: "#555",
-    marginBottom: 16,
-    lineHeight: 21,
-  },
-  primaryButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  primaryButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  secondaryText: {
-    fontSize: 14,
-    color: "#007AFF",
-    textDecorationLine: "underline",
-    textAlign: "center",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      borderRadius: 12,
+      marginHorizontal: 8,
+      marginBottom: 8,
+      padding: 20,
+      alignItems: "center",
+    },
+    dismissButton: {
+      position: "absolute",
+      top: 8,
+      right: 12,
+      padding: 4,
+    },
+    dismissText: {
+      ...typography.button,
+      color: colors.textMuted,
+    },
+    title: {
+      ...typography.h3,
+      color: colors.text,
+      marginBottom: 10,
+      textAlign: "center",
+    },
+    text: {
+      ...typography.body,
+      textAlign: "center",
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    primaryButton: {
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      marginBottom: 12,
+    },
+    primaryButtonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    secondaryText: {
+      ...typography.bodySmall,
+      color: colors.primary,
+      textDecorationLine: "underline",
+      textAlign: "center",
+    },
+  });

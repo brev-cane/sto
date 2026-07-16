@@ -1,4 +1,4 @@
-import COLORS from "@/app/components/colors";
+import { useTheme } from "@/theme";
 import { TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Menu } from "lucide-react-native";
@@ -7,8 +7,9 @@ interface IHeader {
   onPress: () => void;
 }
 export default function Header({ onPress }: IHeader) {
+  const { colors } = useTheme();
   return (
-    <SafeAreaView style={{ backgroundColor: COLORS.background }}>
+    <SafeAreaView style={{ backgroundColor: colors.background }}>
       <View
         style={{
           flexDirection: "row",
@@ -19,7 +20,7 @@ export default function Header({ onPress }: IHeader) {
       >
         <View style={{ width: "33.33%" }}>
           <TouchableOpacity onPress={onPress}>
-            <Menu width={30} height={30} />
+            <Menu width={30} height={30} color={colors.text} />
           </TouchableOpacity>
         </View>
         <View style={{ width: "33.33%", alignItems: "center" }}>
@@ -31,7 +32,7 @@ export default function Header({ onPress }: IHeader) {
         </View>
         <View style={{ width: "33.33%" }} />
       </View>
-      
+
     </SafeAreaView>
   );
 }

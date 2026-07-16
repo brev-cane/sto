@@ -1,9 +1,15 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
+import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 // Screens
-import { StatusBar, Vibration } from "react-native";
+import { Vibration } from "react-native";
+import {
+  navigationDarkTheme,
+  navigationLightTheme,
+  useTheme,
+} from "./theme";
 import TabNavigator from "./app/navigation/TabNavigator";
 import Login from "./app/screens/Login";
 
@@ -45,6 +51,8 @@ Notifications.setNotificationHandler({
 const Stack = createNativeStackNavigator();
 
 export default Sentry.wrap(function App() {
+  const { isDark } = useTheme();
+
   useEffect(() => {
     timeSync.initialize();
 
@@ -70,6 +78,7 @@ export default Sentry.wrap(function App() {
       <AlertProvider>
         <AuthProvider>
           <NavigationContainer
+            theme={isDark ? navigationDarkTheme : navigationLightTheme}
             linking={{
               prefixes: [Linking.createURL("/")],
               config: {
@@ -148,7 +157,7 @@ export default Sentry.wrap(function App() {
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
-        <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
+        <StatusBar style={isDark ? "light" : "dark"} />
       </AlertProvider>
     </GestureHandlerRootView>
   );

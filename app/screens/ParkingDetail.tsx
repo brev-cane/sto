@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ParkingLot } from '@/types/parking';
-import COLORS from '@/app/components/colors';
+import { Theme, useTheme, useThemedStyles } from '@/theme';
 import { MapPin, Car, DollarSign, Clock, Shield, Flame, Trash2, Info, ChevronLeft } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,6 +10,8 @@ const ParkingDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const { parkingLot } = route.params as { parkingLot: ParkingLot };
+    const { colors } = useTheme();
+    const styles = useThemedStyles(makeStyles);
 
     const handleReserve = () => {
         Alert.alert(
@@ -27,11 +29,17 @@ const ParkingDetailScreen = () => {
 
     const AmenityItem = ({ icon: Icon, label, value }: { icon: any, label: string, value: boolean }) => (
         <View style={styles.amenityRow}>
-            <View style={[styles.iconContainer, { backgroundColor: value ? '#DEF7EC' : '#FDE8E8' }]}>
-                <Icon size={18} color={value ? '#03543F' : '#9B1C1C'} />
+            <View
+                style={[
+                    styles.iconContainer,
+                    // hex + alpha suffix gives a subtle tint of the status color
+                    { backgroundColor: `${value ? colors.success : colors.error}22` },
+                ]}
+            >
+                <Icon size={18} color={value ? colors.success : colors.error} />
             </View>
             <Text style={styles.amenityLabel}>{label}</Text>
-            <Text style={[styles.amenityValue, { color: value ? '#03543F' : '#9B1C1C' }]}>
+            <Text style={[styles.amenityValue, { color: value ? colors.success : colors.error }]}>
                 {value ? 'Available' : 'No'}
             </Text>
         </View>
@@ -41,7 +49,7 @@ const ParkingDetailScreen = () => {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <ChevronLeft size={24} color="#000" />
+                    <ChevronLeft size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle} numberOfLines={1}>{parkingLot.name}</Text>
                 <View style={{ width: 40 }} />
@@ -54,16 +62,16 @@ const ParkingDetailScreen = () => {
                     <View style={styles.section}>
                         <Text style={styles.lotName}>{parkingLot.name}</Text>
                         <View style={styles.row}>
-                            <MapPin size={16} color="#6B7280" />
+                            <MapPin size={16} color={colors.textSecondary} />
                             <Text style={styles.address}>{parkingLot.address.fullAddress}</Text>
                         </View>
                         <View style={styles.statsRow}>
                             <View style={styles.stat}>
-                                <Car size={18} color={COLORS.primary} />
+                                <Car size={18} color={colors.primary} />
                                 <Text style={styles.statText}>{parkingLot.totalSpots} Total Spots</Text>
                             </View>
                             <View style={styles.stat}>
-                                <Clock size={18} color={COLORS.primary} />
+                                <Clock size={18} color={colors.primary} />
                                 <Text style={styles.statText}>{parkingLot.estimatedWalkTime} min walk</Text>
                             </View>
                         </View>
@@ -105,10 +113,10 @@ const ParkingDetailScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
     },
     header: {
         flexDirection: 'row',
@@ -117,15 +125,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: colors.separator,
     },
     backButton: {
         padding: 8,
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#111827',
+        ...typography.title,
+        color: colors.text,
         flex: 1,
         textAlign: 'center',
     },
@@ -141,9 +148,8 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     lotName: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#111827',
+        ...typography.h2,
+        color: colors.text,
         marginBottom: 8,
     },
     row: {
@@ -152,14 +158,14 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     address: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
         marginLeft: 4,
     },
     statsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.surface,
         padding: 16,
         borderRadius: 12,
     },
@@ -168,15 +174,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     statText: {
+        ...typography.label,
         marginLeft: 8,
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#374151',
+        color: colors.textSecondary,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#111827',
+        ...typography.title,
+        color: colors.text,
         marginBottom: 16,
     },
     amenityRow: {
@@ -193,13 +197,12 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     amenityLabel: {
+        ...typography.bodySmall,
         flex: 1,
-        fontSize: 14,
-        color: '#4B5563',
+        color: colors.textSecondary,
     },
     amenityValue: {
-        fontSize: 14,
-        fontWeight: '600',
+        ...typography.label,
     },
     bulletRow: {
         flexDirection: 'row',
@@ -210,19 +213,19 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         marginTop: 6,
         marginRight: 10,
     },
     bulletText: {
-        fontSize: 14,
-        color: '#4B5563',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
         lineHeight: 20,
         flex: 1,
     },
     timingInfo: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
         fontStyle: 'italic',
         marginTop: 12,
     },
@@ -233,27 +236,25 @@ const styles = StyleSheet.create({
         marginTop: 10,
         paddingTop: 20,
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
+        borderTopColor: colors.separator,
     },
     priceLabel: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
     },
     priceValue: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: COLORS.primary,
+        ...typography.h2,
+        color: colors.primary,
     },
     reserveButton: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 32,
         paddingVertical: 14,
         borderRadius: 12,
     },
     reserveButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
+        ...typography.button,
+        color: colors.onPrimary,
     },
 });
 

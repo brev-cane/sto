@@ -19,6 +19,7 @@ import { useNavigation } from "@react-navigation/native";
 import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -30,6 +31,8 @@ const Signup = () => {
   const { showAlert } = useAlert();
   const { navigate } = useNavigation();
   const auth = FIREBASE_AUTH;
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const signUp = async () => {
     setLoading(true);
@@ -116,7 +119,7 @@ const Signup = () => {
             value={name}
             style={styles.input}
             placeholder="Full Name"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholder}
             autoCapitalize="words"
             onChangeText={setName}
           />
@@ -124,7 +127,7 @@ const Signup = () => {
             value={email}
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholder}
             keyboardType="email-address"
             autoCapitalize="none"
             onChangeText={setEmail}
@@ -134,7 +137,7 @@ const Signup = () => {
           {loading ? (
             <ActivityIndicator
               size="large"
-              color="#007AFF"
+              color={colors.primary}
               style={styles.loader}
             />
           ) : (
@@ -161,57 +164,55 @@ const Signup = () => {
 
 export default Signup;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  innerContainer: {
-    width: "100%",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-    marginBottom: 24,
-    color: "#111827",
-    textAlign: "center",
-  },
-  input: {
-    height: 52,
-    borderColor: "#D1D5DB",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 16,
-    fontSize: 16,
-    color: "#111827",
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  secondaryButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#007AFF",
-  },
-  secondaryButtonText: {
-    color: "#007AFF",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  loader: {
-    marginTop: 20,
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      paddingHorizontal: 24,
+    },
+    innerContainer: {
+      width: "100%",
+    },
+    title: {
+      ...typography.h2,
+      marginBottom: 24,
+      color: colors.text,
+      textAlign: "center",
+    },
+    input: {
+      height: 52,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      paddingHorizontal: 16,
+      backgroundColor: colors.inputBackground,
+      marginBottom: 16,
+      fontSize: typography.body.fontSize,
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      paddingVertical: 16,
+      borderRadius: 10,
+      alignItems: "center",
+      marginTop: 12,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    secondaryButton: {
+      backgroundColor: "transparent",
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    secondaryButtonText: {
+      ...typography.button,
+      color: colors.primary,
+    },
+    loader: {
+      marginTop: 20,
+    },
+  });

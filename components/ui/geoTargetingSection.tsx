@@ -15,7 +15,7 @@ import {
   Search,
   Target,
 } from "lucide-react-native";
-import COLORS from "@/app/components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import {
   GEO_RADIUS_MAX_M,
   GEO_RADIUS_MIN_M,
@@ -65,8 +65,10 @@ export default function GeoTargetingSection({
 }: GeoTargetingSectionProps) {
   const navigation = useNavigation<any>();
   const [locating, setLocating] = useState(false);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
-  const modeColor = mode === "within" ? COLORS.success : COLORS.accent;
+  const modeColor = mode === "within" ? colors.success : colors.accent;
 
   const handleUseMyLocation = async () => {
     setLocating(true);
@@ -104,9 +106,9 @@ export default function GeoTargetingSection({
           </Text>
         </View>
         <Switch
-          trackColor={{ false: "#767577", true: COLORS.primary }}
-          thumbColor={enabled ? "#FFF" : "#f4f3f4"}
-          ios_backgroundColor="#3e3e3e"
+          trackColor={{ false: colors.border, true: colors.primary }}
+          thumbColor={enabled ? colors.onPrimary : colors.surfaceVariant}
+          ios_backgroundColor={colors.border}
           onValueChange={onEnabledChange}
           value={enabled}
         />
@@ -120,15 +122,15 @@ export default function GeoTargetingSection({
               style={[
                 styles.segment,
                 mode === "within" && {
-                  backgroundColor: COLORS.success,
-                  borderColor: COLORS.success,
+                  backgroundColor: colors.success,
+                  borderColor: colors.success,
                 },
               ]}
               onPress={() => onModeChange("within")}
             >
               <Target
                 size={18}
-                color={mode === "within" ? "#fff" : "#666"}
+                color={mode === "within" ? colors.onAccent : colors.textSecondary}
               />
               <Text
                 style={[
@@ -143,15 +145,15 @@ export default function GeoTargetingSection({
               style={[
                 styles.segment,
                 mode === "outside" && {
-                  backgroundColor: COLORS.accent,
-                  borderColor: COLORS.accent,
+                  backgroundColor: colors.accent,
+                  borderColor: colors.accent,
                 },
               ]}
               onPress={() => onModeChange("outside")}
             >
               <CircleOff
                 size={18}
-                color={mode === "outside" ? "#fff" : "#666"}
+                color={mode === "outside" ? colors.onAccent : colors.textSecondary}
               />
               <Text
                 style={[
@@ -174,7 +176,7 @@ export default function GeoTargetingSection({
             value={radiusMeters}
             onValueChange={onRadiusChange}
             minimumTrackTintColor={modeColor}
-            maximumTrackTintColor="#ccc"
+            maximumTrackTintColor={colors.border}
             thumbTintColor={modeColor}
           />
 
@@ -187,9 +189,9 @@ export default function GeoTargetingSection({
               disabled={locating}
             >
               {locating ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <LocateFixed size={18} color={COLORS.primary} />
+                <LocateFixed size={18} color={colors.primary} />
               )}
               <Text style={styles.locationButtonText}>My location</Text>
             </TouchableOpacity>
@@ -200,7 +202,7 @@ export default function GeoTargetingSection({
                 navigation.navigate("LocationSearch");
               }}
             >
-              <Search size={18} color={COLORS.primary} />
+              <Search size={18} color={colors.primary} />
               <Text style={styles.locationButtonText}>Search location</Text>
             </TouchableOpacity>
           </View>
@@ -223,8 +225,8 @@ export default function GeoTargetingSection({
               style={[
                 styles.summaryBox,
                 {
-                  backgroundColor:
-                    mode === "within" ? "#e8f5e9" : "#fdecea",
+                  // hex + alpha suffix gives a subtle tint of the mode color
+                  backgroundColor: `${modeColor}22`,
                   borderColor: modeColor,
                 },
               ]}
@@ -249,7 +251,10 @@ export default function GeoTargetingSection({
             <View
               style={[
                 styles.summaryBox,
-                { backgroundColor: "#fff8e1", borderColor: COLORS.warning },
+                {
+                  backgroundColor: `${colors.warning}22`,
+                  borderColor: colors.warning,
+                },
               ]}
             >
               <Text style={styles.summaryText}>
@@ -263,112 +268,111 @@ export default function GeoTargetingSection({
   );
 }
 
-const styles = StyleSheet.create({
-  infoRow: {
-    flexDirection: "row",
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  infoSubtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  label: {
-    fontSize: 16,
-    marginTop: 15,
-  },
-  segmentRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 5,
-  },
-  segment: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#fff",
-  },
-  segmentText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#666",
-  },
-  segmentTextActive: {
-    color: "#fff",
-  },
-  locationButtonsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 8,
-  },
-  locationButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    backgroundColor: "#fff",
-  },
-  locationButtonText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  centerChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 10,
-    alignSelf: "flex-start",
-    maxWidth: "100%",
-  },
-  centerChipText: {
-    color: "#fff",
-    fontSize: 14,
-    marginRight: 8,
-    flexShrink: 1,
-  },
-  removeButton: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  summaryBox: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 12,
-  },
-  summaryText: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-  },
-  summaryStrong: {
-    fontWeight: "800",
-  },
-  reachText: {
-    fontSize: 13,
-    color: "#555",
-    marginTop: 6,
-    fontWeight: "600",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    infoRow: {
+      flexDirection: "row",
+      padding: 10,
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    infoTitle: {
+      ...typography.title,
+      color: colors.text,
+    },
+    infoSubtitle: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+    },
+    label: {
+      ...typography.subtitle,
+      color: colors.text,
+      marginTop: 15,
+    },
+    segmentRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 5,
+    },
+    segment: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    segmentText: {
+      ...typography.label,
+      fontWeight: "700",
+      color: colors.textSecondary,
+    },
+    segmentTextActive: {
+      color: colors.onAccent,
+    },
+    locationButtonsRow: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 8,
+    },
+    locationButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.surface,
+    },
+    locationButtonText: {
+      ...typography.label,
+      color: colors.primary,
+    },
+    centerChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      marginTop: 10,
+      alignSelf: "flex-start",
+      maxWidth: "100%",
+    },
+    centerChipText: {
+      ...typography.bodySmall,
+      color: colors.onPrimary,
+      marginRight: 8,
+      flexShrink: 1,
+    },
+    removeButton: {
+      ...typography.title,
+      color: colors.onPrimary,
+    },
+    summaryBox: {
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 12,
+    },
+    summaryText: {
+      ...typography.bodySmall,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    summaryStrong: {
+      fontWeight: "800",
+    },
+    reachText: {
+      ...typography.label,
+      color: colors.textSecondary,
+      marginTop: 6,
+    },
+  });

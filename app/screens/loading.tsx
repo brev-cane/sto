@@ -1,11 +1,12 @@
 import { useAuth } from "@/contexts/authContext";
+import { useTheme } from "@/theme";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import COLORS from "../components/colors";
 export default function LoadingScreen() {
   const { firebaseUser } = useAuth()
   const navigation = useNavigation();
+  const { colors } = useTheme();
   useEffect(() => {
     if (firebaseUser) {
       setTimeout(() => {
@@ -32,12 +33,12 @@ export default function LoadingScreen() {
     <View
       style={{
         flex: 1,
-        backgroundColor: "#fff",
+        backgroundColor: colors.background,
         justifyContent: "center",
         alignItems: "center",
       }}
     >
-      <ActivityIndicator color={COLORS.primary} size={"large"} />
+      <ActivityIndicator color={colors.primary} size={"large"} />
     </View>
   );
 }

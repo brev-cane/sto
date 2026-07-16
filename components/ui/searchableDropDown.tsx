@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Modal,
 } from "react-native";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 
 interface ItemType {
   file: string;
@@ -31,6 +32,8 @@ const SearchableDropdown: React.FC<Props> = ({
   const [search, setSearch] = useState("");
   const [visible, setVisible] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState("");
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const filtered = options.filter((o) =>
     o.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -48,7 +51,7 @@ const SearchableDropdown: React.FC<Props> = ({
         style={[styles.inputWrapper]}
         onPress={() => setVisible(true)}
       >
-        <Text style={{}}>{selectedLabel || placeholder || "Select"}</Text>
+        <Text style={styles.valueText}>{selectedLabel || placeholder || "Select"}</Text>
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade">
@@ -61,6 +64,7 @@ const SearchableDropdown: React.FC<Props> = ({
             <TextInput
               style={[styles.searchBox]}
               placeholder={"Search"}
+              placeholderTextColor={colors.placeholder}
               value={search}
               onChangeText={setSearch}
             />
@@ -72,7 +76,7 @@ const SearchableDropdown: React.FC<Props> = ({
                   style={[styles.option]}
                   onPress={() => handleSelect(item)}
                 >
-                  <Text style={{}}>{item.name}</Text>
+                  <Text style={styles.optionText}>{item.name}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -83,36 +87,48 @@ const SearchableDropdown: React.FC<Props> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  inputWrapper: { padding: 12, borderColor: "#ccc", borderRadius: 8 },
-  modalBackground: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.3)",
-  },
-  dropdown: {
-    width: "80%",
-    maxHeight: 300,
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 10,
-  },
-  searchBox: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 8,
-  },
-  option: {
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    inputWrapper: { padding: 12, borderColor: colors.border, borderRadius: 8 },
+    valueText: {
+      ...typography.body,
+      color: colors.text,
+    },
+    modalBackground: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.overlay,
+    },
+    dropdown: {
+      width: "80%",
+      maxHeight: 300,
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: 10,
+    },
+    searchBox: {
+      ...typography.body,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginBottom: 8,
+      color: colors.text,
+      backgroundColor: colors.inputBackground,
+    },
+    option: {
+      paddingVertical: 12,
+      paddingHorizontal: 6,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    optionText: {
+      ...typography.body,
+      color: colors.text,
+    },
+  });
 
 export default SearchableDropdown;

@@ -21,6 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
 import LocationPermissionCard from "@/components/ui/locationPermission";
+import SyncBanner from "@/components/ui/syncBanner";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -35,7 +36,7 @@ function Home() {
     const interval = setInterval(async () => {
       try {
         const nextAllowed = await AsyncStorage.getItem(
-          "nextAllowedNotificationTime"
+          "nextAllowedNotificationTime",
         );
         const ts = parseInt(nextAllowed ?? "0", 10); // avoid NaN
         const diff = Math.max(0, ts - Date.now());
@@ -56,7 +57,7 @@ function Home() {
       const nextAllowedTs = Date.now() + 1000 * 1000; // delay is in seconds
       await AsyncStorage.setItem(
         "nextAllowedNotificationTime",
-        String(nextAllowedTs)
+        String(nextAllowedTs),
       );
       setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
 
@@ -81,6 +82,7 @@ function Home() {
     );
   }
 
+
   return (
     <Drawer
       open={open}
@@ -89,6 +91,7 @@ function Home() {
       renderDrawerContent={CustomDrawer}
     >
       <Header onPress={() => setOpen(true)} />
+      <SyncBanner />
 
       {userDoc?.role === "admin" ? (
         <AdminScreen />

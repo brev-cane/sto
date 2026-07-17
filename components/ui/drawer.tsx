@@ -10,6 +10,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
 import * as Application from "expo-application";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const DrawerItem = ({
   icon,
@@ -43,6 +44,7 @@ export default function CustomDrawer() {
   const { navigate } = useAppNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const insets=useSafeAreaInsets();
   const shareApp = async () => {
     try {
       const message = `🔥🏈🤳🦬Check out *Stadium Takeover*! 🔥🏈🤳🦬
@@ -60,18 +62,9 @@ export default function CustomDrawer() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, marginBottom: insets.bottom+50 }}>
       <View style={styles.container}>
-        <LinearGradient
-          colors={[
-            colors.primary,
-            "rgba(0,0,0,0.2)",
-            "rgba(0,0,0,0.2)",
-            "rgba(0,0,0,0.2)",
-            colors.primary,
-          ]}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <View style={styles.headerContent}>
             <Image
               source={require("../../assets/images/blue-logo.png")}
@@ -85,7 +78,7 @@ export default function CustomDrawer() {
               </View>
             )}
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.content}>
           <View style={styles.bottomSection}>
@@ -140,7 +133,9 @@ const makeStyles = ({ colors, typography }: Theme) =>
       paddingTop: 50,
       paddingBottom: 12,
       paddingHorizontal: 12,
-    },
+        
+
+      },
     headerContent: {
       alignItems: "center",
     },

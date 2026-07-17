@@ -13,6 +13,7 @@ import { FIRESTORE_DB } from "@/FirebaseConfig";
 import {
   CatalogVideo,
   ManifestEntry,
+  SyncStatus,
   VideoDownloadProgress,
 } from "@/types/videos";
 
@@ -20,6 +21,7 @@ const MANIFEST_KEY = "videoManifest.v1";
 
 type Manifest = Record<string, ManifestEntry>;
 type ProgressListener = (progress: VideoDownloadProgress) => void;
+type SyncStatusListener = (status: SyncStatus | null) => void;
 
 function videoDir(): Directory {
   return new Directory(Paths.document, "videos");
@@ -45,6 +47,8 @@ export class VideoSyncService {
   private inFlight = new Map<string, Promise<string>>();
   private progressListeners = new Map<string, Set<ProgressListener>>();
   private appStateSub: NativeEventSubscription | null = null;
+  private syncStatus: SyncStatus | null = null;
+  private syncStatusListeners = new Set<SyncStatusListener>();
 
   /** Call once the user is signed in (catalog reads require auth). */
   start(): void {
@@ -68,6 +72,18 @@ export class VideoSyncService {
   stop(): void {
     this.appStateSub?.remove();
     this.appStateSub = null;
+  }
+
+  /**
+   * Subscribe to background sync progress (null = idle). The listener is
+   * called immediately with the current status. Returns an unsubscribe fn.
+   */
+  subscribeSyncStatus(listener: SyncStatusListener): () => void {
+    this.syncStatusListeners.add(listener);
+    listener(this.syncStatus);
+    return () => {
+      this.syncStatusListeners.delete(listener);
+    };
   }
 
   /** Downloads missing/outdated videos and removes ones no longer in the catalog. */
@@ -156,24 +172,46 @@ export class VideoSyncService {
     const catalog = snapshot.docs.map((d) => snapshotToVideo(d.id, d.data()));
     const catalogIds = new Set(catalog.map((v) => v.id));
 
-    for (const video of catalog) {
+    const pending = catalog.filter((video) => {
       const entry = this.manifest[video.id];
-      if (entry?.version === video.version && fileFor(video.id, entry.version).exists) {
-        continue;
-      }
-      try {
-        // Reuse an in-flight on-demand download instead of starting a second one
-        let promise = this.inFlight.get(video.id);
-        if (!promise) {
-          promise = this.download(video).finally(() => {
-            this.inFlight.delete(video.id);
-          });
-          this.inFlight.set(video.id, promise);
+      return !(
+        entry?.version === video.version &&
+        fileFor(video.id, entry.version).exists
+      );
+    });
+
+    let completed = 0;
+    try {
+      for (const video of pending) {
+        this.setSyncStatus({
+          total: pending.length,
+          completed,
+          currentName: video.name,
+        });
+        try {
+          // Reuse an in-flight on-demand download instead of starting a second one
+          let promise = this.inFlight.get(video.id);
+          if (!promise) {
+            promise = this.download(video).finally(() => {
+              this.inFlight.delete(video.id);
+            });
+            this.inFlight.set(video.id, promise);
+          }
+          await promise;
+          completed += 1;
+        } catch (error) {
+          console.log(`videoSync: download failed for ${video.id}:`, error);
         }
-        await promise;
-      } catch (error) {
-        console.log(`videoSync: download failed for ${video.id}:`, error);
       }
+    } finally {
+      if (pending.length > 0) {
+        this.setSyncStatus({
+          total: pending.length,
+          completed,
+          currentName: null,
+        });
+      }
+      this.setSyncStatus(null);
     }
 
     // Drop local copies of videos removed from (or deactivated in) the catalog
@@ -293,6 +331,11 @@ export class VideoSyncService {
     const set = this.progressListeners.get(progress.videoId);
     if (!set) return;
     for (const listener of set) listener(progress);
+  }
+
+  private setSyncStatus(status: SyncStatus | null) {
+    this.syncStatus = status;
+    for (const listener of this.syncStatusListeners) listener(status);
   }
 }
 

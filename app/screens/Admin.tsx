@@ -5,9 +5,7 @@ import {
   StyleSheet,
   Alert,
   TouchableOpacity,
-  Switch,
   TextInput,
-  ScrollView,
 } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
@@ -49,10 +47,6 @@ export default function AdminScreen() {
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
   const { userDoc } = useAuth(); // Add 'user' from auth context
-  const [isEnabled, setIsEnabled] = useState(__DEV__ ? true : false);
-  const [customUsers, setCustomUsers] = useState(false);
-  const [customUsersToken, setCustomUsersToken] = useState<string[]>([]);
-  const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const [title, setTitle] = useState("Stadium Takeover");
   const [geoEnabled, setGeoEnabled] = useState(false);
@@ -65,8 +59,6 @@ export default function AdminScreen() {
   const [reachLoading, setReachLoading] = useState(false);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
-  const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
   const countUsers = async () => {
     try {
@@ -254,8 +246,6 @@ export default function AdminScreen() {
         title: title,
         videoIds: selectedVideos.join(","),
         delaySeconds: delay,
-        adminOnly: isEnabled,
-        customTokens: customUsers ? customUsersToken : null,
         geoFilter:
           geoEnabled && geoCenter
             ? {
@@ -411,93 +401,6 @@ export default function AdminScreen() {
           reachLoading={reachLoading}
         />
 
-        {/* Admin Only Toggle */}
-        {/* <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Admin Only</Text>
-            <Text style={styles.infoSubtitle}>
-              Send notifications to yourself only
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={isEnabled ? colors.onPrimary : colors.surfaceVariant}
-            onValueChange={toggleSwitch}
-            value={isEnabled}
-          />
-        </View> */}
-
-        {/* Custom Users Toggle */}
-        <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Custom Users only</Text>
-            <Text style={styles.infoSubtitle}>
-              Send notifications to selected users only
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={customUsers ? colors.onPrimary : colors.surfaceVariant}
-            ios_backgroundColor={colors.border}
-            onValueChange={toggleSwitch2}
-            value={customUsers}
-          />
-        </View>
-
-        {/* Custom Users Input */}
-        {customUsers && (
-          <>
-            <Text style={styles.title}>{customUsersToken.length} users</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                placeholder="Enter User ID"
-                placeholderTextColor={colors.placeholder}
-                style={styles.input}
-                value={token}
-                onChangeText={setToken}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => {
-                  if (token.trim()) {
-                    setCustomUsersToken([...customUsersToken, token.trim()]);
-                    setToken("");
-                  }
-                }}
-              >
-                <Text style={styles.addButtonText}>Add</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal>
-              {customUsersToken.length > 0 && (
-                <View style={styles.userIdList}>
-                  {customUsersToken.map((userId, index) => (
-                    <View key={index} style={styles.userIdChip}>
-                      <Text
-                        ellipsizeMode="tail"
-                        numberOfLines={1}
-                        style={[styles.userIdText, { maxWidth: 100 }]}
-                      >
-                        {userId}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setCustomUsersToken(
-                            customUsersToken.filter((_, i) => i !== index)
-                          );
-                        }}
-                      >
-                        <Text style={styles.removeButton}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </ScrollView>
-          </>
-        )}
-
         {/* Send Button */}
         <View style={{ marginTop: 20 }}>
           <TouchableOpacity
@@ -591,16 +494,6 @@ const makeStyles = ({ colors, typography }: Theme) =>
       flex: 1,
       paddingVertical: 12,
       color: colors.text,
-    },
-    addButton: {
-      backgroundColor: colors.primary,
-      padding: 12,
-      margin: 5,
-      borderRadius: 8,
-    },
-    addButtonText: {
-      ...typography.label,
-      color: colors.onPrimary,
     },
     button: {
       backgroundColor: "transparent",

@@ -3,14 +3,13 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
 } from "react-native";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
@@ -20,6 +19,7 @@ import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
+import { Mail, UserPlus, UserRound } from "lucide-react-native";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -93,27 +93,30 @@ const Signup = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Animatable.Image
-        animation={"pulse"}
-        easing="ease-in-out"
-        iterationCount={"infinite"}
-        source={logoImage}
-        style={{
-          width: 120,
-          height: 115,
-          alignSelf: "center",
-          marginBottom: 12,
-        }}
-        resizeMode="contain"
-      />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.innerContainer}
-        >
-          <Text style={styles.title}>Create Account</Text>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.innerContainer}
+      >
+        {/* Hero */}
+        <Animatable.Image
+          animation={"pulse"}
+          easing="ease-in-out"
+          iterationCount={"infinite"}
+          source={logoImage}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Create account</Text>
+        <Text style={styles.subtitle}>Join the crowd and never miss a takeover</Text>
 
+        {/* Form */}
+        <View style={styles.inputWrapper}>
+          <UserRound size={18} color={colors.textMuted} />
           <TextInput
             value={name}
             style={styles.input}
@@ -122,6 +125,9 @@ const Signup = () => {
             autoCapitalize="words"
             onChangeText={setName}
           />
+        </View>
+        <View style={styles.inputWrapper}>
+          <Mail size={18} color={colors.textMuted} />
           <TextInput
             value={email}
             style={styles.input}
@@ -131,33 +137,38 @@ const Signup = () => {
             autoCapitalize="none"
             onChangeText={setEmail}
           />
-          <PasswordInput password={password} setPassword={setPassword} />
+        </View>
+        <PasswordInput password={password} setPassword={setPassword} />
 
+        {/* Create account */}
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={signUp}
+          disabled={loading}
+        >
           {loading ? (
-            <ActivityIndicator
-              size="large"
-              color={colors.primary}
-              style={styles.loader}
-            />
+            <ActivityIndicator size="small" color={colors.onPrimary} />
           ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.button, styles.secondaryButton]}
-                onPress={() => navigate("Login")}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  Already have an account? Log In
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.button} onPress={signUp}>
-                <Text style={styles.buttonText}>Create Account</Text>
-              </TouchableOpacity>
-            </>
+            <UserPlus size={18} color={colors.onPrimary} />
           )}
-        </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
-    </View>
+          <Text style={styles.buttonText}>
+            {loading ? "Creating account…" : "Create Account"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Footer */}
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>Already have an account?</Text>
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            onPress={() => navigate("Login")}
+            disabled={loading}
+          >
+            <Text style={styles.footerLink}> Log In</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </ScrollView>
   );
 };
 
@@ -166,52 +177,82 @@ export default Signup;
 const makeStyles = ({ colors, typography }: Theme) =>
   StyleSheet.create({
     container: {
-      flex: 1,
+      flexGrow: 1,
       backgroundColor: colors.background,
       justifyContent: "center",
       paddingHorizontal: 24,
+      paddingVertical: 32,
     },
     innerContainer: {
       width: "100%",
+      maxWidth: 420,
+      alignSelf: "center",
+    },
+    logo: {
+      width: 110,
+      height: 105,
+      alignSelf: "center",
+      marginBottom: 14,
     },
     title: {
       ...typography.h2,
-      marginBottom: 24,
       color: colors.text,
       textAlign: "center",
     },
-    input: {
+    subtitle: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      textAlign: "center",
+      marginTop: 2,
+      marginBottom: 28,
+    },
+    inputWrapper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
       height: 52,
-      borderColor: colors.border,
-      borderWidth: 1,
-      borderRadius: 10,
-      paddingHorizontal: 16,
       backgroundColor: colors.inputBackground,
-      marginBottom: 16,
-      fontSize: typography.body.fontSize,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      marginBottom: 12,
+    },
+    input: {
+      ...typography.body,
+      flex: 1,
       color: colors.text,
     },
     button: {
-      backgroundColor: colors.primary,
-      paddingVertical: 16,
-      borderRadius: 10,
+      flexDirection: "row",
       alignItems: "center",
-      marginTop: 12,
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 15,
+      borderRadius: 12,
+      marginTop: 6,
+    },
+    buttonDisabled: {
+      opacity: 0.6,
     },
     buttonText: {
       ...typography.button,
       color: colors.onPrimary,
     },
-    secondaryButton: {
-      backgroundColor: "transparent",
-      borderWidth: 1,
-      borderColor: colors.primary,
+    footerRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      marginTop: 18,
     },
-    secondaryButtonText: {
-      ...typography.button,
+    footerText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+    },
+    footerLink: {
+      ...typography.bodySmall,
+      fontWeight: "600",
       color: colors.primary,
-    },
-    loader: {
-      marginTop: 20,
     },
   });

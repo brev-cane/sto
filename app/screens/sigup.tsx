@@ -15,7 +15,7 @@ import {
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, setDoc } from "firebase/firestore";
 import Toast from "react-native-toast-message";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
@@ -28,7 +28,7 @@ const Signup = () => {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const auth = FIREBASE_AUTH;
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);

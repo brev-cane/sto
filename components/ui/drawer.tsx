@@ -2,10 +2,10 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, Share } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import { User, LogOut, Book, Share as ShareIcon } from "lucide-react-native";
+import { LogOut, Book, Share as ShareIcon } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { signOut } from "firebase/auth";
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
@@ -40,7 +40,7 @@ const DrawerItem = ({
 
 export default function CustomDrawer() {
   const { userDoc } = useAuth();
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const shareApp = async () => {
@@ -89,11 +89,6 @@ export default function CustomDrawer() {
 
         <View style={styles.content}>
           <View style={styles.bottomSection}>
-            <DrawerItem
-              icon={<User size={20} color={colors.primary} />}
-              label={"Profile"}
-              onPress={() => navigate("Profile")}
-            />
             <DrawerItem
               icon={<Book size={20} color={colors.primary} />}
               label={"Privacy Policy"}

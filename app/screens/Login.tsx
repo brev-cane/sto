@@ -20,7 +20,7 @@ import {
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../../FirebaseConfig";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import Toast from "react-native-toast-message";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
@@ -43,7 +43,7 @@ const Login = () => {
   const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
   const { setUserDoc } = useAuth();
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const handeleAppleAuthentication = async () => {

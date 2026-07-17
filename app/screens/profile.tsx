@@ -13,7 +13,7 @@ import {
 import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -97,7 +97,9 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
         <Icon size={17} color="#FFFFFF" strokeWidth={2.2} />
       </View>
       <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, destructive && styles.rowTitleDestructive]}>
+        <Text
+          style={[styles.rowTitle, destructive && styles.rowTitleDestructive]}
+        >
           {title}
         </Text>
         {description ? (
@@ -123,7 +125,7 @@ export const UserProfileScreen: React.FC = () => {
   const [name, setName] = useState(userDoc?.name || "");
   const [username, setUsername] = useState(userDoc?.username || "");
   const [pushEnabled, setPushEnabled] = useState(
-    userDoc?.pushToken ? true : false
+    userDoc?.pushToken ? true : false,
   );
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -131,9 +133,9 @@ export const UserProfileScreen: React.FC = () => {
   const [locationBusy, setLocationBusy] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const [receiveAll, setReceiveAll] = useState(
-    userDoc?.receiveAllNotifications === true
+    userDoc?.receiveAllNotifications === true,
   );
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -175,7 +177,7 @@ export const UserProfileScreen: React.FC = () => {
                     ? Linking.openURL("app-settings:")
                     : Linking.openSettings(),
               },
-            ]
+            ],
           );
         }
       } else {
@@ -234,19 +236,19 @@ export const UserProfileScreen: React.FC = () => {
               }
               await dbService.collection("users").delete(user.uid);
               await deleteUser(user);
-              navigate("Loading" as never);
+              navigate("Loading");
             } catch (error: any) {
               console.error("Failed to delete account:", error);
               Alert.alert(
                 "Error",
-                error?.message ?? "Failed to delete account. Please try again."
+                error?.message ?? "Failed to delete account. Please try again.",
               );
             } finally {
               setDeleting(false);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -266,7 +268,7 @@ export const UserProfileScreen: React.FC = () => {
       const blob = await response.blob();
       const storageRef = ref(
         FIREBASE_STORAGE,
-        `profilePictures/${firebaseUser.uid}.jpg`
+        `profilePictures/${firebaseUser.uid}.jpg`,
       );
       await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const photoURL = await getDownloadURL(storageRef);
@@ -355,10 +357,8 @@ export const UserProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <BackButton />
+      <BackButton title="My Profile" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>My Profile</Text>
-
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <TouchableOpacity

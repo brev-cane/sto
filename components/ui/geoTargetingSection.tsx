@@ -30,7 +30,7 @@ import {
   requestLocationPermission,
 } from "@/services/locationService";
 import { setLocationPickHandler } from "@/services/locationPickHandoff";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 
 interface GeoTargetingSectionProps {
   enabled: boolean;
@@ -63,7 +63,7 @@ export default function GeoTargetingSection({
   estimatedReach = null,
   reachLoading = false,
 }: GeoTargetingSectionProps) {
-  const navigation = useNavigation<any>();
+  const navigation = useAppNavigation();
   const [locating, setLocating] = useState(false);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);

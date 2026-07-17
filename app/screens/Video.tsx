@@ -4,7 +4,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -68,7 +68,7 @@ export default function VideoScreen() {
   const route =
     useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
   const params = route.params;
-  const { navigate } = useNavigation<any>();
+  const { navigate } = useAppNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -132,7 +132,7 @@ export default function VideoScreen() {
       // Background prefetch may not have finished (or failed); without a
       // local file there is nothing to play in sync, so leave.
       if (!nextEntry.uri) {
-        navigate("Home");
+        navigate("Main");
         return;
       }
 
@@ -145,7 +145,7 @@ export default function VideoScreen() {
 
       setCurrentVideoIndex(nextIndex);
     } else {
-      navigate("Home");
+      navigate("Main");
     }
   });
 

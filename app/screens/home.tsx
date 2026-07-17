@@ -10,7 +10,7 @@ import {
 import { Theme, useThemedStyles } from "@/theme";
 import { useAuth } from "@/contexts/authContext";
 import { sendBatchNotifications } from "@/utils/notificationHelper";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import AdminScreen from "./Admin";
 import { Drawer } from "react-native-drawer-layout";
 import { useEffect, useState } from "react";
@@ -26,7 +26,7 @@ const logoImage = require("../../assets/images/blue-logo.png");
 
 function Home() {
   const { userDoc } = useAuth();
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
   const styles = useThemedStyles(makeStyles);

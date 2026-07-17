@@ -30,6 +30,7 @@ import {
   requestLocationPermission,
 } from "@/services/locationService";
 import { setLocationPickHandler } from "@/services/locationPickHandoff";
+import { formatCount } from "@/utils/formatHelper";
 import { useAppNavigation } from "@/types/navigation";
 
 interface GeoTargetingSectionProps {
@@ -243,7 +244,7 @@ export default function GeoTargetingSection({
                 {reachLoading
                   ? "Estimating reach…"
                   : estimatedReach !== null
-                    ? `Estimated reach: ~${estimatedReach} users`
+                    ? `Estimated reach: ~${formatCount(estimatedReach)} users`
                     : ""}
               </Text>
             </View>

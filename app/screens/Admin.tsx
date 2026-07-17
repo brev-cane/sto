@@ -6,13 +6,23 @@ import {
   Alert,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useAuth } from "@/contexts/authContext";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-import { User, Video } from "lucide-react-native";
+import {
+  ChevronDown,
+  Clock,
+  FolderCog,
+  Send,
+  Upload,
+  Users,
+  Video,
+  X,
+} from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
@@ -20,6 +30,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { functions, FIREBASE_AUTH, FIRESTORE_DB } from "@/FirebaseConfig";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import VideoUploadSheet from "@/components/ui/videoUploadSheet";
+import { formatCount } from "@/utils/formatHelper";
 import ManageMediaSheet from "@/components/ui/manageMediaSheet";
 import {
   GEO_RADIUS_DEFAULT_M,
@@ -290,129 +301,191 @@ export default function AdminScreen() {
       contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background }}
     >
       <View style={styles.container}>
+        {/* Header */}
         <Text style={styles.title}>📢 Stadium Takeover</Text>
+        <Text style={styles.subtitle}>
+          Compose and send a takeover alert to fans
+        </Text>
 
-        {/* User Count */}
-        <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Users</Text>
-            <Text style={styles.infoSubtitle}>
-              Total users who have enabled {"\n"} push notifications
-            </Text>
+        {/* Audience */}
+        <View style={styles.section}>
+          <View style={[styles.row, styles.rowLast]}>
+            <View style={styles.iconTile}>
+              <Users size={17} color={colors.primary} />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowTitle}>Reachable users</Text>
+              <Text style={styles.rowDescription}>
+                Have push notifications enabled
+              </Text>
+            </View>
+            <Text style={styles.audienceCount}>{formatCount(tokensCount)}</Text>
           </View>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <User color={colors.primary} />
-            <Text style={styles.infoCount}>{tokensCount}</Text>
+        </View>
+
+        {/* Notification */}
+        <Text style={styles.sectionHeader}>Notification</Text>
+        <View style={styles.section}>
+          <View style={[styles.row, styles.rowLast]}>
+            <View style={styles.rowBody}>
+              <Text style={styles.fieldLabel}>Title</Text>
+              <TextInput
+                placeholder="Stadium Takeover"
+                placeholderTextColor={colors.placeholder}
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+              />
+            </View>
           </View>
         </View>
 
-        {/* Notification Title */}
-        <Text style={styles.label}>Notification Title</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            placeholder="Stadium Takeover"
-            placeholderTextColor={colors.placeholder}
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-          />
+        {/* Media */}
+        <Text style={styles.sectionHeader}>Media</Text>
+        <View style={styles.section}>
+          <View style={styles.row}>
+            <View style={styles.iconTile}>
+              <Video size={17} color={colors.primary} />
+            </View>
+            <View style={styles.dropdownWrapper}>
+              <SearchableDropdown
+                options={videoOptions}
+                placeholder={"Choose a video…"}
+                onSelect={(item) => {
+                  setSelectedVideos([...selectedVideos, item.file]);
+                  setTitle(`Stadium Takeover - ${item.name}`);
+                }}
+              />
+            </View>
+            <ChevronDown size={16} color={colors.textMuted} />
+          </View>
+
+          {/* Selected media list */}
+          {selectedVideos.length === 0 ? (
+            <View style={styles.row}>
+              <Text style={styles.emptyText}>No media selected yet</Text>
+            </View>
+          ) : (
+            selectedVideos.map((v, index) => {
+              const option = videoOptions.find((opt) => opt.file === v);
+              const videoName = option?.name || v;
+              const newOnly = option ? !option.legacy : false;
+              return (
+                <View key={index} style={styles.row}>
+                  <View style={styles.orderBadge}>
+                    <Text style={styles.orderBadgeText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.rowBody}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {videoName}
+                    </Text>
+                    {newOnly && (
+                      <Text style={styles.newOnlyText}>
+                        Latest app version only
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => {
+                      setSelectedVideos(
+                        selectedVideos.filter((_, i) => i !== index)
+                      );
+                    }}
+                  >
+                    <X size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })
+          )}
+
+          {/* Media actions */}
+          <View style={styles.mediaActionsRow}>
+            <TouchableOpacity
+              style={styles.mediaAction}
+              onPress={() => uploadSheetRef.current?.present()}
+            >
+              <Upload size={16} color={colors.primary} />
+              <Text style={styles.mediaActionText}>Upload media</Text>
+            </TouchableOpacity>
+            <View style={styles.mediaActionDivider} />
+            <TouchableOpacity
+              style={styles.mediaAction}
+              onPress={() => manageSheetRef.current?.present()}
+            >
+              <FolderCog size={16} color={colors.primary} />
+              <Text style={styles.mediaActionText}>Manage media</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Video Picker */}
-        <Text style={styles.label}>Select Video(s)</Text>
-        <View style={styles.videoPickerContainer}>
-          <Video color={colors.primary} />
-          <SearchableDropdown
-            options={videoOptions}
-            placeholder={"-- Choose a Video --"}
-            onSelect={(item) => {
-              setSelectedVideos([...selectedVideos, item.file]);
-              setTitle(`Stadium Takeover - ${item.name}`);
-            }}
-          />
+        {/* Delivery */}
+        <Text style={styles.sectionHeader}>Delivery</Text>
+        <View style={styles.section}>
+          <View style={styles.row}>
+            <View style={styles.iconTile}>
+              <Clock size={17} color={colors.primary} />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowTitle}>Delay</Text>
+              <Text style={styles.rowDescription}>
+                Countdown before the takeover starts
+              </Text>
+            </View>
+            <Text style={styles.delayValue}>{delay}s</Text>
+          </View>
+          <View style={styles.sliderWrapper}>
+            <Slider
+              style={{ width: "100%", height: 40 }}
+              minimumValue={10}
+              maximumValue={180}
+              step={5}
+              value={delay}
+              onValueChange={setDelay}
+              minimumTrackTintColor={colors.primary}
+              maximumTrackTintColor={colors.border}
+              thumbTintColor={colors.primary}
+            />
+            <View style={styles.sliderScale}>
+              <Text style={styles.sliderScaleText}>10s</Text>
+              <Text style={styles.sliderScaleText}>180s</Text>
+            </View>
+          </View>
         </View>
-
-        <View style={styles.mediaActionsRow}>
-          <TouchableOpacity
-            style={styles.uploadNewButton}
-            onPress={() => uploadSheetRef.current?.present()}
-          >
-            <Text style={styles.uploadNewText}>+ Upload New Media</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.uploadNewButton}
-            onPress={() => manageSheetRef.current?.present()}
-          >
-            <Text style={styles.uploadNewText}>Manage Media</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Selected Videos List */}
-        <View style={styles.userIdList}>
-          {selectedVideos.map((v, index) => {
-            const option = videoOptions.find((opt) => opt.file === v);
-            const videoName = option?.name || v;
-            const newOnly = option ? !option.legacy : false;
-            return (
-              <View key={index} style={styles.userIdChip}>
-                <Text style={styles.userIdText}>
-                  {index + 1}. {videoName}
-                  {newOnly ? " (new app only)" : ""}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedVideos(
-                      selectedVideos.filter((_, i) => i !== index)
-                    );
-                  }}
-                >
-                  <Text style={styles.removeButton}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Delay Slider */}
-        <Text style={styles.label}>Delay: {delay} seconds</Text>
-        <Slider
-          style={{ width: "100%", height: 40 }}
-          minimumValue={10}
-          maximumValue={180}
-          step={5}
-          value={delay}
-          onValueChange={setDelay}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-        />
 
         {/* Geo-Targeting */}
-        <GeoTargetingSection
-          enabled={geoEnabled}
-          onEnabledChange={setGeoEnabled}
-          mode={geoMode}
-          onModeChange={setGeoMode}
-          radiusMeters={radiusMeters}
-          onRadiusChange={setRadiusMeters}
-          center={geoCenter}
-          onCenterChange={setGeoCenter}
-          estimatedReach={estimatedReach}
-          reachLoading={reachLoading}
-        />
+        <Text style={styles.sectionHeader}>Audience Filter</Text>
+        <View style={[styles.section, styles.geoSection]}>
+          <GeoTargetingSection
+            enabled={geoEnabled}
+            onEnabledChange={setGeoEnabled}
+            mode={geoMode}
+            onModeChange={setGeoMode}
+            radiusMeters={radiusMeters}
+            onRadiusChange={setRadiusMeters}
+            center={geoCenter}
+            onCenterChange={setGeoCenter}
+            estimatedReach={estimatedReach}
+            reachLoading={reachLoading}
+          />
+        </View>
 
         {/* Send Button */}
-        <View style={{ marginTop: 20 }}>
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSend}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? "Sending..." : "Send Notification"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[styles.sendButton, loading && styles.sendButtonDisabled]}
+          onPress={handleSend}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : (
+            <Send size={18} color={colors.onPrimary} />
+          )}
+          <Text style={styles.sendButtonText}>
+            {loading ? "Sending…" : "Send Notification"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAwareScrollView>
     <VideoUploadSheet ref={uploadSheetRef} onUploaded={loadVideoOptions} />
@@ -431,112 +504,166 @@ const makeStyles = ({ colors, typography }: Theme) =>
     title: {
       ...typography.h2,
       color: colors.text,
-      marginBottom: 20,
     },
-    infoRow: {
-      flexDirection: "row",
-      padding: 10,
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    infoTitle: {
-      ...typography.title,
-      color: colors.text,
-    },
-    infoSubtitle: {
+    subtitle: {
       ...typography.bodySmall,
       color: colors.textSecondary,
+      marginTop: 2,
+      marginBottom: 20,
     },
-    infoCount: {
-      ...typography.title,
-      color: colors.text,
-      marginLeft: 5,
+    sectionHeader: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 6,
+      marginLeft: 16,
     },
-    label: {
-      ...typography.subtitle,
-      color: colors.text,
-      marginTop: 15,
+    section: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      marginBottom: 22,
+      overflow: "hidden",
     },
-    videoPickerContainer: {
+    geoSection: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    row: {
       flexDirection: "row",
       alignItems: "center",
-      borderWidth: 1,
-      borderRadius: 8,
-      borderColor: colors.primary,
-      padding: 10,
-    },
-    mediaActionsRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    uploadNewButton: {
-      alignSelf: "flex-start",
+      minHeight: 48,
+      paddingLeft: 14,
+      paddingRight: 12,
       paddingVertical: 8,
-      paddingHorizontal: 2,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
     },
-    uploadNewText: {
+    rowLast: {
+      borderBottomWidth: 0,
+    },
+    iconTile: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+      marginRight: 12,
+    },
+    rowBody: {
+      flex: 1,
+      justifyContent: "center",
+      paddingRight: 8,
+    },
+    rowTitle: {
       ...typography.body,
+      color: colors.text,
+    },
+    rowDescription: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    audienceCount: {
+      ...typography.h3,
       color: colors.primary,
     },
-    inputRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.inputBackground,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+    fieldLabel: {
+      ...typography.label,
+      color: colors.textSecondary,
+      marginTop: 2,
     },
     input: {
       ...typography.body,
-      flex: 1,
-      paddingVertical: 12,
       color: colors.text,
+      paddingVertical: 6,
+      paddingHorizontal: 0,
     },
-    button: {
-      backgroundColor: "transparent",
-      borderWidth: 1,
-      borderColor: colors.primary,
-      textAlign: "center",
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      paddingVertical: 16,
-      borderRadius: 10,
+    dropdownWrapper: {
+      flex: 1,
+      marginLeft: -12, // cancel SearchableDropdown's inner padding
+    },
+    emptyText: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      fontStyle: "italic",
+    },
+    orderBadge: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       alignItems: "center",
-      marginBottom: 12,
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+      marginRight: 12,
     },
-    buttonDisabled: {
-      opacity: 0.5,
-    },
-    buttonText: {
-      ...typography.button,
+    orderBadgeText: {
+      ...typography.label,
       color: colors.primary,
     },
-    userIdList: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      marginVertical: 10,
+    newOnlyText: {
+      ...typography.caption,
+      color: colors.warning,
+      marginTop: 1,
     },
-    userIdChip: {
+    mediaActionsRow: {
+      flexDirection: "row",
+      alignItems: "stretch",
+    },
+    mediaAction: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      marginRight: 8,
-      marginBottom: 8,
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 12,
     },
-    userIdText: {
-      ...typography.bodySmall,
-      color: colors.onPrimary,
-      marginRight: 6,
+    mediaActionDivider: {
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
     },
-    removeButton: {
+    mediaActionText: {
+      ...typography.label,
+      color: colors.primary,
+    },
+    delayValue: {
       ...typography.title,
+      color: colors.primary,
+      fontVariant: ["tabular-nums"],
+    },
+    sliderWrapper: {
+      paddingHorizontal: 14,
+      paddingTop: 4,
+      paddingBottom: 10,
+    },
+    sliderScale: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: -4,
+    },
+    sliderScaleText: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    sendButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 15,
+      borderRadius: 12,
+      marginTop: 2,
+      marginBottom: 12,
+    },
+    sendButtonDisabled: {
+      opacity: 0.6,
+    },
+    sendButtonText: {
+      ...typography.button,
       color: colors.onPrimary,
     },
   });

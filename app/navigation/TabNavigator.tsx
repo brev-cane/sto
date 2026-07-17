@@ -17,16 +17,18 @@ const TabNavigator = () => {
         tabBarStyle: {
           paddingBottom: 5,
           height: 60,
-          borderTopRightRadius: 20,
-          borderTopLeftRadius: 20,
+          borderRadius: 30,
+          marginHorizontal: 10,
+          marginBottom:20,
           backgroundColor: colors.tabBarBackground,
           overflow: "hidden",
           boxShadow: "0px -2px 4px rgba(0, 0, 0, 0.1)",
         },
-        tabBarLabelStyle: {
+          tabBarLabelStyle: {
           fontSize: typography.caption.fontSize,
           marginBottom: 5,
         },
+        
       }}
     >
       <Tab.Screen

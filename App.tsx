@@ -133,7 +133,7 @@ export default Sentry.wrap(function App() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: isDark ? "#000" : "#fff" }}
+      style={{ flex: 1, backgroundColor: isDark ?  '#0F1216': "#fff" }}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>

@@ -1,5 +1,5 @@
 import { RouteProp, useRoute } from "@react-navigation/native";
-import { useEvent, useEventListener } from "expo";
+import { useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
@@ -9,6 +9,8 @@ import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { timeSync } from "@/services/timeSync";
+import { videoSync } from "@/services/videoSync";
+import { VideoDownloadProgress } from "@/types/videos";
 import { Image } from "expo-image";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, {
@@ -19,34 +21,44 @@ const width = Dimensions.get("window").width;
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 type VideoScreenRouteParams = {
-  videoFile: string;
-  sentAt: string;
-  delaySeconds: string;
+  videoFile?: string;
+  videoIds?: string;
+  sentAt?: string;
+  delaySeconds?: string;
   playAt: string;
 };
 
-const videoMap = {
-  "1.mp4": require("../../assets/videos/1.mp4"),
-  "2.mp4": require("../../assets/videos/2.mp4"),
-  "3.mp4": require("../../assets/videos/3.mp4"),
-  "4.mp4": require("../../assets/videos/4.mp4"),
-  "5.mp4": require("../../assets/videos/5.mp4"),
-  //"6.mp4": require("../../assets/videos/6.mp4"),
-  "7.mp4": require("../../assets/videos/7.mp4"),
-  // "8.mp4": require("../../assets/videos/8.mp4"),
-  // "9.mp4": require("../../assets/videos/9.mp4"),
-  "10.mp4": require("../../assets/videos/10.mp4"),
-  //  "11.mp4": require("../../assets/videos/11.mp4"),
-  //  "12.mp4": require("../../assets/videos/12.mp4"),
-  // "13.mp4": require("../../assets/videos/13.mp4"),
-  "14.mp4": require("../../assets/videos/14.mp4"),
-
-  "19.mp4": require("../../assets/videos/19.mp4"),
-  "20.mp4": require("../../assets/videos/20.mp4"),
+type PlaylistEntry = {
+  id: string;
+  name: string;
+  durationSec: number;
+  legacyFileName?: string;
+  /** Local file URI once downloaded, null while still remote */
+  uri: string | null;
 };
 
-function isValidVideoFile(file: string): file is keyof typeof videoMap {
-  return Object.prototype.hasOwnProperty.call(videoMap, file);
+type Phase =
+  | "resolving"
+  | "downloading"
+  | "countdown"
+  | "playing"
+  | "missed"
+  | "error";
+
+/** Maps seconds elapsed since playAt to a playlist position, for joining late but in sync. */
+function locateInPlaylist(
+  elapsedSec: number,
+  entries: PlaylistEntry[]
+): { index: number; offsetSec: number } | null {
+  let start = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const duration = entries[i].durationSec || 0;
+    if (elapsedSec < start + duration) {
+      return { index: i, offsetSec: Math.max(0, elapsedSec - start) };
+    }
+    start += duration;
+  }
+  return null;
 }
 
 export default function VideoScreen() {
@@ -57,13 +69,17 @@ export default function VideoScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [missed, setMissed] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [phase, setPhase] = useState<Phase>("resolving");
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [entries, setEntries] = useState<PlaylistEntry[] | null>(null);
+  const [downloadProgress, setDownloadProgress] =
+    useState<VideoDownloadProgress | null>(null);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+
+  const pendingSeekRef = useRef(0);
+
   const ref = useRef<ICarouselInstance>(null);
-  const [playing, setPlaying] = useState(false);
   const progress = useSharedValue<number>(0);
 
   const onPressPagination = (index: number) => {
@@ -76,95 +92,220 @@ export default function VideoScreen() {
       animated: true,
     });
   };
-  // Extract params safely with defaults
-  const videoFileParam = params?.videoFile;
+
   const playAt = params?.playAt;
+  // New pushes carry catalog ids in videoIds; older payloads carry videoFile,
+  // whose legacy filenames double as catalog doc ids for the seeded videos.
+  const playlistIds = (params?.videoIds ?? params?.videoFile ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-  // Create playlist
-  const playlist = videoFileParam ? videoFileParam.split(",") : [];
-  const currentVideoFile = playlist[currentVideoIndex];
-  console.log("parms,playlist :");
-  // Always initialize player (with a default or null check)
-  const assetId =
-    currentVideoFile && isValidVideoFile(currentVideoFile)
-      ? videoMap[currentVideoFile]
-      : null;
-
-  const player = useVideoPlayer(assetId, (player) => {
-    if (player) {
-      player.loop = false;
-      // Auto-play if we are moving to next video in playlist (index > 0)
-      if (currentVideoIndex > 0) {
-        player.play();
-      }
+  const currentUri = entries?.[currentVideoIndex]?.uri ?? null;
+  const player = useVideoPlayer(
+    currentUri ? { uri: currentUri } : null,
+    (player) => {
+      if (player) player.loop = false;
     }
-  });
+  );
+
+  // Once we're in the playing phase, every (re)created player — initial start,
+  // playlist advance, late-join into a later video — starts playback here,
+  // applying a pending late-join seek first.
+  useEffect(() => {
+    if (phase !== "playing" || !player) return;
+    if (pendingSeekRef.current > 0) {
+      player.currentTime = pendingSeekRef.current;
+      pendingSeekRef.current = 0;
+    }
+    player.play();
+  }, [phase, player, currentVideoIndex]);
 
   useEventListener(player, "playToEnd", () => {
-    if (currentVideoIndex < playlist.length - 1) {
+    if (entries && currentVideoIndex < entries.length - 1) {
       const nextIndex = currentVideoIndex + 1;
-      const nextVideo = playlist[nextIndex];
-      const currentVideo = playlist[currentVideoIndex];
+      const nextEntry = entries[nextIndex];
+
+      // Background prefetch may not have finished (or failed); without a
+      // local file there is nothing to play in sync, so leave.
+      if (!nextEntry.uri) {
+        navigate("Home");
+        return;
+      }
 
       // If the next video is the same as current, we need to seek to beginning and replay
-      // because useVideoPlayer won't reinitialize with the same assetId
-      if (nextVideo === currentVideo && player) {
-        console.log("Same video repeating, seeking to beginning");
+      // because useVideoPlayer won't reinitialize with the same source
+      if (nextEntry.uri === entries[currentVideoIndex].uri && player) {
         player.currentTime = 0;
         player.play();
       }
 
       setCurrentVideoIndex(nextIndex);
-      setPlaying(true);
     } else {
       navigate("Home");
     }
   });
 
-  // Validate params and set errors
+  // Resolve playlist ids against the local store / catalog, then make sure the
+  // video we need first is on disk — downloading it with visible progress.
   useEffect(() => {
     if (!params) {
       setError("Missing parameters.");
+      setPhase("error");
       return;
     }
-
-    if (!playlist.length || !playlist.some(isValidVideoFile)) {
+    if (!playlistIds.length) {
       setError("Invalid or missing video file(s).");
+      setPhase("error");
       return;
     }
-
     if (!playAt) {
       setError("Missing playAt timestamp parameter.");
+      setPhase("error");
       return;
     }
 
-    // Clear any previous errors
-    setError(null);
-  }, [params, videoFileParam, playAt]);
+    const abort = new AbortController();
+    let cancelled = false;
 
-  // Sync countdown with server timestamp
+    (async () => {
+      try {
+        // 1. Metadata (name/duration) for every playlist entry
+        const resolved: PlaylistEntry[] = [];
+        for (const id of playlistIds) {
+          const manifestEntry = await videoSync.getManifestEntry(id);
+          if (manifestEntry) {
+            resolved.push({
+              id,
+              name: manifestEntry.name,
+              durationSec: manifestEntry.durationSec,
+              legacyFileName: manifestEntry.legacyFileName,
+              uri: await videoSync.getLocalUri(id),
+            });
+            continue;
+          }
+          const catalogVideo = await videoSync.getCatalogVideo(id);
+          if (!catalogVideo || catalogVideo.status !== "ready") {
+            throw new Error("Invalid or missing video file(s).");
+          }
+          resolved.push({
+            id,
+            name: catalogVideo.name,
+            durationSec: catalogVideo.durationSec,
+            legacyFileName: catalogVideo.legacyFileName,
+            uri: null,
+          });
+        }
+        if (cancelled) return;
+        setEntries(resolved);
+
+        // 2. Which file do we need first? Index 0 normally; a later index
+        // when joining after playAt.
+        const elapsedSec =
+          (timeSync.getSyncedTime() - parseInt(playAt, 10)) / 1000;
+        const location =
+          elapsedSec > 5 ? locateInPlaylist(elapsedSec, resolved) : null;
+        if (elapsedSec > 5 && !location) {
+          // The whole playlist already finished — countdown effect will show
+          // "missed", no download needed.
+          setPhase("countdown");
+          return;
+        }
+        const targetIndex = location?.index ?? 0;
+
+        // 3. Download the target with progress, then let the countdown take
+        // over; remaining entries keep downloading in the background.
+        if (!resolved[targetIndex].uri) {
+          setPhase("downloading");
+          const uri = await videoSync.ensureVideo(
+            resolved[targetIndex].id,
+            (p) => {
+              if (!cancelled) setDownloadProgress(p);
+            },
+            abort.signal
+          );
+          if (cancelled) return;
+          resolved[targetIndex] = { ...resolved[targetIndex], uri };
+          setEntries([...resolved]);
+        }
+
+        for (const [i, entry] of resolved.entries()) {
+          if (i === targetIndex || entry.uri) continue;
+          videoSync
+            .ensureVideo(entry.id)
+            .then((uri) => {
+              if (cancelled) return;
+              setEntries((prev) => {
+                if (!prev) return prev;
+                const next = [...prev];
+                next[i] = { ...next[i], uri };
+                return next;
+              });
+            })
+            .catch((err) =>
+              console.log(`Prefetch failed for ${entry.id}:`, err)
+            );
+        }
+
+        setPhase("countdown");
+      } catch (err: any) {
+        if (cancelled || err?.name === "AbortError") return;
+        console.log("Video preparation failed:", err);
+        setError(
+          err?.message === "Invalid or missing video file(s)."
+            ? err.message
+            : "Could not download the video. Check your connection and try again."
+        );
+        setPhase("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      abort.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.videoIds, params?.videoFile, playAt]);
+
+  // Sync countdown with server timestamp; on expiry either play from the
+  // start (grace period) or join late at the in-sync offset.
   useEffect(() => {
-    if (error || !playAt) return;
+    if (phase !== "countdown" || !playAt || !entries) return;
 
     const targetTimestamp = parseInt(playAt, 10);
 
+    const startPlayback = (index: number, offsetSec: number) => {
+      pendingSeekRef.current = offsetSec;
+      setCountdown(0);
+      setCurrentVideoIndex(index);
+      // The play effect picks it up from here (and applies the seek)
+      setPhase("playing");
+    };
+
     const updateCountdown = () => {
-      //const now = Date.now();
       const now = timeSync.getSyncedTime();
       const remaining = Math.floor((targetTimestamp - now) / 1000);
 
       if (remaining > 0) {
         setCountdown(remaining);
-      } else if (remaining >= -5) {
-        // Allow 5 second grace period
-        setCountdown(0);
-        setVideoReady(true);
-        if (player) {
-          player.play();
-          setPlaying(true);
-        }
-      } else {
-        setMissed(true);
+        return;
+      }
+
+      const elapsedSec = (now - targetTimestamp) / 1000;
+      if (elapsedSec <= 5) {
+        // Grace period: start from the beginning
+        if (entries[0].uri) startPlayback(0, 0);
+        return;
+      }
+
+      const location = locateInPlaylist(elapsedSec, entries);
+      if (!location) {
+        setPhase("missed");
+        return;
+      }
+      // Join in sync mid-playlist once the needed file is on disk
+      if (entries[location.index].uri) {
+        startPlayback(location.index, location.offsetSec);
       }
     };
 
@@ -175,7 +316,7 @@ export default function VideoScreen() {
     const interval = setInterval(updateCountdown, 100);
 
     return () => clearInterval(interval);
-  }, [playAt, player, error]);
+  }, [phase, playAt, entries, player]);
 
   useEffect(() => {
     if (countdown === 5) {
@@ -230,12 +371,25 @@ export default function VideoScreen() {
       url: require("../../assets/defaultAds/3.jpeg"),
     },
   ];
-  console.log("assetId:", assetId);
+  const currentLegacyFile =
+    entries?.[currentVideoIndex]?.legacyFileName ??
+    entries?.[currentVideoIndex]?.id;
   const data =
-    currentVideoFile === "10.mp4" || currentVideoFile === "3.mp4"
+    currentLegacyFile === "10.mp4" || currentLegacyFile === "3.mp4"
       ? dataAd
       : defaultData;
   const w = Dimensions.get("window").width;
+
+  const downloadPercent =
+    downloadProgress && downloadProgress.totalBytes > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (downloadProgress.bytesWritten / downloadProgress.totalBytes) * 100
+          )
+        )
+      : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View
@@ -250,13 +404,35 @@ export default function VideoScreen() {
           nativeControls={false}
           player={player}
         />
-        {missed && !playing ? (
+        {phase === "missed" ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>
           </View>
-        ) : countdown && countdown > 0 ? (
+        ) : phase === "downloading" ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>
+              This video isn&apos;t on your phone yet.{"\n"}Downloading it
+              now…
+            </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${downloadPercent ?? 0}%` },
+                ]}
+              />
+            </View>
+            {downloadPercent !== null && (
+              <Text style={styles.progressLabel}>{downloadPercent}%</Text>
+            )}
+          </View>
+        ) : phase === "countdown" && countdown !== null && countdown > 0 ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.countdownText}>{countdown}</Text>
+          </View>
+        ) : phase === "resolving" ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>Getting ready…</Text>
           </View>
         ) : null}
       </View>
@@ -351,6 +527,24 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     fontSize: 20,
     color: "#FFFFFF",
     textAlign: "center",
+  },
+  progressTrack: {
+    width: screenWidth * 0.7,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginTop: 20,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  progressLabel: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#FFFFFF",
   },
   controlsOverlay: {
     position: "absolute",

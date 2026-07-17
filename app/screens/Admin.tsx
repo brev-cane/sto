@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,10 @@ import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
-import { functions, FIREBASE_AUTH } from "@/FirebaseConfig";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { functions, FIREBASE_AUTH, FIRESTORE_DB } from "@/FirebaseConfig";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import VideoUploadSheet from "@/components/ui/videoUploadSheet";
 import {
   GEO_RADIUS_DEFAULT_M,
   GeoCenter,
@@ -26,22 +29,19 @@ import {
   ReachHistogram,
 } from "@/types/notifications";
 
-const videoOptions = [
-  { file: "1.mp4", name: "Hey Ey Ey Ey" },
-  { file: "2.mp4", name: "Third Down" },
-  { file: "3.mp4", name: "Shout" },
-  { file: "4.mp4", name: "Where else" },
-  { file: "5.mp4", name: "Mr Brightside" },
-  { file: "7.mp4", name: "Be Good Do Good" },
-  { file: "10.mp4", name: "Shout Corey" },
-  { file: "14.mp4", name: "Shout it Out" },
-  { file: "19.mp4", name: "99 Red Balloons" },
-  { file: "20.mp4", name: "Give Me a Break" },
-];
+type VideoOption = {
+  file: string;
+  name: string;
+  thumbnailURL?: string;
+  /** Playable on old app builds that still bundle this video */
+  legacy: boolean;
+  createdAtMs: number;
+};
 
 export default function AdminScreen() {
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
-  // const [video, setVideo] = useState("");
+  const [videoOptions, setVideoOptions] = useState<VideoOption[]>([]);
+  const uploadSheetRef = useRef<TrueSheet>(null);
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
@@ -100,6 +100,33 @@ export default function AdminScreen() {
     }
   };
 
+  const loadVideoOptions = useCallback(async () => {
+    try {
+      const snapshot = await getDocs(
+        query(
+          collection(FIRESTORE_DB, "videos"),
+          where("status", "==", "ready"),
+          where("active", "==", true)
+        )
+      );
+      const options = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data() as any;
+          return {
+            file: docSnap.id,
+            name: data.name ?? docSnap.id,
+            thumbnailURL: data.thumbnailURL,
+            legacy: !!data.legacyFileName,
+            createdAtMs: data.createdAt?.toMillis?.() ?? 0,
+          };
+        })
+        .sort((a, b) => b.createdAtMs - a.createdAtMs);
+      setVideoOptions(options);
+    } catch (error) {
+      console.log("Failed to load video catalog:", error);
+    }
+  }, []);
+
   useEffect(() => {
     // Only fetch count when user is authenticated and loaded. Keyed on ids
     // (not object identity) so userDoc refreshes don't refetch the count
@@ -107,6 +134,7 @@ export default function AdminScreen() {
       console.log("User authenticated:", user.uid);
       console.log("User role:", userDoc.role);
       countUsers();
+      loadVideoOptions();
     } else {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
@@ -189,6 +217,28 @@ export default function AdminScreen() {
       return;
     }
 
+    // Videos without a bundled counterpart can't play on app versions that
+    // predate cloud-delivered videos — make the admin acknowledge that.
+    const newOnly = selectedVideos.filter((id) => {
+      const option = videoOptions.find((opt) => opt.file === id);
+      return option ? !option.legacy : false;
+    });
+    if (newOnly.length > 0) {
+      Alert.alert(
+        "Heads up",
+        "Some selected videos only play on the latest app version. Users on older versions will see an error instead.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Send Anyway", onPress: () => doSend() },
+        ]
+      );
+      return;
+    }
+
+    doSend();
+  };
+
+  const doSend = async () => {
     try {
       setLoading(true);
 
@@ -198,7 +248,7 @@ export default function AdminScreen() {
       );
       const params = {
         title: title,
-        videoFile: selectedVideos.join(","),
+        videoIds: selectedVideos.join(","),
         delaySeconds: delay,
         adminOnly: isEnabled,
         customTokens: customUsers ? customUsersToken : null,
@@ -240,6 +290,7 @@ export default function AdminScreen() {
   };
 
   return (
+    <>
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="always"
       contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background }}
@@ -287,15 +338,24 @@ export default function AdminScreen() {
           />
         </View>
 
+        <TouchableOpacity
+          style={styles.uploadNewButton}
+          onPress={() => uploadSheetRef.current?.present()}
+        >
+          <Text style={styles.uploadNewText}>+ Upload New Video</Text>
+        </TouchableOpacity>
+
         {/* Selected Videos List */}
         <View style={styles.userIdList}>
           {selectedVideos.map((v, index) => {
-            const videoName =
-              videoOptions.find((opt) => opt.file === v)?.name || v;
+            const option = videoOptions.find((opt) => opt.file === v);
+            const videoName = option?.name || v;
+            const newOnly = option ? !option.legacy : false;
             return (
               <View key={index} style={styles.userIdChip}>
                 <Text style={styles.userIdText}>
                   {index + 1}. {videoName}
+                  {newOnly ? " (new app only)" : ""}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -440,6 +500,8 @@ export default function AdminScreen() {
         </View>
       </View>
     </KeyboardAwareScrollView>
+    <VideoUploadSheet ref={uploadSheetRef} onUploaded={loadVideoOptions} />
+    </>
   );
 }
 
@@ -486,6 +548,15 @@ const makeStyles = ({ colors, typography }: Theme) =>
       borderRadius: 8,
       borderColor: colors.primary,
       padding: 10,
+    },
+    uploadNewButton: {
+      alignSelf: "flex-start",
+      paddingVertical: 8,
+      paddingHorizontal: 2,
+    },
+    uploadNewText: {
+      ...typography.body,
+      color: colors.primary,
     },
     inputRow: {
       flexDirection: "row",

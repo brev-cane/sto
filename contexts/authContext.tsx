@@ -1,5 +1,6 @@
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
 import { dbService } from "@/services/dbService";
+import { AppUser } from "@/types/user";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { User as FirebaseUser, onAuthStateChanged } from "firebase/auth";
 import React, {
@@ -11,22 +12,6 @@ import React, {
   useState,
 } from "react";
 import Toast from "react-native-toast-message";
-import { UserLocation } from "@/types/notifications";
-export interface AppUser {
-  id: string;
-  name: string;
-  /** Unique public handle shown to other users */
-  username?: string;
-  /** Download URL of the profile picture in Firebase Storage */
-  photoURL?: string;
-  email: string;
-  pushToken: string;
-  role?: "admin" | null;
-  /** Last known device location, used for geo-targeted alerts */
-  location?: UserLocation | null;
-  /** Opt-in to receive every alert regardless of geo-targeting */
-  receiveAllNotifications?: boolean;
-}
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -47,11 +32,11 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   pushToken: { current: null },
   expoPushToken: null,
-  registerUserForPushNotifications: async () => { },
-  setUserDoc: () => { },
+  registerUserForPushNotifications: async () => {},
+  setUserDoc: () => {},
   syncingRef: { current: false },
   pushTokenSynced: false,
-  syncPushTokenWithBackend: async () => { },
+  syncPushTokenWithBackend: async () => {},
 });
 
 interface AuthProviderProps {

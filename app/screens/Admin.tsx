@@ -22,6 +22,7 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { functions, FIREBASE_AUTH, FIRESTORE_DB } from "@/FirebaseConfig";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import VideoUploadSheet from "@/components/ui/videoUploadSheet";
+import ManageMediaSheet from "@/components/ui/manageMediaSheet";
 import {
   GEO_RADIUS_DEFAULT_M,
   GeoCenter,
@@ -33,6 +34,7 @@ type VideoOption = {
   file: string;
   name: string;
   thumbnailURL?: string;
+  mediaType: "video" | "audio";
   /** Playable on old app builds that still bundle this video */
   legacy: boolean;
   createdAtMs: number;
@@ -42,6 +44,7 @@ export default function AdminScreen() {
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
   const [videoOptions, setVideoOptions] = useState<VideoOption[]>([]);
   const uploadSheetRef = useRef<TrueSheet>(null);
+  const manageSheetRef = useRef<TrueSheet>(null);
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
@@ -114,8 +117,9 @@ export default function AdminScreen() {
           const data = docSnap.data() as any;
           return {
             file: docSnap.id,
-            name: data.name ?? docSnap.id,
+            name: (data.mediaType === "audio" ? "♪ " : "") + (data.name ?? docSnap.id),
             thumbnailURL: data.thumbnailURL,
+            mediaType: data.mediaType ?? "video",
             legacy: !!data.legacyFileName,
             createdAtMs: data.createdAt?.toMillis?.() ?? 0,
           };
@@ -338,12 +342,20 @@ export default function AdminScreen() {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.uploadNewButton}
-          onPress={() => uploadSheetRef.current?.present()}
-        >
-          <Text style={styles.uploadNewText}>+ Upload New Video</Text>
-        </TouchableOpacity>
+        <View style={styles.mediaActionsRow}>
+          <TouchableOpacity
+            style={styles.uploadNewButton}
+            onPress={() => uploadSheetRef.current?.present()}
+          >
+            <Text style={styles.uploadNewText}>+ Upload New Media</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.uploadNewButton}
+            onPress={() => manageSheetRef.current?.present()}
+          >
+            <Text style={styles.uploadNewText}>Manage Media</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Selected Videos List */}
         <View style={styles.userIdList}>
@@ -501,6 +513,7 @@ export default function AdminScreen() {
       </View>
     </KeyboardAwareScrollView>
     <VideoUploadSheet ref={uploadSheetRef} onUploaded={loadVideoOptions} />
+    <ManageMediaSheet ref={manageSheetRef} onChanged={loadVideoOptions} />
     </>
   );
 }
@@ -548,6 +561,11 @@ const makeStyles = ({ colors, typography }: Theme) =>
       borderRadius: 8,
       borderColor: colors.primary,
       padding: 10,
+    },
+    mediaActionsRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     uploadNewButton: {
       alignSelf: "flex-start",

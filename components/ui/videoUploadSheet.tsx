@@ -1,4 +1,5 @@
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { File as FsFile } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import {
   collection,
@@ -29,6 +30,13 @@ import { Theme, useTheme, useThemedStyles } from "@/theme";
 
 type Stage = "idle" | "uploading" | "processing" | "ready" | "failed";
 
+type PickedMedia = {
+  kind: "video" | "audio";
+  uri: string;
+  mimeType: string;
+  label: string;
+};
+
 interface Props {
   /** Called when a new video reaches "ready", so the picker list can refresh */
   onUploaded?: () => void;
@@ -39,7 +47,9 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
   const styles = useThemedStyles(makeStyles);
 
   const [name, setName] = useState("");
-  const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [media, setMedia] = useState<PickedMedia | null>(null);
+  const [thumbAsset, setThumbAsset] =
+    useState<ImagePicker.ImagePickerAsset | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const [uploadPercent, setUploadPercent] = useState(0);
   const [failureMessage, setFailureMessage] = useState<string | null>(null);
@@ -51,7 +61,8 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
     setName("");
-    setAsset(null);
+    setMedia(null);
+    setThumbAsset(null);
     setStage("idle");
     setUploadPercent(0);
     setFailureMessage(null);
@@ -62,17 +73,47 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
       mediaTypes: ["videos"],
     });
     if (!result.canceled && result.assets[0]) {
-      setAsset(result.assets[0]);
+      const asset = result.assets[0];
+      setMedia({
+        kind: "video",
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? "video/mp4",
+        label: asset.fileName || "Video selected ✓",
+      });
     }
   };
 
+  const pickAudio = async () => {
+    const picked = await FsFile.pickFileAsync({ mimeTypes: ["audio/*"] });
+    if (!picked.canceled && picked.result) {
+      const file = picked.result;
+      setMedia({
+        kind: "audio",
+        uri: file.uri,
+        mimeType: file.type || "audio/mpeg",
+        label: file.name || "Sound selected ✓",
+      });
+    }
+  };
+
+  const pickThumbnail = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setThumbAsset(result.assets[0]);
+    }
+  };
+
+  const uploadBlob = async (uri: string) => (await fetch(uri)).blob();
+
   const startUpload = async () => {
     if (!name.trim()) {
-      Toast.show({ type: "error", text1: "Enter a name for the video" });
+      Toast.show({ type: "error", text1: "Enter a name" });
       return;
     }
-    if (!asset) {
-      Toast.show({ type: "error", text1: "Pick a video first" });
+    if (!media) {
+      Toast.show({ type: "error", text1: "Pick a video or sound first" });
       return;
     }
 
@@ -87,18 +128,29 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
         name: name.trim(),
         status: "processing",
         active: true,
+        mediaType: media.kind,
         version: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
+      // Thumbnail goes up first so the transcode function (triggered by the
+      // original) already finds it in place.
+      if (thumbAsset) {
+        const thumbBlob = await uploadBlob(thumbAsset.uri);
+        await uploadBytesResumable(
+          storageRef(FIREBASE_STORAGE, `uploads/${videoId}/thumbnail.jpg`),
+          thumbBlob,
+          { contentType: thumbAsset.mimeType ?? "image/jpeg" }
+        );
+      }
+
+      const blob = await uploadBlob(media.uri);
       const task = uploadBytesResumable(
         storageRef(FIREBASE_STORAGE, `uploads/${videoId}/original.mp4`),
         blob,
         {
-          contentType: asset.mimeType ?? "video/mp4",
+          contentType: media.mimeType,
           customMetadata: { name: name.trim() },
         }
       );
@@ -125,7 +177,7 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
               setStage("ready");
               unsubscribeRef.current?.();
               unsubscribeRef.current = null;
-              Toast.show({ type: "success", text1: "Video is ready to use" });
+              Toast.show({ type: "success", text1: "Media is ready to use" });
               onUploaded?.();
             } else if (status === "failed") {
               setStage("failed");
@@ -148,9 +200,9 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
   return (
     <TrueSheet ref={ref} detents={["auto"]} cornerRadius={24} grabber>
       <View style={styles.container}>
-        <Text style={styles.title}>Upload New Video</Text>
+        <Text style={styles.title}>Upload New Media</Text>
 
-        <Text style={styles.label}>Video Name</Text>
+        <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. Mr Brightside"
@@ -160,13 +212,46 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
           editable={!busy}
         />
 
+        <View style={styles.pickRow}>
+          <TouchableOpacity
+            style={[
+              styles.pickButton,
+              styles.pickButtonHalf,
+              media?.kind === "video" && styles.pickButtonSelected,
+            ]}
+            onPress={pickVideo}
+            disabled={busy}
+          >
+            <Text style={styles.pickButtonText} numberOfLines={1}>
+              {media?.kind === "video" ? media.label : "Choose a video"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.pickButton,
+              styles.pickButtonHalf,
+              media?.kind === "audio" && styles.pickButtonSelected,
+            ]}
+            onPress={pickAudio}
+            disabled={busy}
+          >
+            <Text style={styles.pickButtonText} numberOfLines={1}>
+              {media?.kind === "audio" ? media.label : "♪ Choose a sound"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity
           style={styles.pickButton}
-          onPress={pickVideo}
+          onPress={pickThumbnail}
           disabled={busy}
         >
-          <Text style={styles.pickButtonText}>
-            {asset ? asset.fileName || "Video selected ✓" : "Choose a video"}
+          <Text style={styles.pickButtonText} numberOfLines={1}>
+            {thumbAsset
+              ? thumbAsset.fileName || "Thumbnail selected ✓"
+              : media?.kind === "audio"
+                ? "Thumbnail (recommended for sounds)"
+                : "Thumbnail (optional)"}
           </Text>
         </TouchableOpacity>
 
@@ -192,7 +277,7 @@ const VideoUploadSheet = forwardRef<TrueSheet, Props>(({ onUploaded }, ref) => {
 
         {stage === "ready" && (
           <Text style={[styles.statusText, { color: colors.primary }]}>
-            ✓ Ready! The video is now available in the picker.
+            ✓ Ready! It&apos;s now available in the picker.
           </Text>
         )}
 
@@ -250,12 +335,23 @@ const makeStyles = ({ colors, typography }: Theme) =>
       color: colors.text,
       backgroundColor: colors.inputBackground,
     },
+    pickRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
     pickButton: {
       borderWidth: 1,
       borderColor: colors.primary,
       borderRadius: 8,
       padding: 12,
       alignItems: "center",
+    },
+    pickButtonHalf: {
+      flex: 1,
+    },
+    pickButtonSelected: {
+      backgroundColor: colors.inputBackground,
+      borderWidth: 2,
     },
     pickButtonText: {
       ...typography.body,

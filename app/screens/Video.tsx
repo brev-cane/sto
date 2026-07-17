@@ -10,7 +10,8 @@ import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { timeSync } from "@/services/timeSync";
 import { videoSync } from "@/services/videoSync";
-import { VideoDownloadProgress } from "@/types/videos";
+import { MediaType, VideoDownloadProgress } from "@/types/videos";
+import { Music } from "lucide-react-native";
 import { Image } from "expo-image";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, {
@@ -32,6 +33,8 @@ type PlaylistEntry = {
   id: string;
   name: string;
   durationSec: number;
+  mediaType: MediaType;
+  thumbnailURL?: string;
   legacyFileName?: string;
   /** Local file URI once downloaded, null while still remote */
   uri: string | null;
@@ -179,6 +182,8 @@ export default function VideoScreen() {
               id,
               name: manifestEntry.name,
               durationSec: manifestEntry.durationSec,
+              mediaType: manifestEntry.mediaType ?? "video",
+              thumbnailURL: manifestEntry.thumbnailURL,
               legacyFileName: manifestEntry.legacyFileName,
               uri: await videoSync.getLocalUri(id),
             });
@@ -192,6 +197,8 @@ export default function VideoScreen() {
             id,
             name: catalogVideo.name,
             durationSec: catalogVideo.durationSec,
+            mediaType: catalogVideo.mediaType ?? "video",
+            thumbnailURL: catalogVideo.thumbnailURL,
             legacyFileName: catalogVideo.legacyFileName,
             uri: null,
           });
@@ -404,6 +411,19 @@ export default function VideoScreen() {
           nativeControls={false}
           player={player}
         />
+        {entries?.[currentVideoIndex]?.mediaType === "audio" && (
+          <View style={styles.audioArt}>
+            {entries[currentVideoIndex].thumbnailURL ? (
+              <Image
+                source={{ uri: entries[currentVideoIndex].thumbnailURL }}
+                contentFit="cover"
+                style={styles.audioArtImage}
+              />
+            ) : (
+              <Music size={96} color={colors.primary} />
+            )}
+          </View>
+        )}
         {phase === "missed" ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>
@@ -509,6 +529,19 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   video: {
     width: "100%",
     height: 300,
+  },
+  // Covers the (empty) VideoView while an audio-only entry plays
+  audioArt: {
+    position: "absolute",
+    width: "100%",
+    height: 300,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
+  },
+  audioArtImage: {
+    width: "100%",
+    height: "100%",
   },
   countdownOverlay: {
     position: "absolute",

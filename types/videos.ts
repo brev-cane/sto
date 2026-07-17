@@ -1,11 +1,15 @@
 export type VideoStatus = "processing" | "ready" | "failed";
 
+export type MediaType = "video" | "audio";
+
 /** Firestore videos/{videoId} document, written by the transcode Cloud Function */
 export interface CatalogVideo {
   id: string;
   name: string;
   status: VideoStatus;
   active: boolean;
+  /** Absent on docs created before audio support — treat as "video" */
+  mediaType?: MediaType;
   version: number;
   storagePath: string;
   downloadURL: string;
@@ -28,6 +32,8 @@ export interface ManifestEntry {
   md5: string;
   durationSec: number;
   name: string;
+  mediaType: MediaType;
+  thumbnailURL?: string;
   legacyFileName?: string;
 }
 

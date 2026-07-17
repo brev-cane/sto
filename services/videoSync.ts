@@ -223,6 +223,8 @@ export class VideoSyncService {
       md5: video.md5,
       durationSec: video.durationSec,
       name: video.name,
+      mediaType: video.mediaType ?? "video",
+      ...(video.thumbnailURL ? { thumbnailURL: video.thumbnailURL } : {}),
       ...(video.legacyFileName ? { legacyFileName: video.legacyFileName } : {}),
     };
     await this.persistManifest();

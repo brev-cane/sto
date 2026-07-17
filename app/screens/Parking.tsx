@@ -2,18 +2,20 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView } from 'react-native';
 import { SAMPLE_STADIUMS } from '@/dummyData/parking';
 import { Stadium } from '@/types/parking';
-import COLORS from '@/app/components/colors';
+import { Theme, useTheme, useThemedStyles } from '@/theme';
 import { MapPin, ChevronRight, Search } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const ParkingScreen = () => {
     const navigation = useNavigation<any>();
+    const { colors } = useTheme();
+    const styles = useThemedStyles(makeStyles);
 
     const renderHeader = () => (
         <View style={styles.header}>
             <Text style={styles.headerTitle}>Explore Stadiums</Text>
             <TouchableOpacity style={styles.searchButton}>
-                <Search size={20} color="#6B7280" />
+                <Search size={20} color={colors.textSecondary} />
                 <Text style={styles.searchText}>Search stadiums or teams...</Text>
             </TouchableOpacity>
         </View>
@@ -28,10 +30,10 @@ const ParkingScreen = () => {
             <View style={styles.stadiumInfo}>
                 <View style={styles.nameRow}>
                     <Text style={styles.stadiumName}>{item.name}</Text>
-                    <ChevronRight size={20} color="#D1D5DB" />
+                    <ChevronRight size={20} color={colors.textMuted} />
                 </View>
                 <View style={styles.locationRow}>
-                    <MapPin size={14} color="#6B7280" />
+                    <MapPin size={14} color={colors.textSecondary} />
                     <Text style={styles.stadiumLocation}>{item.location}</Text>
                 </View>
             </View>
@@ -52,10 +54,10 @@ const ParkingScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.background,
     },
     header: {
         paddingHorizontal: 20,
@@ -63,36 +65,35 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
     },
     headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#1F2937',
+        ...typography.h2,
+        color: colors.text,
         marginBottom: 16,
     },
     searchButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: colors.inputBackground,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: colors.border,
         marginBottom: 10,
     },
     searchText: {
+        ...typography.body,
         marginLeft: 10,
-        color: '#9CA3AF',
-        fontSize: 15,
+        color: colors.placeholder,
     },
     listContent: {
         paddingBottom: 30,
     },
     stadiumCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 20,
         marginHorizontal: 20,
         marginBottom: 20,
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOpacity: 0.1,
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 12,
@@ -113,20 +114,18 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     stadiumName: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#111827',
+        ...typography.h3,
+        color: colors.text,
     },
     locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     stadiumLocation: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
         marginLeft: 4,
     },
 });
 
 export default ParkingScreen;
-

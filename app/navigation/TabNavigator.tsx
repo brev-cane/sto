@@ -1,25 +1,29 @@
-import React from 'react';
+import { useTheme } from '@/theme';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Home as HomeIcon } from 'lucide-react-native';
 import Home from '../screens/home';
-import ParkingScreen from '../screens/Parking';
-import { Home as HomeIcon, Car, WholeWordIcon, Globe, Globe2 } from 'lucide-react-native';
-import COLORS from '@/app/components/colors';
 
 const Tab = createBottomTabNavigator();
 
 const TabNavigator = () => {
+    const { colors, typography } = useTheme();
+
     return (
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: 'gray',
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.tabBarInactive,
                 tabBarStyle: {
                     paddingBottom: 5,
                     height: 60,
+                    borderTopRightRadius: 20,
+                    borderTopLeftRadius: 20,
+                    backgroundColor: colors.tabBarBackground,
+                    overflow: "hidden",
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
+                    fontSize: typography.caption.fontSize,
                     marginBottom: 5,
                 }
             }}
@@ -34,7 +38,7 @@ const TabNavigator = () => {
                     ),
                 }}
             />
-            <Tab.Screen
+            {/* <Tab.Screen
                 name="ParkingTab"
                 component={ParkingScreen}
                 options={{
@@ -43,7 +47,7 @@ const TabNavigator = () => {
                         <Globe color={color} size={size} />
                     ),
                 }}
-            />
+            /> */}
         </Tab.Navigator>
     );
 };

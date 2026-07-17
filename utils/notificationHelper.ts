@@ -1,31 +1,10 @@
-import { FIRESTORE_DB } from "@/FirebaseConfig";
 import { timeSync } from "@/services/timeSync";
-import { collection, getDocs } from "firebase/firestore";
 import { Platform } from "react-native";
 
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { UNIQUE_VIBRATION_PATTERN } from "./vibrationHelper";
-
-const isValidExpoPushToken = (token: string) => {
-  return typeof token === "string" && token.startsWith("ExponentPushToken[");
-};
-
-export const getValidPushTokens = async () => {
-  const usersRef = collection(FIRESTORE_DB, "users");
-  const snapshot = await getDocs(usersRef);
-  const tokens: string[] = [];
-
-  snapshot.forEach((doc) => {
-    const { pushToken } = doc.data();
-    if (isValidExpoPushToken(pushToken)) {
-      tokens.push(pushToken);
-    }
-  });
-
-  return tokens;
-};
 
 export const sendBatchNotifications = async (
   tokens: string[],

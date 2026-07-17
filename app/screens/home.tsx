@@ -2,14 +2,13 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import COLORS from "../components/colors";
-import { AppUser, useAuth } from "@/contexts/authContext";
+import { Theme, useThemedStyles } from "@/theme";
+import { useAuth } from "@/contexts/authContext";
 import { sendBatchNotifications } from "@/utils/notificationHelper";
 import { useNavigation } from "@react-navigation/native";
 import AdminScreen from "./Admin";
@@ -19,31 +18,18 @@ import Header from "@/components/ui/header";
 import CustomDrawer from "@/components/ui/drawer";
 import InstructionsCard from "@/components/ui/instructions";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { dbService } from "@/services/dbService";
 import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
+import LocationPermissionCard from "@/components/ui/locationPermission";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
 function Home() {
-  const { userDoc, firebaseUser, setUserDoc } = useAuth();
+  const { userDoc } = useAuth();
   const { navigate } = useNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const getUser = async () => {
-    try {
-      if (!firebaseUser) return;
-      const userData = await dbService
-        .collection("users")
-        .getById(firebaseUser?.uid);
-      setUserDoc(userData as AppUser);
-    } catch (error) {
-      console.log("error :", error);
-    }
-  };
-  useEffect(() => {
-    getUser();
-  }, []);
+  const styles = useThemedStyles(makeStyles);
   useEffect(() => {
     let mounted = true;
     const interval = setInterval(async () => {
@@ -89,14 +75,7 @@ function Home() {
 
   if (!userDoc) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#fff",
-        }}
-      >
+      <View style={styles.loadingContainer}>
         <ActivityIndicator />
       </View>
     );
@@ -109,13 +88,12 @@ function Home() {
       onClose={() => setOpen(false)}
       renderDrawerContent={CustomDrawer}
     >
-      <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
       <Header onPress={() => setOpen(true)} />
 
       {userDoc?.role === "admin" ? (
         <AdminScreen />
       ) : (
-        <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
+        <ScrollView style={styles.scroll}>
           <View style={styles.container}>
             {/* used for testing */}
             <View style={styles.card}>
@@ -129,17 +107,7 @@ function Home() {
                   resizeMode="contain"
                 />
               </View>
-              <Text
-                style={{
-                  color: "#000",
-                  marginVertical: 6,
-                  fontSize: 18,
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              >
-                Welcome {userDoc?.name}
-              </Text>
+              <Text style={styles.welcome}>Welcome {userDoc?.name}</Text>
             </View>
 
             <InstructionsCard />
@@ -155,6 +123,7 @@ function Home() {
         </ScrollView>
       )}
 
+      <LocationPermissionCard />
       <PushPermissionComponent />
     </Drawer>
   );
@@ -162,52 +131,62 @@ function Home() {
 
 export default Home;
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-    elevation: 3,
-    marginVertical: 16,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-    color: "#111827",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    padding: 10,
-  },
-  logoContainer: {
-    width: "100%",
-    alignItems: "center",
-  },
-  logo: {
-    width: 120,
-    height: 120,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-    width: "70%",
-    alignSelf: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 20,
+      shadowColor: colors.shadow,
+      shadowOpacity: 0.05,
+      shadowOffset: { width: 0, height: 2 },
+      shadowRadius: 6,
+      elevation: 3,
+      marginVertical: 16,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    welcome: {
+      ...typography.title,
+      color: colors.text,
+      marginVertical: 6,
+      textAlign: "center",
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 10,
+    },
+    logoContainer: {
+      width: "100%",
+      alignItems: "center",
+    },
+    logo: {
+      width: 120,
+      height: 120,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 25,
+      borderRadius: 8,
+      alignItems: "center",
+      marginTop: 10,
+      width: "70%",
+      alignSelf: "center",
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+  });

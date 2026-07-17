@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,11 +13,18 @@ import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useAuth } from "@/contexts/authContext";
-import COLORS from "../components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { User, Video } from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
+import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
 import { functions, FIREBASE_AUTH } from "@/FirebaseConfig";
+import {
+  GEO_RADIUS_DEFAULT_M,
+  GeoCenter,
+  GeoMode,
+  ReachHistogram,
+} from "@/types/notifications";
 
 const videoOptions = [
   { file: "1.mp4", name: "Hey Ey Ey Ey" },
@@ -45,6 +52,16 @@ export default function AdminScreen() {
   const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const [title, setTitle] = useState("Stadium Takeover");
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [geoMode, setGeoMode] = useState<GeoMode>("within");
+  const [radiusMeters, setRadiusMeters] = useState(GEO_RADIUS_DEFAULT_M);
+  const [geoCenter, setGeoCenter] = useState<GeoCenter | null>(null);
+  const [reachHistogram, setReachHistogram] = useState<ReachHistogram | null>(
+    null
+  );
+  const [reachLoading, setReachLoading] = useState(false);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
   const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
@@ -84,7 +101,8 @@ export default function AdminScreen() {
   };
 
   useEffect(() => {
-    // Only fetch count when user is authenticated and loaded
+    // Only fetch count when user is authenticated and loaded. Keyed on ids
+    // (not object identity) so userDoc refreshes don't refetch the count
     if (user && userDoc) {
       console.log("User authenticated:", user.uid);
       console.log("User role:", userDoc.role);
@@ -92,11 +110,82 @@ export default function AdminScreen() {
     } else {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
-  }, [user, userDoc]); // Add dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, userDoc?.id]);
+
+  // Reach preview: one invocation per chosen location — the returned
+  // distance histogram lets radius/mode changes recompute the estimate
+  // locally without calling the function again
+  useEffect(() => {
+    const active = !!(geoEnabled && geoCenter);
+    const timer = setTimeout(
+      async () => {
+        if (!active || !geoCenter) {
+          setReachHistogram(null);
+          setReachLoading(false);
+          return;
+        }
+        setReachLoading(true);
+        try {
+          const getUserCount = httpsCallable(
+            functions,
+            "getUsersWithPushTokensCount"
+          );
+          const result = await getUserCount({
+            geoFilter: {
+              enabled: true,
+              // mode/radius don't affect the histogram; fixed values keep
+              // this effect keyed on the center only
+              mode: "within",
+              radiusMeters: GEO_RADIUS_DEFAULT_M,
+              center: {
+                latitude: geoCenter.latitude,
+                longitude: geoCenter.longitude,
+              },
+            },
+          });
+          const data = result.data as any;
+          setReachHistogram(
+            data.success && data.histogram ? data.histogram : null
+          );
+        } catch (error) {
+          console.log("Failed to estimate reach:", error);
+          setReachHistogram(null);
+        } finally {
+          setReachLoading(false);
+        }
+      },
+      active ? 500 : 0
+    );
+
+    return () => clearTimeout(timer);
+  }, [geoEnabled, geoCenter]);
+
+  const estimatedReach = useMemo(() => {
+    if (!reachHistogram?.buckets?.length) return null;
+    const { bucketSizeMeters, buckets, optIn } = reachHistogram;
+    const withinBucketCount = Math.min(
+      Math.floor(radiusMeters / bucketSizeMeters),
+      buckets.length
+    );
+    const within = buckets
+      .slice(0, withinBucketCount)
+      .reduce((sum, n) => sum + n, 0);
+    const located = buckets.reduce((sum, n) => sum + n, 0);
+    return (geoMode === "within" ? within : located - within) + optIn;
+  }, [reachHistogram, geoMode, radiusMeters]);
 
   const handleSend = async () => {
     if (selectedVideos.length === 0) {
       Alert.alert("Error", "Please select at least one video");
+      return;
+    }
+
+    if (geoEnabled && !geoCenter) {
+      Alert.alert(
+        "Error",
+        "Choose a trigger location for geo-targeting, or turn geo-targeting off"
+      );
       return;
     }
 
@@ -113,6 +202,19 @@ export default function AdminScreen() {
         delaySeconds: delay,
         adminOnly: isEnabled,
         customTokens: customUsers ? customUsersToken : null,
+        geoFilter:
+          geoEnabled && geoCenter
+            ? {
+                enabled: true,
+                mode: geoMode,
+                radiusMeters,
+                center: {
+                  latitude: geoCenter.latitude,
+                  longitude: geoCenter.longitude,
+                },
+                label: geoCenter.label ?? null,
+              }
+            : null,
       };
 
       console.log("Params :", params);
@@ -140,7 +242,7 @@ export default function AdminScreen() {
   return (
     <KeyboardAwareScrollView
       keyboardShouldPersistTaps="always"
-      contentContainerStyle={{ flex: 1, backgroundColor: "#fff" }}
+      contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background }}
     >
       <View style={styles.container}>
         <Text style={styles.title}>📢 Stadium Takeover</Text>
@@ -154,7 +256,7 @@ export default function AdminScreen() {
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <User color={COLORS.primary} />
+            <User color={colors.primary} />
             <Text style={styles.infoCount}>{tokensCount}</Text>
           </View>
         </View>
@@ -164,6 +266,7 @@ export default function AdminScreen() {
         <View style={styles.inputRow}>
           <TextInput
             placeholder="Stadium Takeover"
+            placeholderTextColor={colors.placeholder}
             style={styles.input}
             value={title}
             onChangeText={setTitle}
@@ -173,7 +276,7 @@ export default function AdminScreen() {
         {/* Video Picker */}
         <Text style={styles.label}>Select Video(s)</Text>
         <View style={styles.videoPickerContainer}>
-          <Video color={COLORS.primary} />
+          <Video color={colors.primary} />
           <SearchableDropdown
             options={videoOptions}
             placeholder={"-- Choose a Video --"}
@@ -217,13 +320,27 @@ export default function AdminScreen() {
           step={5}
           value={delay}
           onValueChange={setDelay}
-          minimumTrackTintColor={COLORS.primary}
-          maximumTrackTintColor="#ccc"
-          thumbTintColor={COLORS.primary}
+          minimumTrackTintColor={colors.primary}
+          maximumTrackTintColor={colors.border}
+          thumbTintColor={colors.primary}
+        />
+
+        {/* Geo-Targeting */}
+        <GeoTargetingSection
+          enabled={geoEnabled}
+          onEnabledChange={setGeoEnabled}
+          mode={geoMode}
+          onModeChange={setGeoMode}
+          radiusMeters={radiusMeters}
+          onRadiusChange={setRadiusMeters}
+          center={geoCenter}
+          onCenterChange={setGeoCenter}
+          estimatedReach={estimatedReach}
+          reachLoading={reachLoading}
         />
 
         {/* Admin Only Toggle */}
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <View>
             <Text style={styles.infoTitle}>Admin Only</Text>
             <Text style={styles.infoSubtitle}>
@@ -231,13 +348,12 @@ export default function AdminScreen() {
             </Text>
           </View>
           <Switch
-            trackColor={{ false: "#767577", true: COLORS.primary }}
-            thumbColor={isEnabled ? "#FFF" : "#f4f3f4"}
-            ios_backgroundColor="#3e3e3e"
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={isEnabled ? colors.onPrimary : colors.surfaceVariant}
             onValueChange={toggleSwitch}
             value={isEnabled}
           />
-        </View>
+        </View> */}
 
         {/* Custom Users Toggle */}
         <View style={styles.infoRow}>
@@ -248,9 +364,9 @@ export default function AdminScreen() {
             </Text>
           </View>
           <Switch
-            trackColor={{ false: "#767577", true: COLORS.primary }}
-            thumbColor={customUsers ? "#FFF" : "#f4f3f4"}
-            ios_backgroundColor="#3e3e3e"
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={customUsers ? colors.onPrimary : colors.surfaceVariant}
+            ios_backgroundColor={colors.border}
             onValueChange={toggleSwitch2}
             value={customUsers}
           />
@@ -263,6 +379,7 @@ export default function AdminScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 placeholder="Enter User ID"
+                placeholderTextColor={colors.placeholder}
                 style={styles.input}
                 value={token}
                 onChangeText={setToken}
@@ -277,7 +394,7 @@ export default function AdminScreen() {
                   }
                 }}
               >
-                <Text style={{ color: "#fff" }}>Add</Text>
+                <Text style={styles.addButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
             <ScrollView horizontal>
@@ -326,114 +443,118 @@ export default function AdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  infoRow: {
-    flexDirection: "row",
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  infoTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  infoSubtitle: {
-    fontSize: 14,
-    color: "#666",
-  },
-  infoCount: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginLeft: 5,
-  },
-  label: {
-    fontSize: 16,
-    marginTop: 15,
-  },
-  videoPickerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 8,
-    borderColor: COLORS.primary,
-    padding: 10,
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: "#111827",
-  },
-  addButton: {
-    backgroundColor: COLORS.primary,
-    padding: 12,
-    margin: 5,
-    borderRadius: 8,
-  },
-  button: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#007AFF",
-    textAlign: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: "#007AFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  userIdList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginVertical: 10,
-  },
-  userIdChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  userIdText: {
-    color: "#fff",
-    fontSize: 14,
-    marginRight: 6,
-  },
-  removeButton: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: colors.background,
+    },
+    title: {
+      ...typography.h2,
+      color: colors.text,
+      marginBottom: 20,
+    },
+    infoRow: {
+      flexDirection: "row",
+      padding: 10,
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    infoTitle: {
+      ...typography.title,
+      color: colors.text,
+    },
+    infoSubtitle: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+    },
+    infoCount: {
+      ...typography.title,
+      color: colors.text,
+      marginLeft: 5,
+    },
+    label: {
+      ...typography.subtitle,
+      color: colors.text,
+      marginTop: 15,
+    },
+    videoPickerContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderRadius: 8,
+      borderColor: colors.primary,
+      padding: 10,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.inputBackground,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    input: {
+      ...typography.body,
+      flex: 1,
+      paddingVertical: 12,
+      color: colors.text,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      padding: 12,
+      margin: 5,
+      borderRadius: 8,
+    },
+    addButtonText: {
+      ...typography.label,
+      color: colors.onPrimary,
+    },
+    button: {
+      backgroundColor: "transparent",
+      borderWidth: 1,
+      borderColor: colors.primary,
+      textAlign: "center",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      paddingVertical: 16,
+      borderRadius: 10,
+      alignItems: "center",
+      marginBottom: 12,
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.primary,
+    },
+    userIdList: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginVertical: 10,
+    },
+    userIdChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    userIdText: {
+      ...typography.bodySmall,
+      color: colors.onPrimary,
+      marginRight: 6,
+    },
+    removeButton: {
+      ...typography.title,
+      color: colors.onPrimary,
+    },
+  });

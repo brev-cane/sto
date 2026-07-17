@@ -1,37 +1,42 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
+import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 // Screens
-import { StatusBar, Vibration } from "react-native";
+import { Vibration } from "react-native";
 import TabNavigator from "./app/navigation/TabNavigator";
 import Login from "./app/screens/Login";
+import {
+  navigationDarkTheme,
+  navigationLightTheme,
+  useTheme,
+} from "./theme";
 
 import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Toast from 'react-native-toast-message';
 import LoadingScreen from "./app/screens/loading";
+import LocationSearchScreen from "./app/screens/LocationSearch";
+import ParkingDetail from "./app/screens/ParkingDetail";
 import PrivacyPolicyScreen from "./app/screens/policy";
 import { UserProfileScreen } from "./app/screens/profile";
 import Signup from "./app/screens/sigup";
-import VideoScreen from "./app/screens/Video";
-import ParkingDetail from "./app/screens/ParkingDetail";
 import StadiumDetail from "./app/screens/StadiumDetail";
+import VideoScreen from "./app/screens/Video";
 import { AuthProvider } from "./contexts/authContext";
-import { AlertProvider } from "./contexts/dropdownContext";
 import { timeSync } from "./services/timeSync";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
+
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
   sendDefaultPii: true,
   enableNative: true, // enables native crash capture
   enableNativeCrashHandling: true, // uncaught native crashes
-  debug: true,
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-
-  integrations: [Sentry.feedbackIntegration()],
 });
 
 
@@ -47,6 +52,8 @@ Notifications.setNotificationHandler({
 const Stack = createNativeStackNavigator();
 
 export default Sentry.wrap(function App() {
+  const { isDark } = useTheme();
+
   useEffect(() => {
     timeSync.initialize();
 
@@ -68,10 +75,10 @@ export default Sentry.wrap(function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView>
-      <AlertProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
           <NavigationContainer
+            theme={isDark ? navigationDarkTheme : navigationLightTheme}
             linking={{
               prefixes: [Linking.createURL("/")],
               config: {
@@ -138,11 +145,20 @@ export default Sentry.wrap(function App() {
               <Stack.Screen name="Profile" component={UserProfileScreen} />
               <Stack.Screen name="ParkingDetail" component={ParkingDetail} />
               <Stack.Screen name="StadiumDetail" component={StadiumDetail} />
+              <Stack.Screen
+                name="LocationSearch"
+                component={LocationSearchScreen}
+                options={{
+                  headerShown: true,
+                  title: "Search Location",
+                  presentation: "modal",
+                }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
         </AuthProvider>
-        <StatusBar barStyle={"dark-content"} backgroundColor={"#fff"} />
-      </AlertProvider>
+        <StatusBar style={isDark ? "light" : "dark"} />
+       <Toast />
     </GestureHandlerRootView>
   );
 });

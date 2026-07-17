@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, SafeAreaView, Linking, Platform } from 'react-native';
 import { SAMPLE_PARKING_LOTS, SAMPLE_GAMES } from '@/dummyData/parking';
 import { ParkingLot, Stadium, Game } from '@/types/parking';
-import COLORS from '@/app/components/colors';
+import { Theme, useTheme, useThemedStyles } from '@/theme';
 import { MapPin, Car, DollarSign, Navigation as NavIcon, Calendar, Trophy, Clock, ChevronLeft } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
@@ -11,6 +11,8 @@ const StadiumDetailScreen = () => {
     const route = useRoute();
     const { stadium } = route.params as { stadium: Stadium };
     const [activeTab, setActiveTab] = useState<'parking' | 'games'>('parking');
+    const { colors } = useTheme();
+    const styles = useThemedStyles(makeStyles);
 
     const stadiumParkingLots = SAMPLE_PARKING_LOTS.filter(lot => lot.stadiumId === stadium.id);
     const stadiumGames = SAMPLE_GAMES.filter(game => game.stadiumId === stadium.id);
@@ -33,6 +35,7 @@ const StadiumDetailScreen = () => {
         });
     };
 
+    // Header text/icons sit on a dimmed photo, so they stay white in both themes
     const renderStadiumHeader = () => (
         <View style={styles.headerContainer}>
             <Image source={{ uri: stadium.image }} style={styles.stadiumImage} />
@@ -56,7 +59,7 @@ const StadiumDetailScreen = () => {
                 style={styles.directionsFab}
                 onPress={openDirections}
             >
-                <NavIcon size={20} color="#fff" />
+                <NavIcon size={20} color={colors.onPrimary} />
             </TouchableOpacity>
         </View>
     );
@@ -67,14 +70,14 @@ const StadiumDetailScreen = () => {
                 style={[styles.tab, activeTab === 'parking' && styles.activeTab]}
                 onPress={() => setActiveTab('parking')}
             >
-                <Car size={18} color={activeTab === 'parking' ? COLORS.primary : '#6B7280'} />
+                <Car size={18} color={activeTab === 'parking' ? colors.primary : colors.textSecondary} />
                 <Text style={[styles.tabText, activeTab === 'parking' && styles.activeTabText]}>Parking</Text>
             </TouchableOpacity>
             <TouchableOpacity
                 style={[styles.tab, activeTab === 'games' && styles.activeTab]}
                 onPress={() => setActiveTab('games')}
             >
-                <Trophy size={18} color={activeTab === 'games' ? COLORS.primary : '#6B7280'} />
+                <Trophy size={18} color={activeTab === 'games' ? colors.primary : colors.textSecondary} />
                 <Text style={[styles.tabText, activeTab === 'games' && styles.activeTabText]}>Games</Text>
             </TouchableOpacity>
         </View>
@@ -90,18 +93,18 @@ const StadiumDetailScreen = () => {
                 <Text style={styles.name}>{item.name}</Text>
 
                 <View style={styles.row}>
-                    <MapPin size={16} color={'#6B7280'} />
+                    <MapPin size={16} color={colors.textSecondary} />
                     <Text style={styles.address}>{item.address.fullAddress}</Text>
                 </View>
 
                 <View style={styles.detailsRow}>
                     <View style={styles.badge}>
-                        <DollarSign size={14} color={COLORS.primary} />
+                        <DollarSign size={14} color={colors.primary} />
                         <Text style={styles.price}>{item.pricing.perGame} / Game</Text>
                     </View>
 
                     <View style={styles.badge}>
-                        <Car size={14} color={COLORS.secondary} />
+                        <Car size={14} color={colors.textSecondary} />
                         <Text style={styles.spots}>{(item as any).availableSpots ?? item.totalSpots} Spots</Text>
                     </View>
                 </View>
@@ -116,7 +119,7 @@ const StadiumDetailScreen = () => {
     const renderGameItem = ({ item }: { item: Game }) => (
         <View style={styles.gameCard}>
             <View style={styles.gameDateContainer}>
-                <Calendar size={16} color={COLORS.primary} />
+                <Calendar size={16} color={colors.primary} />
                 <Text style={styles.gameDateText}>{new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
             </View>
 
@@ -134,7 +137,7 @@ const StadiumDetailScreen = () => {
 
             <View style={styles.gameFooter}>
                 <View style={styles.timeInfo}>
-                    <Clock size={16} color="#6B7280" />
+                    <Clock size={16} color={colors.textSecondary} />
                     <Text style={styles.timeText}>{new Date(item.kickoffTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                 </View>
                 <TouchableOpacity style={styles.ticketsButton}>
@@ -165,10 +168,10 @@ const StadiumDetailScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: colors.background,
     },
     headerContainer: {
         height: 250,
@@ -198,8 +201,7 @@ const styles = StyleSheet.create({
         right: 80,
     },
     stadiumNameHeader: {
-        fontSize: 28,
-        fontWeight: 'bold',
+        ...typography.h2,
         color: '#fff',
         marginBottom: 4,
     },
@@ -208,7 +210,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     stadiumAddressHeader: {
-        fontSize: 16,
+        ...typography.body,
         color: '#E5E7EB',
         marginLeft: 6,
     },
@@ -216,26 +218,26 @@ const styles = StyleSheet.create({
         position: 'absolute',
         right: 20,
         bottom: 25,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         width: 48,
         height: 48,
         borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
         elevation: 4,
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOpacity: 0.3,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 4,
     },
     tabContainer: {
         flexDirection: 'row',
-        backgroundColor: '#fff',
+        backgroundColor: colors.background,
         paddingHorizontal: 16,
         paddingTop: 20,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: colors.border,
     },
     tab: {
         flexDirection: 'row',
@@ -246,28 +248,27 @@ const styles = StyleSheet.create({
         borderRadius: 25,
     },
     activeTab: {
-        backgroundColor: '#EFF6FF',
+        backgroundColor: colors.primaryMuted,
         borderWidth: 1,
-        borderColor: '#DBEAFE',
+        borderColor: colors.primaryMuted,
     },
     tabText: {
+        ...typography.label,
         marginLeft: 8,
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#6B7280',
+        color: colors.textSecondary,
     },
     activeTabText: {
-        color: COLORS.primary,
+        color: colors.primary,
     },
     listContent: {
         padding: 16,
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 16,
         marginBottom: 20,
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOpacity: 0.08,
         shadowOffset: { width: 0, height: 4 },
         shadowRadius: 10,
@@ -283,10 +284,9 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     name: {
-        fontSize: 20,
-        fontWeight: 'bold',
+        ...typography.h3,
         marginBottom: 6,
-        color: '#111827',
+        color: colors.text,
     },
     row: {
         flexDirection: 'row',
@@ -294,8 +294,8 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     address: {
-        fontSize: 14,
-        color: '#6B7280',
+        ...typography.bodySmall,
+        color: colors.textSecondary,
         marginLeft: 6,
         flex: 1,
     },
@@ -306,35 +306,33 @@ const styles = StyleSheet.create({
     badge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: colors.surfaceVariant,
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 8,
         marginRight: 10,
     },
     price: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.primary,
+        ...typography.label,
+        color: colors.primary,
         marginLeft: 6,
     },
     spots: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#4B5563',
+        ...typography.label,
+        color: colors.textSecondary,
         marginLeft: 6,
     },
     distance: {
-        fontSize: 13,
-        color: '#9CA3AF',
+        ...typography.bodySmall,
+        color: colors.textMuted,
         marginTop: 6,
     },
     gameCard: {
-        backgroundColor: '#fff',
+        backgroundColor: colors.surface,
         borderRadius: 20,
         padding: 20,
         marginBottom: 16,
-        shadowColor: '#000',
+        shadowColor: colors.shadow,
         shadowOpacity: 0.06,
         shadowOffset: { width: 0, height: 3 },
         shadowRadius: 8,
@@ -346,10 +344,9 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     gameDateText: {
+        ...typography.subtitle,
         marginLeft: 10,
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#1F2937',
+        color: colors.text,
     },
     matchupRow: {
         flexDirection: 'row',
@@ -357,7 +354,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: colors.separator,
         marginBottom: 15,
     },
     teamInfo: {
@@ -365,29 +362,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     teamName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#111827',
+        ...typography.title,
+        color: colors.text,
         textAlign: 'center',
     },
     homeLabel: {
-        fontSize: 11,
+        ...typography.caption,
         fontWeight: '900',
-        color: COLORS.primary,
+        color: colors.primary,
         marginTop: 6,
         letterSpacing: 0.5,
     },
     awayLabel: {
-        fontSize: 11,
+        ...typography.caption,
         fontWeight: '900',
-        color: '#6B7280',
+        color: colors.textSecondary,
         marginTop: 6,
         letterSpacing: 0.5,
     },
     vsText: {
-        fontSize: 16,
+        ...typography.subtitle,
         fontWeight: '900',
-        color: '#D1D5DB',
+        color: colors.textMuted,
         marginHorizontal: 15,
     },
     gameFooter: {
@@ -400,34 +396,32 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     timeText: {
+        ...typography.subtitle,
         marginLeft: 10,
-        fontSize: 15,
-        color: '#4B5563',
-        fontWeight: '600',
+        color: colors.textSecondary,
     },
     ticketsButton: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 20,
         paddingVertical: 10,
         borderRadius: 10,
-        shadowColor: COLORS.primary,
+        shadowColor: colors.primary,
         shadowOpacity: 0.2,
         shadowOffset: { width: 0, height: 2 },
         shadowRadius: 4,
     },
     ticketsButtonText: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: '#fff',
+        ...typography.button,
+        fontSize: typography.bodySmall.fontSize,
+        color: colors.onPrimary,
     },
     emptyContainer: {
         paddingTop: 100,
         alignItems: 'center',
     },
     emptyText: {
-        fontSize: 16,
-        color: '#9CA3AF',
-        fontWeight: '500',
+        ...typography.body,
+        color: colors.textMuted,
     }
 });
 

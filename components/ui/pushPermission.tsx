@@ -13,8 +13,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "@/contexts/authContext";
 import { dbService } from "@/services/dbService";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
+import { Theme, useThemedStyles } from "@/theme";
 
 export default function ImprovedPushPermissionComponent() {
+  const styles = useThemedStyles(makeStyles);
   const [allowed, setAllowed] = useState(null);
   const [blocked, setBlocked] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -60,7 +62,15 @@ export default function ImprovedPushPermissionComponent() {
       settings.ios?.status === Notifications.IosAuthorizationStatus.DENIED ||
       (!settings.canAskAgain && !settings.granted);
     registerForPushNotificationsAsync().then(async (pushToken) => {
-      if (pushToken && userDoc?.id) {
+      // Only write when the token is real and actually changed — this runs
+      // on every app foreground, so an unconditional update would cost a
+      // Firestore write per open
+      if (
+        pushToken &&
+        pushToken.startsWith("ExponentPushToken[") &&
+        userDoc?.id &&
+        pushToken !== userDoc.pushToken
+      ) {
         await dbService
           .collection("users")
           .update(userDoc?.id, { pushToken: pushToken });
@@ -117,79 +127,79 @@ export default function ImprovedPushPermissionComponent() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 30,
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#007AFF",
-    borderRadius: 12,
-    marginHorizontal: 8,
-    minHeight: 300,
-  },
-  allowedBox: {
-    alignItems: "center",
-    padding: 30,
-  },
-  notAllowedBox: {
-    alignItems: "center",
-    padding: 30,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: "700",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  text: {
-    fontSize: 16,
-    textAlign: "center",
-    color: "#555",
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  stepsBox: {
-    marginBottom: 20,
-    width: "100%",
-  },
-  step: {
-    fontSize: 16,
-    color: "#444",
-    marginBottom: 6,
-    textAlign: "left",
-  },
-  bold: {
-    fontWeight: "700",
-  },
-  button: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 14,
-  },
-  smallButton: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#ccc",
-    borderRadius: 8,
-  },
-  smallButtonText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  footerText: {
-    fontSize: 14,
-    color: "#777",
-    textAlign: "center",
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 30,
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      borderRadius: 12,
+      marginHorizontal: 8,
+      minHeight: 300,
+    },
+    allowedBox: {
+      alignItems: "center",
+      padding: 30,
+    },
+    notAllowedBox: {
+      alignItems: "center",
+      padding: 30,
+    },
+    title: {
+      ...typography.h3,
+      color: colors.text,
+      marginBottom: 12,
+      textAlign: "center",
+    },
+    text: {
+      ...typography.body,
+      textAlign: "center",
+      color: colors.textSecondary,
+      marginBottom: 20,
+    },
+    stepsBox: {
+      marginBottom: 20,
+      width: "100%",
+    },
+    step: {
+      ...typography.body,
+      color: colors.textSecondary,
+      marginBottom: 6,
+      textAlign: "left",
+    },
+    bold: {
+      fontWeight: "700",
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      marginBottom: 14,
+    },
+    smallButton: {
+      marginTop: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: colors.surfaceVariant,
+      borderRadius: 8,
+    },
+    smallButtonText: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+    },
+    buttonText: {
+      ...typography.button,
+      color: colors.onPrimary,
+    },
+    footerText: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      textAlign: "center",
+    },
+  });

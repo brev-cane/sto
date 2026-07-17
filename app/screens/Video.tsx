@@ -3,8 +3,8 @@ import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
-import COLORS from "../components/colors";
-import { useNavigation } from "expo-router";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
+import { useNavigation } from "@react-navigation/native";
 import { triggerUniqueVibration } from "../../utils/vibrationHelper";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -54,6 +54,8 @@ export default function VideoScreen() {
     useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
   const params = route.params;
   const { navigate } = useNavigation<any>();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [missed, setMissed] = useState(false);
@@ -183,14 +185,10 @@ export default function VideoScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
         <BackButton />
         <View style={styles.contentContainer}>
-          <Text
-            style={{ color: COLORS.text, fontSize: 18, textAlign: "center" }}
-          >
-            {error}
-          </Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       </SafeAreaView>
     );
@@ -239,7 +237,7 @@ export default function VideoScreen() {
       : defaultData;
   const w = Dimensions.get("window").width;
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View
         style={{
           flex: 1,
@@ -303,7 +301,7 @@ export default function VideoScreen() {
         <Pagination.Basic
           progress={progress}
           data={data}
-          dotStyle={{ backgroundColor: COLORS.primary, borderRadius: 50 }}
+          dotStyle={{ backgroundColor: colors.primary, borderRadius: 50 }}
           containerStyle={{ gap: 5, marginTop: 10 }}
           onPress={onPressPagination}
         />
@@ -312,13 +310,18 @@ export default function VideoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   contentContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
+  },
+  errorText: {
+    ...typography.title,
+    color: colors.text,
+    textAlign: "center",
   },
   videoWrapper: {
     flex: 1,
@@ -341,12 +344,12 @@ const styles = StyleSheet.create({
   },
   countdownText: {
     fontSize: 72,
-    color: COLORS.text,
+    color: "#FFFFFF",
     fontWeight: "bold",
   },
   restricted: {
     fontSize: 20,
-    color: COLORS.text,
+    color: "#FFFFFF",
     textAlign: "center",
   },
   controlsOverlay: {

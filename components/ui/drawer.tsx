@@ -1,31 +1,15 @@
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  Share,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, Share } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import {
-  Chrome as Home,
-  User,
-  LogOut,
-  Delete,
-  User2,
-  Book,
-  Share as ShareIcon,
-  DeleteIcon,
-} from "lucide-react-native";
+import { User, LogOut, Book, Share as ShareIcon } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
-import COLORS from "@/app/components/colors";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { useNavigation } from "@react-navigation/native";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { deleteUser, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
-import { dbService } from "@/services/dbService";
+import * as Application from "expo-application";
 
 const DrawerItem = ({
   icon,
@@ -37,23 +21,28 @@ const DrawerItem = ({
   label: string;
   onPress: () => void;
   isSelected?: boolean;
-}) => (
-  <TouchableOpacity
-    style={[styles.drawerItem, isSelected && styles.selectedItem]}
-    onPress={onPress}
-  >
-    {icon}
-    <Text
-      style={[styles.drawerItemText, isSelected && styles.selectedItemText]}
+}) => {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <TouchableOpacity
+      style={[styles.drawerItem, isSelected && styles.selectedItem]}
+      onPress={onPress}
     >
-      {label}
-    </Text>
-  </TouchableOpacity>
-);
+      {icon}
+      <Text
+        style={[styles.drawerItemText, isSelected && styles.selectedItemText]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function CustomDrawer() {
   const { userDoc } = useAuth();
   const { navigate } = useNavigation();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const shareApp = async () => {
     try {
       const message = `🔥🏈🤳🦬Check out *Stadium Takeover*! 🔥🏈🤳🦬
@@ -71,194 +60,174 @@ export default function CustomDrawer() {
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[
-          COLORS.primary,
-          "rgba(0,0,0,0.2)",
-          "rgba(0,0,0,0.2)",
-          "rgba(0,0,0,0.2)",
-          COLORS.primary,
-        ]}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Image
-            source={require("../../assets/images/blue-logo.png")}
-            contentFit="contain"
-            style={{ width: 100, height: 100 }}
-          />
-          {userDoc && (
-            <View style={styles.userInfo}>
-              <Text style={styles.userName}>{userDoc.name}</Text>
-              <Text style={styles.userEmail}>{userDoc.email}</Text>
-            </View>
-          )}
-        </View>
-      </LinearGradient>
+    <View style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[
+            colors.primary,
+            "rgba(0,0,0,0.2)",
+            "rgba(0,0,0,0.2)",
+            "rgba(0,0,0,0.2)",
+            colors.primary,
+          ]}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <Image
+              source={require("../../assets/images/blue-logo.png")}
+              contentFit="contain"
+              style={{ width: 100, height: 100 }}
+            />
+            {userDoc && (
+              <View style={styles.userInfo}>
+                <Text style={styles.userName}>{userDoc.name}</Text>
+                <Text style={styles.userEmail}>{userDoc.email}</Text>
+              </View>
+            )}
+          </View>
+        </LinearGradient>
 
-      <View style={styles.content}>
-        <View style={styles.bottomSection}>
-          <DrawerItem
-            icon={<User size={20} color={COLORS.primary} />}
-            label={"Profile"}
-            onPress={() => navigate("Profile")}
-          />
-          <DrawerItem
-            icon={<Book size={20} color={COLORS.primary} />}
-            label={"Privacy Policy"}
-            onPress={() => navigate("PrivacyPolicy")}
-          />
-          <DrawerItem
-            icon={<ShareIcon size={20} color={COLORS.primary} />}
-            label={"Share App"}
-            onPress={shareApp}
-          />
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={() => {
-              const user = GoogleSignin.getCurrentUser();
-              if (user) {
-                GoogleSignin.signOut();
-              }
-              signOut(FIREBASE_AUTH).then(() => navigate("Loading"));
-            }}
-          >
-            <LogOut size={20} color={COLORS.primary} />
-            <Text style={[styles.drawerItemText, { color:"#000" }]}>
-              Logout
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.logoutButton,{borderTopWidth:1}]}
-            onPress={() => {
-              Alert.alert(
-                "Confirm Deletion",
-                "Are you sure you want to delete your account? This action cannot be reversed.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                      const user = FIREBASE_AUTH.currentUser;
-                      const user2 = GoogleSignin.getCurrentUser();
-                      if (user2) {
-                        GoogleSignin.signOut();
-                      }
-                      if (user) {
-                        await dbService
-                          .collection("users")
-                          .delete(user.uid)
-                          .then(() => {
-                            console.log("delete user from db");
-                            deleteUser(user)
-                              .then(() => {
-                                console.log("delete user from auth");
-                                navigate("Loading");
-                              })
-                              .catch((error) => {
-                                Alert.alert("Error", error.message);
-                              });
-                          })
-                          .catch((e) => console.log("error ;", e));
-                      }
-                    },
-                  },
-                ]
-              );
-            }}
-          >
-            <DeleteIcon size={20} color={COLORS.error} />
-            <Text style={[styles.drawerItemText, { color: COLORS.error }]}>
-              Delete
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.content}>
+          <View style={styles.bottomSection}>
+            <DrawerItem
+              icon={<User size={20} color={colors.primary} />}
+              label={"Profile"}
+              onPress={() => navigate("Profile")}
+            />
+            <DrawerItem
+              icon={<Book size={20} color={colors.primary} />}
+              label={"Privacy Policy"}
+              onPress={() => navigate("PrivacyPolicy")}
+            />
+            <DrawerItem
+              icon={<ShareIcon size={20} color={colors.primary} />}
+              label={"Share App"}
+              onPress={shareApp}
+            />
+          </View>
         </View>
+      </View>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => {
+            const user = GoogleSignin.getCurrentUser();
+            if (user) {
+              GoogleSignin.signOut();
+            }
+            signOut(FIREBASE_AUTH).then(() => navigate("Loading"));
+          }}
+          activeOpacity={0.7}
+        >
+          <LogOut size={16} color={colors.primary} />
+          <Text style={styles.drawerItemText}>Sign Out</Text>
+        </TouchableOpacity>
+        <Text style={styles.version}>
+          Version {Application.nativeApplicationVersion} Build{" "}
+          {Application.nativeBuildVersion}
+        </Text>
+
+        <Text style={styles.copyright}>
+          © 2026 STADIUM TAKEOVER {"\n"}All rights reserved.
+        </Text>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 12,
-    paddingHorizontal: 12,
-  },
-  headerContent: {
-    alignItems: "center",
-  },
-  appName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.background,
-    marginBottom: 12,
-  },
-  userInfo: {
-    alignItems: "center",
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.background,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: COLORS.background,
-    opacity: 0.8,
-  },
-  content: {
-    flex: 1,
-  },
-  menuItems: {
-    paddingTop: 12,
-  },
-  drawerItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-  },
-  selectedItem: {
-    backgroundColor: COLORS.primary,
-  },
-  drawerItemText: {
-    fontSize: 16,
-    color: COLORS.secondary,
-    marginLeft: 12,
-    fontWeight: "500",
-  },
-  selectedItemText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-  bottomSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopColor: COLORS.primary,
-  },
-  languageButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginHorizontal: 12,
-    borderRadius: 12,
-    marginVertical: 10, 
-  },
-});
+const makeStyles = ({ colors, typography }: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingTop: 50,
+      paddingBottom: 12,
+      paddingHorizontal: 12,
+    },
+    headerContent: {
+      alignItems: "center",
+    },
+    appName: {
+      ...typography.h2,
+      color: colors.onPrimary,
+      marginBottom: 12,
+    },
+    userInfo: {
+      alignItems: "center",
+    },
+    userName: {
+      ...typography.title,
+      color: colors.onPrimary,
+    },
+    userEmail: {
+      ...typography.bodySmall,
+      color: colors.onPrimary,
+      opacity: 0.8,
+    },
+    content: {
+      flex: 1,
+    },
+    menuItems: {
+      paddingTop: 12,
+    },
+    drawerItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+    },
+    selectedItem: {
+      backgroundColor: colors.primaryMuted,
+    },
+    drawerItemText: {
+      ...typography.subtitle,
+      color: colors.text,
+      marginLeft: 12,
+    },
+    selectedItemText: {
+      color: colors.primary,
+    },
+    bottomSection: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopColor: colors.border,
+    },
+    languageButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+    },
+    logoutButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginHorizontal: 12,
+      borderRadius: 12,
+      marginVertical: 10,
+    },
+    footer: {
+      flex: 0.2,
+    },
+    version: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginBottom: 10,
+      textAlign: "center",
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 10,
+    },
+    copyright: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textAlign: "center",
+    },
+  });

@@ -1,5 +1,6 @@
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
 import { dbService } from "@/services/dbService";
+import { AppUser } from "@/types/user";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { User as FirebaseUser, onAuthStateChanged } from "firebase/auth";
 import React, {
@@ -10,14 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useAlert } from "./dropdownContext";
-export interface AppUser {
-  id: string;
-  name: string;
-  email: string;
-  pushToken: string;
-  role?: "admin" | null;
-}
+import Toast from "react-native-toast-message";
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -38,11 +32,11 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   pushToken: { current: null },
   expoPushToken: null,
-  registerUserForPushNotifications: async () => { },
-  setUserDoc: () => { },
+  registerUserForPushNotifications: async () => {},
+  setUserDoc: () => {},
   syncingRef: { current: false },
   pushTokenSynced: false,
-  syncPushTokenWithBackend: async () => { },
+  syncPushTokenWithBackend: async () => {},
 });
 
 interface AuthProviderProps {
@@ -53,7 +47,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { showAlert } = useAlert();
   const pushToken = useRef<null | string>(null);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [pushTokenSynced, setPushTokenSynced] = useState(false);
@@ -66,7 +59,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setExpoPushToken(token);
         pushToken.current = token;
         setExpoPushToken(token);
-        showAlert("success", "Enabled", "Push Notifications has been enabled");
+        Toast.show({
+          type: "success",
+          text1: "Enabled",
+          text2: "Push Notifications has been enabled",
+        });
       }
     } catch (error) {
       console.log("Error :", error);

@@ -11,6 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { timeSync } from "@/services/timeSync";
 import { videoSync } from "@/services/videoSync";
 import { MediaType, VideoDownloadProgress } from "@/types/videos";
+import { CatalogBanner } from "@/types/banners";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { FIRESTORE_DB } from "@/FirebaseConfig";
 import { Music } from "lucide-react-native";
 import { Image } from "expo-image";
 import { useSharedValue } from "react-native-reanimated";
@@ -79,6 +82,7 @@ export default function VideoScreen() {
   const [downloadProgress, setDownloadProgress] =
     useState<VideoDownloadProgress | null>(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [banners, setBanners] = useState<CatalogBanner[] | null>(null);
 
   const pendingSeekRef = useRef(0);
 
@@ -331,6 +335,33 @@ export default function VideoScreen() {
     }
   }, [countdown]);
 
+  // Load the admin-managed banner catalog once per takeover — the fetch lands
+  // during the countdown window and the set must not change mid-show. On
+  // failure `banners` stays null and the bundled fallback ads render instead.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snapshot = await getDocs(
+          query(
+            collection(FIRESTORE_DB, "banners"),
+            where("status", "==", "ready"),
+            where("active", "==", true)
+          )
+        );
+        if (cancelled) return;
+        setBanners(
+          snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as CatalogBanner)
+        );
+      } catch (error) {
+        console.log("Failed to load banners, using bundled ads:", error);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -342,49 +373,38 @@ export default function VideoScreen() {
     );
   }
 
-  const dataAd = [
-    {
-      id: 1,
-      url: require("../../assets/ads/1.jpg"),
-    },
-    {
-      id: 2,
-      url: require("../../assets/ads/2.jpg"),
-    },
-    {
-      id: 3,
-      url: require("../../assets/ads/3.jpg"),
-    },
-    {
-      id: 4,
-      url: require("../../assets/ads/4.jpg"),
-    },
-    {
-      id: 5,
-      url: require("../../assets/ads/5.jpg"),
-    },
-  ];
+  // Bundled fallback ads, shown only when no remote banners apply (offline
+  // before the catalog was cached, fetch failure, or an empty catalog).
   const defaultData = [
     {
-      id: 1,
+      id: "bundled-1",
       url: require("../../assets/defaultAds/1.jpeg"),
     },
     {
-      id: 2,
+      id: "bundled-2",
       url: require("../../assets/defaultAds/2.jpeg"),
     },
     {
-      id: 3,
+      id: "bundled-3",
       url: require("../../assets/defaultAds/3.jpeg"),
     },
   ];
-  const currentLegacyFile =
-    entries?.[currentVideoIndex]?.legacyFileName ??
-    entries?.[currentVideoIndex]?.id;
-  const data =
-    currentLegacyFile === "10.mp4" || currentLegacyFile === "3.mp4"
-      ? dataAd
-      : defaultData;
+  // Banners assigned to the playing video win; banners with no assignment are
+  // the admin's default set. Recomputed per playlist item.
+  const currentVideoId = entries?.[currentVideoIndex]?.id;
+  const assignedBanners =
+    banners?.filter(
+      (b) => currentVideoId && b.videoIds?.includes(currentVideoId)
+    ) ?? [];
+  const defaultBanners = banners?.filter((b) => !b.videoIds?.length) ?? [];
+  const remoteBanners = (
+    assignedBanners.length ? assignedBanners : defaultBanners
+  )
+    .filter((b) => b.downloadURL)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const data = remoteBanners.length
+    ? remoteBanners.map((b) => ({ id: b.id, url: { uri: b.downloadURL! } }))
+    : defaultData;
   const w = Dimensions.get("window").width;
 
   const downloadPercent =

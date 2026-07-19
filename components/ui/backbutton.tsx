@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { TouchableOpacity, Text } from "react-native";
 import { useTheme } from "@/theme";
 
-export default function BackButton({ onPress, title }: { onPress?: () => void; title: string }) {
+export default function BackButton({ onPress, title }: { onPress?: () => void; title?: string }) {
   const { goBack } = useNavigation();
   const { colors } = useTheme();
   return (

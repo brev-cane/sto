@@ -17,6 +17,8 @@ import {
   ChevronDown,
   Clock,
   FolderCog,
+  GalleryHorizontal,
+  ImagePlus,
   Send,
   Upload,
   Users,
@@ -32,6 +34,8 @@ import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import VideoUploadSheet from "@/components/ui/videoUploadSheet";
 import { formatCount } from "@/utils/formatHelper";
 import ManageMediaSheet from "@/components/ui/manageMediaSheet";
+import BannerUploadSheet from "@/components/ui/bannerUploadSheet";
+import ManageBannersSheet from "@/components/ui/manageBannersSheet";
 import {
   GEO_RADIUS_DEFAULT_M,
   GeoCenter,
@@ -54,6 +58,8 @@ export default function AdminScreen() {
   const [videoOptions, setVideoOptions] = useState<VideoOption[]>([]);
   const uploadSheetRef = useRef<TrueSheet>(null);
   const manageSheetRef = useRef<TrueSheet>(null);
+  const bannerUploadSheetRef = useRef<TrueSheet>(null);
+  const manageBannersSheetRef = useRef<TrueSheet>(null);
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
@@ -420,6 +426,28 @@ export default function AdminScreen() {
           </View>
         </View>
 
+        {/* Carousel banners */}
+        <Text style={styles.sectionHeader}>Carousel Banners</Text>
+        <View style={styles.section}>
+          <View style={styles.mediaActionsRow}>
+            <TouchableOpacity
+              style={styles.mediaAction}
+              onPress={() => bannerUploadSheetRef.current?.present()}
+            >
+              <ImagePlus size={16} color={colors.primary} />
+              <Text style={styles.mediaActionText}>Upload banner</Text>
+            </TouchableOpacity>
+            <View style={styles.mediaActionDivider} />
+            <TouchableOpacity
+              style={styles.mediaAction}
+              onPress={() => manageBannersSheetRef.current?.present()}
+            >
+              <GalleryHorizontal size={16} color={colors.primary} />
+              <Text style={styles.mediaActionText}>Manage banners</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Delivery */}
         <Text style={styles.sectionHeader}>Delivery</Text>
         <View style={styles.section}>
@@ -490,6 +518,11 @@ export default function AdminScreen() {
     </KeyboardAwareScrollView>
     <VideoUploadSheet ref={uploadSheetRef} onUploaded={loadVideoOptions} />
     <ManageMediaSheet ref={manageSheetRef} onChanged={loadVideoOptions} />
+    <BannerUploadSheet ref={bannerUploadSheetRef} videoOptions={videoOptions} />
+    <ManageBannersSheet
+      ref={manageBannersSheetRef}
+      videoOptions={videoOptions}
+    />
     </>
   );
 }

@@ -22,6 +22,9 @@ import Signup from "./app/screens/sigup";
 import StadiumDetail from "./app/screens/StadiumDetail";
 import VideoScreen from "./app/screens/Video";
 import { AuthProvider } from "./contexts/authContext";
+import { TakeoverPlayerProvider } from "./contexts/takeoverPlayerContext";
+import MiniPlayer from "./components/ui/miniPlayer";
+import { navigationRef } from "./types/navigation";
 import { timeSync } from "./services/timeSync";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
 import { requestTrackingPermissionsAsync } from "expo-tracking-transparency";
@@ -137,7 +140,9 @@ export default Sentry.wrap(function App() {
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
+          <TakeoverPlayerProvider>
           <NavigationContainer
+            ref={navigationRef}
             theme={isDark ? navigationDarkTheme : navigationLightTheme}
             linking={{
               prefixes: [Linking.createURL("/")],
@@ -216,6 +221,8 @@ export default Sentry.wrap(function App() {
               />
             </Stack.Navigator>
           </NavigationContainer>
+          <MiniPlayer />
+          </TakeoverPlayerProvider>
         </AuthProvider>
         <StatusBar style={isDark ? "light" : "dark"} />
         <Toast />

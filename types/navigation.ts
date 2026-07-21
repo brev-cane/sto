@@ -1,4 +1,7 @@
-import { useNavigation } from "@react-navigation/native";
+import {
+  createNavigationContainerRef,
+  useNavigation,
+} from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { ParkingLot, Stadium } from "@/types/parking";
 
@@ -31,3 +34,9 @@ export type RootStackParamList = {
 export function useAppNavigation() {
   return useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 }
+
+/**
+ * Imperative navigation handle for components that live outside the
+ * navigator (e.g. the floating takeover mini-player).
+ */
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();

@@ -73,14 +73,6 @@ export default Sentry.wrap(function App() {
       responseListener.remove();
     };
   }, []);
-  useEffect(() => {
-    (async () => {
-      const { status } = await requestTrackingPermissionsAsync();
-      if (status === "granted") {
-        console.log("Yay! I have user permission to track data");
-      }
-    })();
-  }, []);
   const [showUpdateBlocker, setShowUpdateBlocker] = useState(false);
 
   useEffect(() => {
@@ -119,7 +111,7 @@ export default Sentry.wrap(function App() {
 
   const retryUpdate = async () => {
     try {
-      await ExpoInAppUpdates.startUpdate(Platform.OS === "android");
+      await ExpoInAppUpdates.startUpdate(true);
     } catch (retryErr) {
       console.error("Retry update failed:", retryErr);
     }
@@ -160,11 +152,17 @@ export default Sentry.wrap(function App() {
 
                 const response =
                   await Notifications.getLastNotificationResponseAsync();
-                console.log(
-                  "url received 1:",
-                  response?.notification.request.content.data.screen,
-                );
-                return response?.notification.request.content.data.screen;
+                const screen =
+                  response?.notification.request.content.data.screen;
+                console.log("url received 1:", screen);
+
+                if (screen) {
+                  // Clear the stored response so a stale notification tap
+                  // doesn't redirect every future cold launch.
+                  Notifications.clearLastNotificationResponse();
+                }
+
+                return screen;
               },
               subscribe(listener) {
                 const onReceiveURL = ({ url }: { url: string }) =>

@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Clock,
   FolderCog,
+  RefreshCw,
   GalleryHorizontal,
   ImagePlus,
   Send,
@@ -74,10 +75,16 @@ export default function AdminScreen() {
     null
   );
   const [reachLoading, setReachLoading] = useState(false);
+  const [refreshingAudience, setRefreshingAudience] = useState(false);
+  // Bumped by refreshAudience so the reach-preview effect re-runs against the
+  // freshly rebuilt server-side cache
+  const [reachNonce, setReachNonce] = useState(0);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
-  const countUsers = async () => {
+  // Stats are cached server-side for 24h; forceRefresh recounts and also
+  // rebuilds the notifiable-user cache used by reach previews and sends.
+  const countUsers = async (forceRefresh = false) => {
     try {
       // Check if user is authenticated first
       const currentUser = FIREBASE_AUTH.currentUser;
@@ -86,18 +93,14 @@ export default function AdminScreen() {
         return;
       }
 
-      console.log("Fetching user count as:", currentUser.uid);
-
-      const getUserCount = httpsCallable(
-        functions,
-        "getUsersWithPushTokensCount"
+      const getUserStats = httpsCallable(functions, "getUserStats");
+      const result = await getUserStats(
+        forceRefresh ? { forceRefresh: true } : {}
       );
-      const result = await getUserCount();
       const data = result.data as any;
 
       if (data.success) {
-        setTokensCount(data.count);
-        console.log("User count fetched:", data.count);
+        setTokensCount(data.pushEnabledUsers);
       }
     } catch (error: any) {
       console.error("Error counting users:", error);
@@ -109,6 +112,19 @@ export default function AdminScreen() {
       } else if (error.code === "functions/permission-denied") {
         Alert.alert("Permission Denied", "Admin access required");
       }
+    }
+  };
+
+  // Manual cache bust: fresh audience count + fresh user locations, then
+  // re-estimate reach against the rebuilt cache.
+  const refreshAudience = async () => {
+    if (refreshingAudience) return;
+    setRefreshingAudience(true);
+    try {
+      await countUsers(true);
+      setReachNonce((n) => n + 1);
+    } finally {
+      setRefreshingAudience(false);
     }
   };
 
@@ -200,7 +216,7 @@ export default function AdminScreen() {
     );
 
     return () => clearTimeout(timer);
-  }, [geoEnabled, geoCenter]);
+  }, [geoEnabled, geoCenter, reachNonce]);
 
   const estimatedReach = useMemo(() => {
     if (!reachHistogram?.buckets?.length) return null;
@@ -322,10 +338,21 @@ export default function AdminScreen() {
             <View style={styles.rowBody}>
               <Text style={styles.rowTitle}>Reachable users</Text>
               <Text style={styles.rowDescription}>
-                Have push notifications enabled
+                Have push notifications enabled · cached up to 24h
               </Text>
             </View>
             <Text style={styles.audienceCount}>{formatCount(tokensCount)}</Text>
+            <TouchableOpacity
+              style={styles.refreshButton}
+              onPress={refreshAudience}
+              disabled={refreshingAudience}
+            >
+              {refreshingAudience ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <RefreshCw size={16} color={colors.primary} />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -496,6 +523,7 @@ export default function AdminScreen() {
             onCenterChange={setGeoCenter}
             estimatedReach={estimatedReach}
             reachLoading={reachLoading}
+            onRefreshReach={refreshAudience}
           />
         </View>
 
@@ -603,6 +631,10 @@ const makeStyles = ({ colors, typography }: Theme) =>
     audienceCount: {
       ...typography.h3,
       color: colors.primary,
+    },
+    refreshButton: {
+      marginLeft: 10,
+      padding: 4,
     },
     fieldLabel: {
       ...typography.label,

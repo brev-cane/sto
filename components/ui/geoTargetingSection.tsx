@@ -12,6 +12,7 @@ import Slider from "@react-native-community/slider";
 import {
   CircleOff,
   LocateFixed,
+  RefreshCw,
   Search,
   Target,
 } from "lucide-react-native";
@@ -44,6 +45,9 @@ interface GeoTargetingSectionProps {
   onCenterChange: (center: GeoCenter | null) => void;
   estimatedReach?: number | null;
   reachLoading?: boolean;
+  /** Busts the server-side user cache and re-estimates reach (locations are
+   * cached for up to 24h — refresh before a send when freshness matters). */
+  onRefreshReach?: () => void;
 }
 
 /**
@@ -63,6 +67,7 @@ export default function GeoTargetingSection({
   onCenterChange,
   estimatedReach = null,
   reachLoading = false,
+  onRefreshReach,
 }: GeoTargetingSectionProps) {
   const navigation = useAppNavigation();
   const [locating, setLocating] = useState(false);
@@ -247,6 +252,18 @@ export default function GeoTargetingSection({
                     ? `Estimated reach: ~${formatCount(estimatedReach)} users`
                     : ""}
               </Text>
+              {onRefreshReach && (
+                <TouchableOpacity
+                  style={styles.refreshReachButton}
+                  onPress={onRefreshReach}
+                  disabled={reachLoading}
+                >
+                  <RefreshCw size={12} color={colors.primary} />
+                  <Text style={styles.refreshReachText}>
+                    Refresh user locations
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View
@@ -375,5 +392,16 @@ const makeStyles = ({ colors, typography }: Theme) =>
       ...typography.label,
       color: colors.textSecondary,
       marginTop: 6,
+    },
+    refreshReachButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      marginTop: 8,
+      alignSelf: "flex-start",
+    },
+    refreshReachText: {
+      ...typography.label,
+      color: colors.primary,
     },
   });

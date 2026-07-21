@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stadium Takeover",
     "slug": "stadium-takeover",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "orientation": "portrait",
     "icon": "./assets/images/android.png",
     "scheme": "stadiumtakeover",
@@ -19,7 +19,6 @@
         "ITSAppUsesNonExemptEncryption": false,
         "appStoreId": "6749230185"
       },
-
       "appStoreUrl": "https://apps.apple.com/us/app/stadium-takeover/id6749230185"
     },
     "android": {
@@ -105,17 +104,10 @@
       "expo-font",
       "expo-image",
       "expo-secure-store",
-      "expo-status-bar",
-      "expo-background-task",
+      "expo-status-bar", 
       "@react-native-firebase/app",
       "@react-native-firebase/crashlytics",
-      "@react-native-firebase/perf",
-      [
-        "expo-tracking-transparency",
-        {
-          "userTrackingPermission": "This identifier will be used to improve user experience."
-        }
-      ]
+      "@react-native-firebase/perf"
     ],
     "extra": {
       "eas": {

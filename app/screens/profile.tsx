@@ -103,9 +103,7 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
           {title}
         </Text>
         {description ? (
-          <Text style={styles.rowDescription} numberOfLines={2}>
-            {description}
-          </Text>
+          <Text style={styles.rowDescription}>{description}</Text>
         ) : null}
       </View>
       {right ? <View style={styles.rowRight}>{right}</View> : null}
@@ -492,7 +490,6 @@ export const UserProfileScreen: React.FC = () => {
             icon={MapPin}
             iconTint={iconTints.green}
             title="Location Sharing"
-            description="Used to send you alerts targeted near (or away from) the stadium"
             right={
               <Switch
                 value={locationEnabled}
@@ -504,6 +501,15 @@ export const UserProfileScreen: React.FC = () => {
             isLast
           />
         </View>
+        <Text style={styles.sectionFooter}>
+          The app uses your phone&apos;s location to reduce the number of
+          unnecessary alerts. For example, if you&apos;re at Highmark
+          Stadium, there&apos;s no need to receive the &quot;Shout
+          song&quot; or &quot;Mr Brightside&quot; alert, but if
+          you&apos;re enjoying the game from elsewhere, you may enjoy
+          those! You&apos;ll also receive fewer &quot;event-type&quot;
+          and testing alerts. We highly encourage this setting.
+        </Text>
 
         {/* Push token */}
         <Text style={styles.sectionHeader}>Push Token</Text>
@@ -683,6 +689,14 @@ const makeStyles = ({ colors, typography }: Theme) =>
       letterSpacing: 0.5,
       marginBottom: 6,
       marginLeft: 16,
+    },
+    sectionFooter: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: -14,
+      marginBottom: 22,
+      marginHorizontal: 16,
+      lineHeight: 17,
     },
     section: {
       backgroundColor: colors.surface,

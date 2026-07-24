@@ -133,11 +133,15 @@ export default function LocationPermissionCard() {
         <Text style={styles.dismissText}>✕</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>📍 Get alerts near the stadium</Text>
+      <Text style={styles.title}>📍 Location Sharing</Text>
       <Text style={styles.text}>
-        Some takeover alerts only go to fans near (or away from) the stadium.
-        Share your location so you never miss one meant for you — it&apos;s
-        only checked while the app is open, never in the background.
+        The app uses your phone&apos;s location to reduce the number of
+        unnecessary alerts. For example, if you&apos;re at Highmark Stadium,
+        there&apos;s no need to receive the &quot;Shout song&quot; or &quot;Mr
+        Brightside&quot; alert, but if you&apos;re enjoying the game from
+        elsewhere, you may enjoy those! You&apos;ll also receive fewer
+        &quot;event-type&quot; and testing alerts. We highly encourage this
+        setting.
       </Text>
 
       {blocked ? (

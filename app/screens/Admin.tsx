@@ -170,9 +170,11 @@ export default function AdminScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, userDoc?.id]);
 
-  // Reach preview: one invocation per chosen location — the returned
-  // distance histogram lets radius/mode changes recompute the estimate
-  // locally without calling the function again
+  // Reach preview: one invocation per chosen location + mode. Radius still
+  // doesn't affect the histogram (the 100m-bucketed distances cover every
+  // radius), but mode does now — opted-in-without-location users only
+  // bypass the location filter on "outside" sends, so we must refetch when
+  // the admin flips WITHIN/OUTSIDE rather than reusing the old histogram.
   useEffect(() => {
     const active = !!(geoEnabled && geoCenter);
     const timer = setTimeout(
@@ -191,9 +193,7 @@ export default function AdminScreen() {
           const result = await getUserCount({
             geoFilter: {
               enabled: true,
-              // mode/radius don't affect the histogram; fixed values keep
-              // this effect keyed on the center only
-              mode: "within",
+              mode: geoMode,
               radiusMeters: GEO_RADIUS_DEFAULT_M,
               center: {
                 latitude: geoCenter.latitude,
@@ -216,7 +216,7 @@ export default function AdminScreen() {
     );
 
     return () => clearTimeout(timer);
-  }, [geoEnabled, geoCenter, reachNonce]);
+  }, [geoEnabled, geoCenter, geoMode, reachNonce]);
 
   const estimatedReach = useMemo(() => {
     if (!reachHistogram?.buckets?.length) return null;

@@ -242,8 +242,7 @@ export default function GeoTargetingSection({
                 <Text style={[styles.summaryStrong, { color: modeColor }]}>
                   {mode.toUpperCase()} {formatRadius(radiusMeters)}
                 </Text>{" "}
-                of {center.label || "the selected location"} — plus everyone
-                who opted in to all alerts.
+                of {center.label || "the selected location"}
               </Text>
               <Text style={styles.reachText}>
                 {reachLoading

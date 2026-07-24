@@ -40,7 +40,7 @@ GoogleSignin.configure({
 
 const Login = () => {
   const [email, setEmail] = useState(
-    __DEV__ ? "admin@stadiumtakeover.com" : ""
+    __DEV__ ? "admin@stadiumtakeover.com" : "",
   );
   const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
@@ -60,19 +60,21 @@ const Login = () => {
       });
       if (res.identityToken) {
         const provider = new OAuthProvider("apple.com");
-        console.log("user crede :", provider);
         const credential = provider.credential({ idToken: res.identityToken });
         const userCredential = await signInWithCredential(
           FIREBASE_AUTH,
-          credential
+          credential,
         );
-        console.log("user crede :", userCredential);
         if (userCredential.user.uid) {
           const res1 = await getDoc(
-            doc(FIRESTORE_DB, "users", userCredential.user.uid)
+            doc(FIRESTORE_DB, "users", userCredential.user.uid),
           );
           if (res1.exists()) {
-            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
+            Toast.show({
+              type: "success",
+              text1: "Welcome",
+              text2: "Logged in successfully",
+            });
             navigate("Loading");
             return;
           }
@@ -84,18 +86,25 @@ const Login = () => {
             createdAt: serverTimestamp(),
           };
 
-          const res2 = await setDoc(
-            doc(FIRESTORE_DB, "users", user.uid),
-            userObject
-          ).then(() => {
-            setLoading(false);
-            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
-            navigate("Loading");
-          });
+          await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject).then(
+            () => {
+              setLoading(false);
+              Toast.show({
+                type: "success",
+                text1: "Welcome",
+                text2: "Logged in successfully",
+              });
+              navigate("Loading");
+            },
+          );
         }
       }
     } catch (error) {
-      Toast.show({ type: "error", text1: "Error", text2: "Something went wrong!" });
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Something went wrong!",
+      });
       setLoading(false);
       console.log("error", error);
     }
@@ -108,15 +117,19 @@ const Login = () => {
         const credential = GoogleAuthProvider.credential(res.data.idToken);
         const userCredential = await signInWithCredential(
           FIREBASE_AUTH,
-          credential
+          credential,
         );
         if (userCredential.user.uid) {
           const res1 = await getDoc(
-            doc(FIRESTORE_DB, "users", userCredential.user.uid)
+            doc(FIRESTORE_DB, "users", userCredential.user.uid),
           );
           if (res1.exists()) {
             console.log("user exists");
-            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
+            Toast.show({
+              type: "success",
+              text1: "Welcome",
+              text2: "Logged in successfully",
+            });
             navigate("Loading");
             return;
           }
@@ -129,14 +142,17 @@ const Login = () => {
             createdAt: serverTimestamp(),
           };
 
-          const res2 = await setDoc(
-            doc(FIRESTORE_DB, "users", user.uid),
-            userObject
-          ).then(() => {
-            setLoading(false);
-            Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
-            navigate("Loading");
-          });
+          await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject).then(
+            () => {
+              setLoading(false);
+              Toast.show({
+                type: "success",
+                text1: "Welcome",
+                text2: "Logged in successfully",
+              });
+              navigate("Loading");
+            },
+          );
           const userData = await dbService
             .collection("users")
             .getById(user.uid);
@@ -158,10 +174,13 @@ const Login = () => {
       const response = await signInWithEmailAndPassword(
         FIREBASE_AUTH,
         email,
-        password
-      );
-      console.log(response);
-      Toast.show({ type: "success", text1: "Welcome", text2: "Logged in successfully" });
+        password,
+      ); 
+      Toast.show({
+        type: "success",
+        text1: "Welcome",
+        text2: "Logged in successfully",
+      });
       navigate("Loading");
     } catch (error: any) {
       console.log(error);

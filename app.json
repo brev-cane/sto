@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stadium Takeover",
     "slug": "stadium-takeover",
-    "version": "1.1.1",
+    "version": "1.1.4",
     "orientation": "portrait",
     "icon": "./assets/images/android.png",
     "scheme": "stadiumtakeover",
@@ -14,8 +14,12 @@
       "bundleIdentifier": "com.stadiumtakeover.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
+        "NSPhotoLibraryUsageDescription": "Stadium Takeover accesses your photo library so you can choose a profile picture and upload photos or videos.",
+        "NSLocationWhenInUseUsageDescription": "Stadium Takeover uses your location to send you alerts and offers for games and events near you. Your location is never tracked in the background.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "appStoreId": "6749230185"
+      },
+      "appStoreUrl": "https://apps.apple.com/us/app/stadium-takeover/id6749230185"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,11 +27,12 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.stadiumtakeover.app",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.stadiumtakeover.app"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/light-logo.png"
     },
     "plugins": [
@@ -36,12 +41,18 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/light-logo.png",
-          "imageWidth": 200,
+          "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#00338D"
         }
       ],
-      "expo-video",
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": false
+        }
+      ],
       "expo-web-browser",
       [
         "expo-build-properties",
@@ -61,7 +72,11 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+          "locationWhenInUsePermission": "Stadium Takeover uses your location to send you alerts and offers for games and events near you. Your location is never tracked in the background.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false,
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [
@@ -81,20 +96,20 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos so you can set a profile picture."
+          "photosPermission": "Stadium Takeover accesses your photo library so you can choose a profile picture and upload photos or videos.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       "expo-font",
       "expo-image",
       "expo-secure-store",
-      "expo-status-bar",
-      "expo-background-task"
+      "expo-status-bar", 
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics",
+      "@react-native-firebase/perf"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "7450ae98-418f-49ed-b4e2-f78e12146d46"
       }

@@ -35,7 +35,13 @@ export const GEO_RADIUS_DEFAULT_M = 500;
 export interface ReachHistogram {
   bucketSizeMeters: number;
   buckets: number[];
-  /** Users who opted into all alerts — included in every geo send */
+  /**
+   * Users who opted into all alerts, counted here because they bypass the
+   * location filter entirely — only applies to "outside"-mode sends. On
+   * "within" (radius) sends this is always 0: opt-in no longer bypasses
+   * location, so those users need a fresh location inside the radius like
+   * everyone else.
+   */
   optIn: number;
   noLocation?: number;
   stale?: number;

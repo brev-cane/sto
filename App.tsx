@@ -2,21 +2,17 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 // Screens
-import { Vibration } from "react-native";
+import { BackHandler, Platform, Vibration } from "react-native";
 import TabNavigator from "./app/navigation/TabNavigator";
 import Login from "./app/screens/Login";
-import {
-  navigationDarkTheme,
-  navigationLightTheme,
-  useTheme,
-} from "./theme";
-
+import { navigationDarkTheme, navigationLightTheme, useTheme } from "./theme";
+import * as ExpoInAppUpdates from "expo-in-app-updates";
 import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import Toast from 'react-native-toast-message';
+import Toast from "react-native-toast-message";
 import LoadingScreen from "./app/screens/loading";
 import LocationSearchScreen from "./app/screens/LocationSearch";
 import ParkingDetail from "./app/screens/ParkingDetail";
@@ -26,9 +22,14 @@ import Signup from "./app/screens/sigup";
 import StadiumDetail from "./app/screens/StadiumDetail";
 import VideoScreen from "./app/screens/Video";
 import { AuthProvider } from "./contexts/authContext";
+import { TakeoverPlayerProvider } from "./contexts/takeoverPlayerContext";
+import MiniPlayer from "./components/ui/miniPlayer";
+import { navigationRef } from "./types/navigation";
 import { timeSync } from "./services/timeSync";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
-
+import { requestTrackingPermissionsAsync } from "expo-tracking-transparency";
+import UpdateNow from "./components/ui/UpdateNow";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
@@ -38,7 +39,6 @@ Sentry.init({
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
 });
-
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -60,7 +60,7 @@ export default Sentry.wrap(function App() {
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
         Vibration.vibrate(UNIQUE_VIBRATION_PATTERN);
-      }
+      },
     );
 
     const responseListener =
@@ -73,11 +73,68 @@ export default Sentry.wrap(function App() {
       responseListener.remove();
     };
   }, []);
+  const [showUpdateBlocker, setShowUpdateBlocker] = useState(false);
+
+  useEffect(() => {
+    checkForMandatoryUpdate();
+
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        return showUpdateBlocker;
+      },
+    );
+
+    return () => {
+      backHandler.remove();
+    };
+  }, [showUpdateBlocker]);
+
+  const checkForMandatoryUpdate = async () => {
+    if (__DEV__ || Platform.OS === "web") return;
+
+    try {
+      const result = await ExpoInAppUpdates.checkForUpdate();
+
+      if (result.updateAvailable) {
+        try {
+          await ExpoInAppUpdates.startUpdate(true);
+        } catch (updateErr) {
+          console.error("Failed to start update:", updateErr);
+          setShowUpdateBlocker(true);
+        }
+      }
+    } catch (checkErr) {
+      console.error("Update check failed:", checkErr);
+    }
+  };
+
+  const retryUpdate = async () => {
+    try {
+      await ExpoInAppUpdates.startUpdate(true);
+    } catch (retryErr) {
+      console.error("Retry update failed:", retryErr);
+    }
+  };
+
+  if (showUpdateBlocker) {
+    return (
+      <UpdateNow
+        retryUpdate={retryUpdate}
+        showUpdateBlocker={showUpdateBlocker}
+      />
+    );
+  }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: isDark ?  '#0F1216': "#fff" }}
+    >
+      <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
+          <TakeoverPlayerProvider>
           <NavigationContainer
+            ref={navigationRef}
             theme={isDark ? navigationDarkTheme : navigationLightTheme}
             linking={{
               prefixes: [Linking.createURL("/")],
@@ -95,11 +152,17 @@ export default Sentry.wrap(function App() {
 
                 const response =
                   await Notifications.getLastNotificationResponseAsync();
-                console.log(
-                  "url received 1:",
-                  response?.notification.request.content.data.screen
-                );
-                return response?.notification.request.content.data.screen;
+                const screen =
+                  response?.notification.request.content.data.screen;
+                console.log("url received 1:", screen);
+
+                if (screen) {
+                  // Clear the stored response so a stale notification tap
+                  // doesn't redirect every future cold launch.
+                  Notifications.clearLastNotificationResponse();
+                }
+
+                return screen;
               },
               subscribe(listener) {
                 const onReceiveURL = ({ url }: { url: string }) =>
@@ -107,7 +170,7 @@ export default Sentry.wrap(function App() {
 
                 const eventListenerSubscription = Linking.addEventListener(
                   "url",
-                  onReceiveURL
+                  onReceiveURL,
                 );
 
                 const subscription =
@@ -117,7 +180,7 @@ export default Sentry.wrap(function App() {
                         response.notification.request.content.data.screen;
                       console.log("url received 2:", url);
                       listener(url);
-                    }
+                    },
                   );
 
                 return () => {
@@ -156,11 +219,12 @@ export default Sentry.wrap(function App() {
               />
             </Stack.Navigator>
           </NavigationContainer>
+          <MiniPlayer />
+          </TakeoverPlayerProvider>
         </AuthProvider>
         <StatusBar style={isDark ? "light" : "dark"} />
-       <Toast />
-    </GestureHandlerRootView>
+        <Toast />
+      </GestureHandlerRootView>
+    </SafeAreaView>
   );
 });
-
-

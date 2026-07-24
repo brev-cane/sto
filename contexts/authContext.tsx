@@ -1,5 +1,6 @@
 import { FIREBASE_AUTH } from "@/FirebaseConfig";
 import { dbService } from "@/services/dbService";
+import { videoSync } from "@/services/videoSync";
 import { AppUser } from "@/types/user";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { User as FirebaseUser, onAuthStateChanged } from "firebase/auth";
@@ -113,6 +114,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setFirebaseUser(user);
 
       if (user) {
+        videoSync.start();
         try {
           const userData = await dbService
             .collection<AppUser>("users")
@@ -124,6 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUserDoc(null);
         }
       } else {
+        videoSync.stop();
         setUserDoc(null);
       }
 

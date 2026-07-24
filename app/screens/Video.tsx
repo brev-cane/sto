@@ -1,14 +1,24 @@
-import { RouteProp, useRoute } from "@react-navigation/native";
-import { useEvent, useEventListener } from "expo";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useEffect, useRef, useState } from "react";
+import {
+  RouteProp,
+  useFocusEffect,
+  useIsFocused,
+  useRoute,
+} from "@react-navigation/native";
+import { VideoView } from "expo-video";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Dimensions, StyleSheet, Text, View } from "react-native";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-import { useNavigation } from "@react-navigation/native";
-import { triggerUniqueVibration } from "../../utils/vibrationHelper";
+import { useAppNavigation } from "@/types/navigation";
 import BackButton from "@/components/ui/backbutton";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { timeSync } from "@/services/timeSync";
+import {
+  TakeoverParams,
+  useTakeoverPlayer,
+} from "@/contexts/takeoverPlayerContext";
+import { CatalogBanner } from "@/types/banners";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { FIRESTORE_DB } from "@/FirebaseConfig";
+import { Music } from "lucide-react-native";
 import { Image } from "expo-image";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, {
@@ -18,52 +28,31 @@ import Carousel, {
 const width = Dimensions.get("window").width;
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
-type VideoScreenRouteParams = {
-  videoFile: string;
-  sentAt: string;
-  delaySeconds: string;
-  playAt: string;
-};
-
-const videoMap = {
-  "1.mp4": require("../../assets/videos/1.mp4"),
-  "2.mp4": require("../../assets/videos/2.mp4"),
-  "3.mp4": require("../../assets/videos/3.mp4"),
-  "4.mp4": require("../../assets/videos/4.mp4"),
-  "5.mp4": require("../../assets/videos/5.mp4"),
-  //"6.mp4": require("../../assets/videos/6.mp4"),
-  "7.mp4": require("../../assets/videos/7.mp4"),
-  // "8.mp4": require("../../assets/videos/8.mp4"),
-  // "9.mp4": require("../../assets/videos/9.mp4"),
-  "10.mp4": require("../../assets/videos/10.mp4"),
-  //  "11.mp4": require("../../assets/videos/11.mp4"),
-  //  "12.mp4": require("../../assets/videos/12.mp4"),
-  // "13.mp4": require("../../assets/videos/13.mp4"),
-  "14.mp4": require("../../assets/videos/14.mp4"),
-
-  "19.mp4": require("../../assets/videos/19.mp4"),
-  "20.mp4": require("../../assets/videos/20.mp4"),
-};
-
-function isValidVideoFile(file: string): file is keyof typeof videoMap {
-  return Object.prototype.hasOwnProperty.call(videoMap, file);
-}
-
 export default function VideoScreen() {
-  const route =
-    useRoute<RouteProp<Record<string, VideoScreenRouteParams>, string>>();
+  const route = useRoute<RouteProp<Record<string, TakeoverParams>, string>>();
   const params = route.params;
-  const { navigate } = useNavigation<any>();
+  const { navigate } = useAppNavigation();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const isFocused = useIsFocused();
 
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [missed, setMissed] = useState(false);
-  const [videoReady, setVideoReady] = useState(false);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    sessionParams,
+    phase,
+    error,
+    countdown,
+    entries,
+    currentIndex,
+    downloadProgress,
+    player,
+    startSession,
+    resync,
+    setVideoScreenFocused,
+  } = useTakeoverPlayer();
+
+  const [banners, setBanners] = useState<CatalogBanner[] | null>(null);
+
   const ref = useRef<ICarouselInstance>(null);
-  const [playing, setPlaying] = useState(false);
   const progress = useSharedValue<number>(0);
 
   const onPressPagination = (index: number) => {
@@ -76,116 +65,66 @@ export default function VideoScreen() {
       animated: true,
     });
   };
-  // Extract params safely with defaults
-  const videoFileParam = params?.videoFile;
-  const playAt = params?.playAt;
 
-  // Create playlist
-  const playlist = videoFileParam ? videoFileParam.split(",") : [];
-  const currentVideoFile = playlist[currentVideoIndex];
-  console.log("parms,playlist :");
-  // Always initialize player (with a default or null check)
-  const assetId =
-    currentVideoFile && isValidVideoFile(currentVideoFile)
-      ? videoMap[currentVideoFile]
-      : null;
-
-  const player = useVideoPlayer(assetId, (player) => {
-    if (player) {
-      player.loop = false;
-      // Auto-play if we are moving to next video in playlist (index > 0)
-      if (currentVideoIndex > 0) {
-        player.play();
-      }
-    }
-  });
-
-  useEventListener(player, "playToEnd", () => {
-    if (currentVideoIndex < playlist.length - 1) {
-      const nextIndex = currentVideoIndex + 1;
-      const nextVideo = playlist[nextIndex];
-      const currentVideo = playlist[currentVideoIndex];
-
-      // If the next video is the same as current, we need to seek to beginning and replay
-      // because useVideoPlayer won't reinitialize with the same assetId
-      if (nextVideo === currentVideo && player) {
-        console.log("Same video repeating, seeking to beginning");
-        player.currentTime = 0;
-        player.play();
-      }
-
-      setCurrentVideoIndex(nextIndex);
-      setPlaying(true);
-    } else {
-      navigate("Home");
-    }
-  });
-
-  // Validate params and set errors
+  // Hand the takeover over to the global provider. Idempotent when this is a
+  // restore from the mini-player (same playAt), a fresh session otherwise.
   useEffect(() => {
-    if (!params) {
-      setError("Missing parameters.");
-      return;
-    }
+    startSession(params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.playAt, params?.videoIds, params?.videoFile]);
 
-    if (!playlist.length || !playlist.some(isValidVideoFile)) {
-      setError("Invalid or missing video file(s).");
-      return;
-    }
+  // Tell the provider when the full screen owns the session (hides the
+  // mini-player) and catch up with the server clock on every return.
+  useFocusEffect(
+    useCallback(() => {
+      setVideoScreenFocused(true);
+      resync();
+      return () => setVideoScreenFocused(false);
+    }, [setVideoScreenFocused, resync])
+  );
 
-    if (!playAt) {
-      setError("Missing playAt timestamp parameter.");
-      return;
-    }
-
-    // Clear any previous errors
-    setError(null);
-  }, [params, videoFileParam, playAt]);
-
-  // Sync countdown with server timestamp
+  // When the session ends while we're the visible screen (playlist finished),
+  // leave the way the old screen did. Ends while minimized don't navigate.
+  const hadSessionRef = useRef(false);
   useEffect(() => {
-    if (error || !playAt) return;
+    if (hadSessionRef.current && !sessionParams && isFocused) {
+      navigate("Main");
+    }
+    hadSessionRef.current = !!sessionParams;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionParams, isFocused]);
 
-    const targetTimestamp = parseInt(playAt, 10);
-
-    const updateCountdown = () => {
-      //const now = Date.now();
-      const now = timeSync.getSyncedTime();
-      const remaining = Math.floor((targetTimestamp - now) / 1000);
-
-      if (remaining > 0) {
-        setCountdown(remaining);
-      } else if (remaining >= -5) {
-        // Allow 5 second grace period
-        setCountdown(0);
-        setVideoReady(true);
-        if (player) {
-          player.play();
-          setPlaying(true);
-        }
-      } else {
-        setMissed(true);
+  // Load the admin-managed banner catalog once per takeover — the fetch lands
+  // during the countdown window and the set must not change mid-show. On
+  // failure `banners` stays null and the bundled fallback ads render instead.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snapshot = await getDocs(
+          query(
+            collection(FIRESTORE_DB, "banners"),
+            where("status", "==", "ready"),
+            where("active", "==", true)
+          )
+        );
+        if (cancelled) return;
+        setBanners(
+          snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as CatalogBanner)
+        );
+      } catch (error) {
+        console.log("Failed to load banners, using bundled ads:", error);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-
-    // Update immediately
-    updateCountdown();
-
-    // Update every 100ms for smooth countdown
-    const interval = setInterval(updateCountdown, 100);
-
-    return () => clearInterval(interval);
-  }, [playAt, player, error]);
-
-  useEffect(() => {
-    if (countdown === 5) {
-      triggerUniqueVibration();
-    }
-  }, [countdown]);
+  }, []);
 
   if (error) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Popping blurs the screen; the provider then auto-ends the errored session */}
         <BackButton />
         <View style={styles.contentContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -194,48 +133,50 @@ export default function VideoScreen() {
     );
   }
 
-  const dataAd = [
-    {
-      id: 1,
-      url: require("../../assets/ads/1.jpg"),
-    },
-    {
-      id: 2,
-      url: require("../../assets/ads/2.jpg"),
-    },
-    {
-      id: 3,
-      url: require("../../assets/ads/3.jpg"),
-    },
-    {
-      id: 4,
-      url: require("../../assets/ads/4.jpg"),
-    },
-    {
-      id: 5,
-      url: require("../../assets/ads/5.jpg"),
-    },
-  ];
+  // Bundled fallback ads, shown only when no remote banners apply (offline
+  // before the catalog was cached, fetch failure, or an empty catalog).
   const defaultData = [
     {
-      id: 1,
+      id: "bundled-1",
       url: require("../../assets/defaultAds/1.jpeg"),
     },
     {
-      id: 2,
+      id: "bundled-2",
       url: require("../../assets/defaultAds/2.jpeg"),
     },
     {
-      id: 3,
+      id: "bundled-3",
       url: require("../../assets/defaultAds/3.jpeg"),
     },
   ];
-  console.log("assetId:", assetId);
-  const data =
-    currentVideoFile === "10.mp4" || currentVideoFile === "3.mp4"
-      ? dataAd
-      : defaultData;
+  // Banners assigned to the playing video win; banners with no assignment are
+  // the admin's default set. Recomputed per playlist item.
+  const currentVideoId = entries?.[currentIndex]?.id;
+  const assignedBanners =
+    banners?.filter(
+      (b) => currentVideoId && b.videoIds?.includes(currentVideoId)
+    ) ?? [];
+  const defaultBanners = banners?.filter((b) => !b.videoIds?.length) ?? [];
+  const remoteBanners = (
+    assignedBanners.length ? assignedBanners : defaultBanners
+  )
+    .filter((b) => b.downloadURL)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const data = remoteBanners.length
+    ? remoteBanners.map((b) => ({ id: b.id, url: { uri: b.downloadURL! } }))
+    : defaultData;
   const w = Dimensions.get("window").width;
+
+  const downloadPercent =
+    downloadProgress && downloadProgress.totalBytes > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (downloadProgress.bytesWritten / downloadProgress.totalBytes) * 100
+          )
+        )
+      : null;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <View
@@ -250,13 +191,48 @@ export default function VideoScreen() {
           nativeControls={false}
           player={player}
         />
-        {missed && !playing ? (
+        {entries?.[currentIndex]?.mediaType === "audio" && (
+          <View style={styles.audioArt}>
+            {entries[currentIndex].thumbnailURL ? (
+              <Image
+                source={{ uri: entries[currentIndex].thumbnailURL }}
+                contentFit="cover"
+                style={styles.audioArtImage}
+              />
+            ) : (
+              <Music size={96} color={colors.primary} />
+            )}
+          </View>
+        )}
+        {phase === "missed" ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.restricted}>You missed the video.</Text>
           </View>
-        ) : countdown && countdown > 0 ? (
+        ) : phase === "downloading" ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>
+              This video isn&apos;t on your phone yet.{"\n"}Downloading it
+              now…
+            </Text>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${downloadPercent ?? 0}%` },
+                ]}
+              />
+            </View>
+            {downloadPercent !== null && (
+              <Text style={styles.progressLabel}>{downloadPercent}%</Text>
+            )}
+          </View>
+        ) : phase === "countdown" && countdown !== null && countdown > 0 ? (
           <View style={styles.countdownOverlay}>
             <Text style={styles.countdownText}>{countdown}</Text>
+          </View>
+        ) : phase === "resolving" || phase === "idle" ? (
+          <View style={styles.countdownOverlay}>
+            <Text style={styles.restricted}>Getting ready…</Text>
           </View>
         ) : null}
       </View>
@@ -334,6 +310,19 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     width: "100%",
     height: 300,
   },
+  // Covers the (empty) VideoView while an audio-only entry plays
+  audioArt: {
+    position: "absolute",
+    width: "100%",
+    height: 300,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colors.background,
+  },
+  audioArtImage: {
+    width: "100%",
+    height: "100%",
+  },
   countdownOverlay: {
     position: "absolute",
     justifyContent: "center",
@@ -351,6 +340,24 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     fontSize: 20,
     color: "#FFFFFF",
     textAlign: "center",
+  },
+  progressTrack: {
+    width: screenWidth * 0.7,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(255,255,255,0.25)",
+    marginTop: 20,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  progressLabel: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#FFFFFF",
   },
   controlsOverlay: {
     position: "absolute",

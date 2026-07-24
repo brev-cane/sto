@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  LayoutAnimation,
   StyleSheet,
   TextInput,
   View,
@@ -29,7 +30,7 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { dbService } from "@/services/dbService";
 import { useAuth } from "@/contexts/authContext";
 import * as Animatable from "react-native-animatable";
-import { LogIn, Mail } from "lucide-react-native";
+import { ChevronDown, ChevronUp, LogIn, Mail } from "lucide-react-native";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -45,9 +46,10 @@ const Login = () => {
   const [password, setPassword] = useState(__DEV__ ? "admin@123" : "");
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
   const { setUserDoc } = useAuth();
   const { navigate } = useAppNavigation();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const handeleAppleAuthentication = async () => {
     try {
@@ -213,6 +215,17 @@ const Login = () => {
       setLoading(false);
     }
   };
+  const toggleEmailLogin = () => {
+    LayoutAnimation.configureNext(
+      LayoutAnimation.create(
+        350,
+        LayoutAnimation.Types.easeInEaseOut,
+        LayoutAnimation.Properties.opacity,
+      ),
+    );
+    setShowEmailLogin((prev) => !prev);
+  };
+
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       Toast.show({
@@ -274,57 +287,22 @@ const Login = () => {
         <Text style={styles.title}>Welcome back</Text>
         <Text style={styles.subtitle}>Sign in to join the takeover</Text>
 
-        {/* Email + password */}
-        <View style={styles.inputWrapper}>
-          <Mail size={18} color={colors.textMuted} />
-          <TextInput
-            value={email}
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.placeholder}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            onChangeText={(text) => setEmail(text)}
+        {/* Apple */}
+        {Platform.OS === "ios" && (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={
+              isDark
+                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+            }
+            cornerRadius={12}
+            style={[styles.appleButton, loading && styles.buttonDisabled]}
+            onPress={handeleAppleAuthentication}
           />
-        </View>
-        <PasswordInput password={password} setPassword={setPassword} />
+        )}
 
-        {/* Forgot password */}
-        <TouchableOpacity
-          style={styles.forgotButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          onPress={handleForgotPassword}
-          disabled={resetting || loading}
-        >
-          <Text style={styles.forgotText}>
-            {resetting ? "Sending reset email…" : "Forgot password?"}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Sign in */}
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={signIn}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.onPrimary} />
-          ) : (
-            <LogIn size={18} color={colors.onPrimary} />
-          )}
-          <Text style={styles.buttonText}>
-            {loading ? "Signing in…" : "Sign In"}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or continue with</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* Providers */}
+        {/* Google */}
         <TouchableOpacity
           style={[styles.providerButton, loading && styles.buttonDisabled]}
           onPress={loginByGoogle}
@@ -334,15 +312,77 @@ const Login = () => {
           <Text style={styles.providerButtonText}>Continue with Google</Text>
         </TouchableOpacity>
 
-        {Platform.OS === "ios" && (
-          <TouchableOpacity
-            style={[styles.providerButton, loading && styles.buttonDisabled]}
-            onPress={handeleAppleAuthentication}
-            disabled={loading}
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Email toggle */}
+        <TouchableOpacity
+          style={styles.revealRow}
+          onPress={toggleEmailLogin}
+          disabled={loading}
+        >
+          <Mail size={18} color={colors.textMuted} />
+          <Text style={styles.revealText}>Continue with email</Text>
+          {showEmailLogin ? (
+            <ChevronUp size={18} color={colors.textMuted} />
+          ) : (
+            <ChevronDown size={18} color={colors.textMuted} />
+          )}
+        </TouchableOpacity>
+
+        {showEmailLogin && (
+          <Animatable.View
+            animation="fadeInDown"
+            duration={400}
+            easing="ease-out-cubic"
+            style={styles.emailSection}
           >
-            <Ionicons name="logo-apple" size={20} color={colors.text} />
-            <Text style={styles.providerButtonText}>Continue with Apple</Text>
-          </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <Mail size={18} color={colors.textMuted} />
+              <TextInput
+                value={email}
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={colors.placeholder}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                onChangeText={(text) => setEmail(text)}
+              />
+            </View>
+            <PasswordInput password={password} setPassword={setPassword} />
+
+            {/* Forgot password */}
+            <TouchableOpacity
+              style={styles.forgotButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={handleForgotPassword}
+              disabled={resetting || loading}
+            >
+              <Text style={styles.forgotText}>
+                {resetting ? "Sending reset email…" : "Forgot password?"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Sign in */}
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={signIn}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <LogIn size={18} color={colors.onPrimary} />
+              )}
+              <Text style={styles.buttonText}>
+                {loading ? "Signing in…" : "Sign In"}
+              </Text>
+            </TouchableOpacity>
+          </Animatable.View>
         )}
 
         {/* Footer */}
@@ -458,6 +498,11 @@ const makeStyles = ({ colors, typography }: Theme) =>
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
+    appleButton: {
+      width: "100%",
+      height: 50,
+      marginBottom: 10,
+    },
     providerButton: {
       flexDirection: "row",
       alignItems: "center",
@@ -473,6 +518,24 @@ const makeStyles = ({ colors, typography }: Theme) =>
     providerButtonText: {
       ...typography.button,
       color: colors.text,
+    },
+    revealRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      paddingVertical: 14,
+      borderRadius: 12,
+    },
+    revealText: {
+      ...typography.button,
+      color: colors.text,
+    },
+    emailSection: {
+      marginTop: 14,
     },
     footerRow: {
       flexDirection: "row",

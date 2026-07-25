@@ -46,6 +46,13 @@ export type Phase =
 /** How far player.currentTime may drift from the server clock before we seek. */
 const DRIFT_TOLERANCE_SEC = 1.25;
 const DRIFT_CHECK_INTERVAL_MS = 3000;
+/**
+ * Late joiners get a short artificial countdown before we seek+play, instead
+ * of a cold seek. Without this, the freshly-created native player has zero
+ * lead time to buffer the target offset, so its first real frame lands
+ * behind the computed position until the next drift check corrects it.
+ */
+const LATE_JOIN_PRIME_MS = 2000;
 
 /** Maps seconds elapsed since playAt to a playlist position, for joining late but in sync. */
 export function locateInPlaylist(
@@ -112,6 +119,8 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
   const entriesRef = useRef<PlaylistEntry[] | null>(entries);
   const currentIndexRef = useRef(currentIndex);
   const playAtMsRef = useRef<number | null>(null);
+  // Wall-clock deadline for the late-join priming window; null when not armed.
+  const lateJoinDeadlineRef = useRef<number | null>(null);
 
   const currentUri = entries?.[currentIndex]?.uri ?? null;
   const player = useVideoPlayer(
@@ -150,6 +159,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     runIdRef.current++;
     pendingSeekRef.current = 0;
     playAtMsRef.current = null;
+    lateJoinDeadlineRef.current = null;
     setSessionParams(null);
     setPhase("idle");
     setError(null);
@@ -186,6 +196,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     abortRef.current = abort;
     pendingSeekRef.current = 0;
     playAtMsRef.current = null;
+    lateJoinDeadlineRef.current = null;
     setEntries(null);
     setCurrentIndex(0);
     setDownloadProgress(null);
@@ -401,6 +412,34 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       setPhase("playing");
     };
 
+    // Late join: assign the player source now so it has real time to buffer,
+    // show a short countdown (matches the on-time UX instead of a jump cut),
+    // then re-derive the offset from the clock at the end of the window —
+    // the priming time itself must not go stale.
+    const armLateJoin = (index: number) => {
+      if (lateJoinDeadlineRef.current === null) {
+        lateJoinDeadlineRef.current = Date.now() + LATE_JOIN_PRIME_MS;
+        setCurrentIndex(index);
+      }
+
+      const msLeft = lateJoinDeadlineRef.current - Date.now();
+      if (msLeft > 0) {
+        setCountdown(Math.ceil(msLeft / 1000));
+        return;
+      }
+
+      const freshElapsedSec = (timeSync.getSyncedTime() - targetTimestamp) / 1000;
+      const freshLocation = locateInPlaylist(freshElapsedSec, entries);
+      if (!freshLocation) {
+        setPhase("missed");
+        return;
+      }
+      if (entries[freshLocation.index].uri) {
+        lateJoinDeadlineRef.current = null;
+        startPlayback(freshLocation.index, freshLocation.offsetSec);
+      }
+    };
+
     const updateCountdown = () => {
       const now = timeSync.getSyncedTime();
       const remaining = Math.floor((targetTimestamp - now) / 1000);
@@ -424,7 +463,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       }
       // Join in sync mid-playlist once the needed file is on disk
       if (entries[location.index].uri) {
-        startPlayback(location.index, location.offsetSec);
+        armLateJoin(location.index);
       }
     };
 

@@ -197,7 +197,7 @@ export default function VideoScreen() {
             {entries[currentIndex].thumbnailURL ? (
               <Image
                 source={{ uri: entries[currentIndex].thumbnailURL }}
-                contentFit="cover"
+                contentFit="contain"
                 style={styles.audioArtImage}
               />
             ) : (
@@ -309,7 +309,7 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
   },
   video: {
     width: "100%",
-    height: 300,
+    height: "100%",
   },
   // Covers the (empty) VideoView while an audio-only entry plays
   audioArt: {
@@ -321,8 +321,8 @@ const makeStyles = ({ colors, typography }: Theme) => StyleSheet.create({
     backgroundColor: colors.background,
   },
   audioArtImage: {
-    width: "100%",
-    height: "100%",
+    width: screenWidth,
+    height: screenWidth,
   },
   countdownOverlay: {
     position: "absolute",

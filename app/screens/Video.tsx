@@ -190,6 +190,7 @@ export default function VideoScreen() {
           style={styles.video}
           nativeControls={false}
           player={player}
+          contentFit="contain"
         />
         {entries?.[currentIndex]?.mediaType === "audio" && (
           <View style={styles.audioArt}>

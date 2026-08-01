@@ -23,8 +23,17 @@ import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
 import LocationPermissionCard from "@/components/ui/locationPermission";
 import SyncBanner from "@/components/ui/syncBanner";
+import { timeSync } from "@/services/timeSync";
 
 const logoImage = require("../../assets/images/blue-logo.png");
+
+// Matches the lead time real game-day pushes are sent with, so the test
+// takeover rehearses the same countdown users see during a game.
+const TEST_TAKEOVER_DELAY_SECONDS = 30;
+// The local preview skips the push round trip, so there's nothing to wait for
+// beyond a countdown short enough to read.
+const LOCAL_PREVIEW_DELAY_SECONDS = 5;
+const TEST_TAKEOVER_VIDEO = "1.mp4";
 
 function Home() {
   const { userDoc } = useAuth();
@@ -56,23 +65,38 @@ function Home() {
 
   const handleSend = async () => {
     try {
-      const nextAllowedTs = Date.now() + 1000 * 1000; // delay is in seconds
-      await AsyncStorage.setItem(
-        "nextAllowedNotificationTime",
-        String(nextAllowedTs),
-      );
-      setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
+      const pushToken = userDoc?.pushToken;
 
-      if (!userDoc?.pushToken) {
-        alert("Please enable push notifications first");
-        navigate("Profile");
+      // Push is how we reach people whose app is closed, not a precondition
+      // for using this one (App Store Guideline 4.5.4). With a real token the
+      // test rehearses the full game-day pipeline; without one — notifications
+      // declined, or registration failed — the takeover still runs, started
+      // locally instead of by a notification tap.
+      if (pushToken?.startsWith("ExponentPushToken[")) {
+        // Only the push path is throttled; it calls out to the Expo service
+        const nextAllowedTs = Date.now() + 1000 * 1000; // delay is in seconds
+        await AsyncStorage.setItem(
+          "nextAllowedNotificationTime",
+          String(nextAllowedTs),
+        );
+        setCooldownRemaining(Math.ceil((nextAllowedTs - Date.now()) / 1000));
+
+        await sendBatchNotifications(
+          [pushToken],
+          TEST_TAKEOVER_DELAY_SECONDS,
+          TEST_TAKEOVER_VIDEO,
+        );
         return;
       }
-      const tokens = [userDoc.pushToken];
-      await sendBatchNotifications(tokens, 30, "1.mp4");
+
+      navigate("Video", {
+        playAt: String(
+          timeSync.getSyncedTime() + LOCAL_PREVIEW_DELAY_SECONDS * 1000,
+        ),
+        videoFile: TEST_TAKEOVER_VIDEO,
+      });
     } catch (err: any) {
       Alert.alert("⚠️ Error", err.message);
-    } finally {
     }
   };
 
@@ -83,7 +107,6 @@ function Home() {
       </View>
     );
   }
-
 
   return (
     <Drawer
@@ -118,6 +141,7 @@ function Home() {
             </Text>
           </View>
 
+          <PushPermissionComponent />
           <InstructionsCard />
 
           {/* Test takeover */}
@@ -145,7 +169,6 @@ function Home() {
       )}
 
       <LocationPermissionCard />
-      <PushPermissionComponent />
     </Drawer>
   );
 }

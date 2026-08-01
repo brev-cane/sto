@@ -9,37 +9,36 @@ import {
   AppState,
 } from "react-native";
 import * as Notifications from "expo-notifications";
+import { BellOff, ChevronRight } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import { dbService } from "@/services/dbService";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
-import { Theme, useThemedStyles } from "@/theme";
+import { Theme, useTheme, useThemedStyles } from "@/theme";
 
 /**
- * Registers for push on mount and, when the user has notifications turned
- * off at the OS level, shows how to re-enable them in Settings.
+ * Registers for push on mount and, while notifications are switched off at
+ * the OS level, keeps a banner on screen explaining that live takeover alerts
+ * can't arrive until they're turned back on.
  *
- * There is deliberately no pre-prompt and no dismiss control here: per App
- * Store Guideline 5.1.1(iv) the OS prompt is the only thing standing
- * between the user and the decision. This card renders solely for the
- * already-denied case, which is the Settings link Apple recommends.
+ * The banner stays put rather than being dismissable — missing the alert
+ * means missing the takeover, so it's worth the standing reminder — but it is
+ * strictly informational. It occupies one row, covers nothing, and blocks no
+ * feature: per App Store Guideline 4.5.4 the app has to stay usable without
+ * push, so the takeover itself remains reachable from the home screen either
+ * way (see `handleSend` there).
+ *
+ * There is also deliberately no pre-prompt and no ✕ on the request itself:
+ * per Guideline 5.1.1(iv) the OS prompt is the only thing standing between
+ * the user and the decision. This renders solely for the already-denied case,
+ * which is the Settings link Apple recommends.
  */
 export default function ImprovedPushPermissionComponent() {
   const styles = useThemedStyles(makeStyles);
+  const { colors } = useTheme();
   const [blocked, setBlocked] = useState(false);
   const { userDoc, setUserDoc } = useAuth();
 
-  useEffect(() => {
-    checkPermission();
 
-    // 👇 Listen to app foreground events
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        checkPermission();
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
 
   async function checkPermission() {
     const settings = await Notifications.getPermissionsAsync();
@@ -69,7 +68,18 @@ export default function ImprovedPushPermissionComponent() {
     });
     setBlocked(isBlocked);
   }
+  useEffect(() => {
+    checkPermission();
 
+    // 👇 Listen to app foreground events
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        checkPermission();
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
   function openSettings() {
     if (Platform.OS === "ios") {
       Linking.openURL("app-settings:");
@@ -83,93 +93,63 @@ export default function ImprovedPushPermissionComponent() {
   if (!blocked) return null;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.notAllowedBox}>
-        <Text style={styles.title}>🔕 Notifications Disabled</Text>
-        <Text style={styles.text}>
-          You&apos;ve turned off notifications — the crowd misses you 😢
-        </Text>
-
-        <View style={styles.stepsBox}>
-          <Text style={styles.step}>
-            1️⃣ Open <Text style={styles.bold}>Settings</Text>
-          </Text>
-          <Text style={styles.step}>
-            2️⃣ Tap <Text style={styles.bold}>Notifications</Text>
-          </Text>
-          <Text style={styles.step}>
-            3️⃣ Enable <Text style={styles.bold}>Allow Notifications</Text>
-          </Text>
-        </View>
-
-        <TouchableOpacity style={styles.button} onPress={openSettings}>
-          <Text style={styles.buttonText}>⚙️ Open Settings Now</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.footerText}>We&apos;ll save you a seat 💌</Text>
+    <TouchableOpacity
+      style={styles.banner}
+      onPress={openSettings}
+      accessibilityRole="button"
+      accessibilityLabel="Notifications are off. Open Settings to turn on takeover alerts."
+    >
+      <View style={styles.iconTile}>
+        <BellOff size={16} color={colors.primary} />
       </View>
-    </View>
+
+      <View style={styles.copy}>
+        <Text style={styles.title}>Notifications are off</Text>
+        <Text style={styles.text}>
+          Turn them on to be alerted the moment a takeover starts.
+        </Text>
+      </View>
+
+      <ChevronRight size={18} color={colors.textMuted} />
+    </TouchableOpacity>
   );
 }
 
 const makeStyles = ({ colors, typography }: Theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: "center",
+    // No flex here: the banner is sized by its content so it can sit above the
+    // home screen's scroll view without ever eating into it
+    banner: {
+      flexDirection: "row",
       alignItems: "center",
-      padding: 30,
+      gap: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       backgroundColor: colors.surface,
-      borderWidth: 2,
-      borderColor: colors.primary,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
       borderRadius: 12,
-      marginHorizontal: 8,
-      minHeight: 300,
+      marginBottom: 12, 
     },
-    notAllowedBox: {
+    iconTile: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
       alignItems: "center",
-      padding: 30,
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    copy: {
+      flex: 1,
     },
     title: {
-      ...typography.h3,
+      ...typography.body,
+      fontWeight: "600",
       color: colors.text,
-      marginBottom: 12,
-      textAlign: "center",
     },
     text: {
-      ...typography.body,
-      textAlign: "center",
-      color: colors.textSecondary,
-      marginBottom: 20,
-    },
-    stepsBox: {
-      marginBottom: 20,
-      width: "100%",
-    },
-    step: {
-      ...typography.body,
-      color: colors.textSecondary,
-      marginBottom: 6,
-      textAlign: "left",
-    },
-    bold: {
-      fontWeight: "700",
-      color: colors.text,
-    },
-    button: {
-      backgroundColor: colors.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 24,
-      borderRadius: 12,
-      marginBottom: 14,
-    },
-    buttonText: {
-      ...typography.button,
-      color: colors.onPrimary,
-    },
-    footerText: {
       ...typography.bodySmall,
-      color: colors.textMuted,
-      textAlign: "center",
+      color: colors.textSecondary,
+      marginTop: 1,
     },
   });

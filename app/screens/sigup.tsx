@@ -54,7 +54,7 @@ const Signup = () => {
           email,
           uid: response.user.uid,
           name,
-          pushToken: `${token}`,
+          pushToken: token ?? "",
         });
         navigate("Loading");
         alert("Check your emails!");

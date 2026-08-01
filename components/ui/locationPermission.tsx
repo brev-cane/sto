@@ -5,8 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   AppState,
+  Linking,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MapPinOff } from "lucide-react-native";
 import { useAuth } from "@/contexts/authContext";
 import { dbService } from "@/services/dbService";
 import {
@@ -14,19 +17,22 @@ import {
   requestLocationPermission,
   syncLocationToFirestore,
 } from "@/services/locationService";
+import PermissionBanner from "@/components/ui/permissionBanner";
 import { Theme, useThemedStyles } from "@/theme";
 
 const HIDE_KEY = "hideLocationPermissionCard";
 
 /**
  * Home-screen card explaining why we ask for location (geo-targeted alerts)
- * before showing the OS prompt.
+ * before showing the OS prompt, plus the Settings banner that replaces it
+ * once the OS has been asked and the answer was no.
  *
  * App Store Guideline 5.1.1(iv): the card must not be dismissable and must
  * not offer any way around the request — its single action always leads to
- * the OS prompt. It is therefore only rendered while the OS can still ask;
- * once the user answers, the decision is theirs to revisit in Profile
- * (location toggle + "receive all alerts" toggle), never re-nagged here.
+ * the OS prompt. The two states are therefore strictly sequential and never
+ * overlap: the card shows only while the OS can still ask, the banner only
+ * once it can't. Offering both at once would put a way around the prompt
+ * right next to it, which is the thing the guideline forbids.
  */
 export default function LocationPermissionCard() {
   const { userDoc, setUserDoc } = useAuth();
@@ -106,12 +112,38 @@ export default function LocationPermissionCard() {
     }
   }
 
-  // Pre-prompt only: never shown once the OS has an answer on file. Users
-  // manage location afterwards from the Profile screen.
-  if (!userDoc || hidden || granted !== false || !canAskAgain) {
+  function openSettings() {
+    if (Platform.OS === "ios") {
+      Linking.openURL("app-settings:");
+    } else {
+      Linking.openSettings();
+    }
+  }
+
+  if (!userDoc || granted !== false) {
     return null;
   }
 
+  // Asked and declined. `hidden` is only ever written after the OS prompt has
+  // come back, so either flag means the prompt has had its turn — the second
+  // covers Android, where a first denial leaves `canAskAgain` true but asking
+  // again would just be nagging. Pointing at Settings is what Apple suggested
+  // for features that can't work without location: here, the geo-filtering
+  // that keeps alerts relevant to where you actually are.
+  if (!canAskAgain || hidden) {
+    return (
+      <PermissionBanner
+        Icon={MapPinOff}
+        title="Location is off"
+        text="Turn it on to only get alerts for the games you're actually at."
+        accessibilityLabel="Location is off. Open Settings to turn on location so alerts are filtered to where you are."
+        onPress={openSettings}
+      />
+    );
+  }
+
+  // Pre-prompt: the OS can still ask, so the card gets its one shot at
+  // explaining why before `handleContinue` hands over to the system prompt.
   return (
     <View style={styles.container}>
       <Text style={styles.title}>📍 Location Sharing</Text>
@@ -142,8 +174,9 @@ const makeStyles = ({ colors, typography }: Theme) =>
       borderWidth: 2,
       borderColor: colors.primary,
       borderRadius: 12,
-      marginHorizontal: 8,
-      marginBottom: 8,
+      // Sits inline among the home screen's cards, which supply their own
+      // horizontal padding — no inset of its own
+      marginBottom: 12,
       padding: 20,
       alignItems: "center",
     },

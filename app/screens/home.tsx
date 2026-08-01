@@ -142,6 +142,7 @@ function Home() {
           </View>
 
           <PushPermissionComponent />
+          <LocationPermissionCard />
           <InstructionsCard />
 
           {/* Test takeover */}
@@ -167,8 +168,6 @@ function Home() {
           )}
         </ScrollView>
       )}
-
-      <LocationPermissionCard />
     </Drawer>
   );
 }

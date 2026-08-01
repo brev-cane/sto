@@ -4,8 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Linking,
-  Platform,
   AppState,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -22,11 +20,13 @@ const HIDE_KEY = "hideLocationPermissionCard";
 
 /**
  * Home-screen card explaining why we ask for location (geo-targeted alerts)
- * before showing the OS prompt. Users who would rather not share location
- * can opt into receiving ALL alerts instead (users.receiveAllNotifications).
- * Mirrors the pushPermission.tsx mount + AppState-active check pattern,
- * but unlike push it never force-reshows after dismissal — location is
- * optional by design.
+ * before showing the OS prompt.
+ *
+ * App Store Guideline 5.1.1(iv): the card must not be dismissable and must
+ * not offer any way around the request — its single action always leads to
+ * the OS prompt. It is therefore only rendered while the OS can still ask;
+ * once the user answers, the decision is theirs to revisit in Profile
+ * (location toggle + "receive all alerts" toggle), never re-nagged here.
  */
 export default function LocationPermissionCard() {
   const { userDoc, setUserDoc } = useAuth();
@@ -73,66 +73,47 @@ export default function LocationPermissionCard() {
     };
   }, [userId]);
 
-  async function handleShareLocation() {
+  /**
+   * The card's only action. Always shows the OS prompt, then retires the
+   * card whichever way the user answered. Denying falls back to "send me
+   * everything" so those users still get alerts rather than silence — the
+   * same outcome the old opt-out link produced, now reached through the
+   * system prompt instead of around it.
+   */
+  async function handleContinue() {
     setSaving(true);
     try {
       const ok = await requestLocationPermission();
       if (ok && userId) {
         await syncLocationToFirestore(userId, { force: true });
+      } else if (!ok && userDoc) {
+        try {
+          await dbService
+            .collection("users")
+            .update(userDoc.id, { receiveAllNotifications: true });
+          setUserDoc({ ...userDoc, receiveAllNotifications: true });
+        } catch (error) {
+          console.log("Failed to save notification preference:", error);
+        }
       }
       const permission = await getLocationPermission();
       setGranted(permission.granted);
       setCanAskAgain(permission.canAskAgain);
+      await AsyncStorage.setItem(HIDE_KEY, "true");
+      setHidden(true);
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleReceiveAll() {
-    if (!userDoc?.id) return;
-    setSaving(true);
-    try {
-      await dbService
-        .collection("users")
-        .update(userDoc.id, { receiveAllNotifications: true });
-      setUserDoc({ ...userDoc, receiveAllNotifications: true });
-    } catch (error) {
-      console.log("Failed to save notification preference:", error);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDismiss() {
-    await AsyncStorage.setItem(HIDE_KEY, "true");
-    setHidden(true);
-  }
-
-  function openSettings() {
-    if (Platform.OS === "ios") {
-      Linking.openURL("app-settings:");
-    } else {
-      Linking.openSettings();
-    }
-  }
-
-  if (
-    !userDoc ||
-    hidden ||
-    granted !== false ||
-    userDoc.receiveAllNotifications === true
-  ) {
+  // Pre-prompt only: never shown once the OS has an answer on file. Users
+  // manage location afterwards from the Profile screen.
+  if (!userDoc || hidden || granted !== false || !canAskAgain) {
     return null;
   }
 
-  const blocked = !canAskAgain;
-
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.dismissButton} onPress={handleDismiss}>
-        <Text style={styles.dismissText}>✕</Text>
-      </TouchableOpacity>
-
       <Text style={styles.title}>📍 Location Sharing</Text>
       <Text style={styles.text}>
         The app uses your phone&apos;s location to reduce the number of
@@ -140,34 +121,15 @@ export default function LocationPermissionCard() {
         there&apos;s no need to receive the &quot;Shout song&quot; or &quot;Mr
         Brightside&quot; alert, but if you&apos;re enjoying the game from
         elsewhere, you may enjoy those! You&apos;ll also receive fewer
-        &quot;event-type&quot; and testing alerts. We highly encourage this
-        setting.
+        &quot;event-type&quot; and testing alerts.
       </Text>
 
-      {blocked ? (
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={openSettings}
-          disabled={saving}
-        >
-          <Text style={styles.primaryButtonText}>
-            ⚙️ Enable Location in Settings
-          </Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleShareLocation}
-          disabled={saving}
-        >
-          <Text style={styles.primaryButtonText}>Share My Location</Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity onPress={handleReceiveAll} disabled={saving}>
-        <Text style={styles.secondaryText}>
-          No thanks — send me ALL alerts instead
-        </Text>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={handleContinue}
+        disabled={saving}
+      >
+        <Text style={styles.primaryButtonText}>Continue</Text>
       </TouchableOpacity>
     </View>
   );
@@ -184,16 +146,6 @@ const makeStyles = ({ colors, typography }: Theme) =>
       marginBottom: 8,
       padding: 20,
       alignItems: "center",
-    },
-    dismissButton: {
-      position: "absolute",
-      top: 8,
-      right: 12,
-      padding: 4,
-    },
-    dismissText: {
-      ...typography.button,
-      color: colors.textMuted,
     },
     title: {
       ...typography.h3,
@@ -212,16 +164,9 @@ const makeStyles = ({ colors, typography }: Theme) =>
       paddingVertical: 12,
       paddingHorizontal: 24,
       borderRadius: 12,
-      marginBottom: 12,
     },
     primaryButtonText: {
       ...typography.button,
       color: colors.onPrimary,
-    },
-    secondaryText: {
-      ...typography.bodySmall,
-      color: colors.primary,
-      textDecorationLine: "underline",
-      textAlign: "center",
     },
   });

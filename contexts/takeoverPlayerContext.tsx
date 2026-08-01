@@ -128,7 +128,11 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     (player) => {
       if (player) {
         player.loop = false;
-        player.staysActiveInBackground = true;
+        // A takeover is a watch-together moment on screen, not persistent
+        // audio, so the app ships without the `audio` UIBackgroundMode
+        // (App Store Guideline 2.5.4). Backgrounding therefore suspends
+        // playback; the AppState "active" listener below resyncs on return.
+        player.staysActiveInBackground = false;
       }
     }
   );

@@ -4,32 +4,31 @@ import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 // Screens
-import { BackHandler, Platform, Vibration } from "react-native";
-import TabNavigator from "./app/navigation/TabNavigator";
-import Login from "./app/screens/Login";
-import { navigationDarkTheme, navigationLightTheme, useTheme } from "./theme";
-import * as ExpoInAppUpdates from "expo-in-app-updates";
 import * as Sentry from "@sentry/react-native";
+import * as ExpoInAppUpdates from "expo-in-app-updates";
 import * as Notifications from "expo-notifications";
+import { BackHandler, Platform, Vibration } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import TabNavigator from "./app/navigation/TabNavigator";
 import LoadingScreen from "./app/screens/loading";
 import LocationSearchScreen from "./app/screens/LocationSearch";
+import Login from "./app/screens/Login";
 import ParkingDetail from "./app/screens/ParkingDetail";
 import PrivacyPolicyScreen from "./app/screens/policy";
 import { UserProfileScreen } from "./app/screens/profile";
 import Signup from "./app/screens/sigup";
 import StadiumDetail from "./app/screens/StadiumDetail";
 import VideoScreen from "./app/screens/Video";
+import MiniPlayer from "./components/ui/miniPlayer";
+import UpdateNow from "./components/ui/UpdateNow";
 import { AuthProvider } from "./contexts/authContext";
 import { TakeoverPlayerProvider } from "./contexts/takeoverPlayerContext";
-import MiniPlayer from "./components/ui/miniPlayer";
-import { navigationRef } from "./types/navigation";
 import { timeSync } from "./services/timeSync";
+import { navigationDarkTheme, navigationLightTheme, useTheme } from "./theme";
+import { navigationRef } from "./types/navigation";
 import { UNIQUE_VIBRATION_PATTERN } from "./utils/vibrationHelper";
-import { requestTrackingPermissionsAsync } from "expo-tracking-transparency";
-import UpdateNow from "./components/ui/UpdateNow";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 Sentry.init({
   dsn: "https://f8e7eff6921b25c9d37894d22ce60afc@o4510199103815680.ingest.us.sentry.io/4510205304832000",
@@ -53,6 +52,7 @@ const Stack = createNativeStackNavigator();
 
 export default Sentry.wrap(function App() {
   const { isDark } = useTheme();
+  const [showUpdateBlocker, setShowUpdateBlocker] = useState(false);
 
   useEffect(() => {
     timeSync.initialize();
@@ -73,11 +73,9 @@ export default Sentry.wrap(function App() {
       responseListener.remove();
     };
   }, []);
-  const [showUpdateBlocker, setShowUpdateBlocker] = useState(false);
 
   useEffect(() => {
     checkForMandatoryUpdate();
-
     const backHandler = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {

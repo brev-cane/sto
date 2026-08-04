@@ -27,8 +27,8 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import PasswordInput from "../components/password";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { dbService } from "@/services/dbService";
 import { useAuth } from "@/contexts/authContext";
+import { AppUser } from "@/types/user";
 import * as Animatable from "react-native-animatable";
 import { ChevronDown, ChevronUp, LogIn, Mail } from "lucide-react-native";
 
@@ -47,7 +47,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
-  const { setUserDoc } = useAuth();
+  const { setUserDoc, refreshUserDoc } = useAuth();
   const { navigate } = useAppNavigation();
   const { colors, isDark } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -60,109 +60,92 @@ const Login = () => {
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-      if (res.identityToken) {
-        const provider = new OAuthProvider("apple.com");
-        const credential = provider.credential({ idToken: res.identityToken });
-        const userCredential = await signInWithCredential(
-          FIREBASE_AUTH,
-          credential,
-        );
-        if (userCredential.user.uid) {
-          const res1 = await getDoc(
-            doc(FIRESTORE_DB, "users", userCredential.user.uid),
-          );
-          if (res1.exists()) {
-            Toast.show({
-              type: "success",
-              text1: "Welcome",
-              text2: "Logged in successfully",
-            });
-            navigate("Loading");
-            return;
-          }
-          const user = userCredential.user;
-          const userObject = {
-            uid: user.uid,
-            email: user.email,
-            name: user.email,
-            createdAt: serverTimestamp(),
-          };
+      if (!res.identityToken) return;
 
-          await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject).then(
-            () => {
-              setLoading(false);
-              Toast.show({
-                type: "success",
-                text1: "Welcome",
-                text2: "Logged in successfully",
-              });
-              navigate("Loading");
-            },
-          );
-        }
+      const provider = new OAuthProvider("apple.com");
+      const credential = provider.credential({ idToken: res.identityToken });
+      const userCredential = await signInWithCredential(
+        FIREBASE_AUTH,
+        credential,
+      );
+      const user = userCredential.user;
+      if (!user.uid) return;
+
+      const existing = await getDoc(doc(FIRESTORE_DB, "users", user.uid));
+
+      if (existing.exists()) {
+        // Seed the context here as well: the auth listener fired the moment
+        // signInWithCredential resolved and may have raced this read.
+        setUserDoc({ id: existing.id, ...existing.data() } as AppUser);
+      } else {
+        const userObject = {
+          uid: user.uid,
+          email: user.email,
+          name: user.email,
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject);
+        // The listener already read this uid and found nothing, so re-read now
+        // that the document exists — otherwise Home spins on a null profile.
+        await refreshUserDoc();
       }
-    } catch (error) {
+
+      Toast.show({
+        type: "success",
+        text1: "Welcome",
+        text2: "Logged in successfully",
+      });
+      navigate("Loading");
+    } catch (error: any) {
+      // Backing out of the Apple sheet is a normal choice, not a failure.
+      if (error?.code === "ERR_REQUEST_CANCELED") return;
       Toast.show({
         type: "error",
         text1: "Error",
         text2: "Something went wrong!",
       });
-      setLoading(false);
       console.log("error", error);
+    } finally {
+      setLoading(false);
     }
   };
   const loginByGoogle = async () => {
     try {
       setLoading(true);
       const res = await GoogleSignin.signIn();
-      if (res.type === "success") {
-        const credential = GoogleAuthProvider.credential(res.data.idToken);
-        const userCredential = await signInWithCredential(
-          FIREBASE_AUTH,
-          credential,
-        );
-        if (userCredential.user.uid) {
-          const res1 = await getDoc(
-            doc(FIRESTORE_DB, "users", userCredential.user.uid),
-          );
-          if (res1.exists()) {
-            console.log("user exists");
-            Toast.show({
-              type: "success",
-              text1: "Welcome",
-              text2: "Logged in successfully",
-            });
-            navigate("Loading");
-            return;
-          }
-          console.log("user exists, does not exist");
-          const user = userCredential.user;
-          const userObject = {
-            uid: user.uid,
-            email: user.email,
-            name: res.data.user.name,
-            createdAt: serverTimestamp(),
-          };
-
-          await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject).then(
-            () => {
-              setLoading(false);
-              Toast.show({
-                type: "success",
-                text1: "Welcome",
-                text2: "Logged in successfully",
-              });
-              navigate("Loading");
-            },
-          );
-          const userData = await dbService
-            .collection("users")
-            .getById(user.uid);
-          setUserDoc(userData);
-        }
-      } else {
+      if (res.type !== "success") {
         throw new Error("Failed to login with Google");
       }
+
+      const credential = GoogleAuthProvider.credential(res.data.idToken);
+      const userCredential = await signInWithCredential(
+        FIREBASE_AUTH,
+        credential,
+      );
+      const user = userCredential.user;
+      if (!user.uid) return;
+
+      const existing = await getDoc(doc(FIRESTORE_DB, "users", user.uid));
+
+      if (existing.exists()) {
+        setUserDoc({ id: existing.id, ...existing.data() } as AppUser);
+      } else {
+        const userObject = {
+          uid: user.uid,
+          email: user.email,
+          name: res.data.user.name,
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(doc(FIRESTORE_DB, "users", user.uid), userObject);
+        await refreshUserDoc();
+      }
+
+      Toast.show({
+        type: "success",
+        text1: "Welcome",
+        text2: "Logged in successfully",
+      });
+      navigate("Loading");
     } catch (error) {
       console.log("error google login :", error);
     } finally {
@@ -173,11 +156,7 @@ const Login = () => {
   const signIn = async () => {
     setLoading(true);
     try {
-      const response = await signInWithEmailAndPassword(
-        FIREBASE_AUTH,
-        email,
-        password,
-      ); 
+      await signInWithEmailAndPassword(FIREBASE_AUTH, email, password);
       Toast.show({
         type: "success",
         text1: "Welcome",

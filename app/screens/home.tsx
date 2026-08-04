@@ -14,7 +14,7 @@ import { useAppNavigation } from "@/types/navigation";
 import AdminScreen from "./Admin";
 import { Drawer } from "react-native-drawer-layout";
 import { useEffect, useState } from "react";
-import { PlayCircle } from "lucide-react-native";
+import { PlayCircle, RefreshCw } from "lucide-react-native";
 import Header from "@/components/ui/header";
 import CustomDrawer from "@/components/ui/drawer";
 import InstructionsCard from "@/components/ui/instructions";
@@ -24,6 +24,9 @@ import PushPermissionComponent from "@/components/ui/pushPermission";
 import LocationPermissionCard from "@/components/ui/locationPermission";
 import SyncBanner from "@/components/ui/syncBanner";
 import { timeSync } from "@/services/timeSync";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { signOut } from "firebase/auth";
+import { FIREBASE_AUTH } from "@/FirebaseConfig";
 
 const logoImage = require("../../assets/images/blue-logo.png");
 
@@ -34,14 +37,50 @@ const TEST_TAKEOVER_DELAY_SECONDS = 30;
 // beyond a countdown short enough to read.
 const LOCAL_PREVIEW_DELAY_SECONDS = 5;
 const TEST_TAKEOVER_VIDEO = "1.mp4";
+// Hard ceiling on the profile spinner. Whatever the context is still doing,
+// the user gets an actionable screen instead of an endless indicator.
+const PROFILE_LOAD_TIMEOUT_MS = 12000;
 
 function Home() {
-  const { userDoc } = useAuth();
+  const { userDoc, userDocStatus, refreshUserDoc } = useAuth();
   const { navigate } = useAppNavigation();
   const [open, setOpen] = useState(false);
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
+  const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+
+  useEffect(() => {
+    if (userDoc) return;
+
+    const timer = setTimeout(
+      () => setProfileLoadTimedOut(true),
+      PROFILE_LOAD_TIMEOUT_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [userDoc, userDocStatus]);
+
+  const handleRetryProfile = async () => {
+    setRetrying(true);
+    setProfileLoadTimedOut(false);
+    try {
+      await refreshUserDoc();
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // Not every session is a Google one; failing here must not block sign-out.
+    }
+    await signOut(FIREBASE_AUTH);
+    navigate("Loading");
+  };
+
   useEffect(() => {
     let mounted = true;
     const interval = setInterval(async () => {
@@ -101,6 +140,43 @@ function Home() {
   };
 
   if (!userDoc) {
+    // The profile fetch either failed or has been pending too long. Either way
+    // the user gets an explanation and a way to recover — never a bare spinner
+    // that can hang forever (App Store Guideline 2.1).
+    if (userDocStatus === "error" || profileLoadTimedOut) {
+      return (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorTitle}>Couldn&apos;t load your profile</Text>
+          <Text style={styles.errorMessage}>
+            Check your internet connection and try again.
+          </Text>
+          <TouchableOpacity
+            style={[styles.button, retrying && styles.buttonDisabled]}
+            onPress={handleRetryProfile}
+            disabled={retrying}
+          >
+            {retrying ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <RefreshCw size={18} color={colors.onPrimary} />
+            )}
+            <Text style={styles.buttonText}>
+              {retrying ? "Retrying…" : "Try Again"}
+            </Text>
+          </TouchableOpacity>
+          {/* If the profile is genuinely unrecoverable, signing out is still a
+              way forward rather than a dead end. */}
+          <TouchableOpacity
+            style={styles.secondaryAction}
+            onPress={handleSignOut}
+            disabled={retrying}
+          >
+            <Text style={styles.secondaryActionText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator />
@@ -181,6 +257,19 @@ const makeStyles = ({ colors, typography }: Theme) =>
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: colors.background,
+      paddingHorizontal: 32,
+    },
+    errorTitle: {
+      ...typography.h3,
+      color: colors.text,
+      textAlign: "center",
+    },
+    errorMessage: {
+      ...typography.bodySmall,
+      color: colors.textSecondary,
+      textAlign: "center",
+      marginTop: 6,
+      marginBottom: 20,
     },
     scroll: {
       flex: 1,
@@ -217,11 +306,22 @@ const makeStyles = ({ colors, typography }: Theme) =>
       gap: 8,
       backgroundColor: colors.primary,
       paddingVertical: 15,
+      paddingHorizontal: 24,
       borderRadius: 12,
       marginTop: 2,
     },
     buttonDisabled: {
       opacity: 0.6,
+    },
+    secondaryAction: {
+      marginTop: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+    },
+    secondaryActionText: {
+      ...typography.bodySmall,
+      fontWeight: "600",
+      color: colors.textSecondary,
     },
     buttonText: {
       ...typography.button,

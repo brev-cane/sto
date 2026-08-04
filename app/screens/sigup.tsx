@@ -17,7 +17,8 @@ import Toast from "react-native-toast-message";
 import { useAppNavigation } from "@/types/navigation";
 import * as Animatable from "react-native-animatable";
 import PasswordInput from "../components/password";
-import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
+import { useAuth } from "@/contexts/authContext";
+import { AppUser } from "@/types/user";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
 import { Mail, UserPlus, UserRound } from "lucide-react-native";
 
@@ -29,6 +30,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { navigate } = useAppNavigation();
+  const { setUserDoc, registerUserForPushNotifications } = useAuth();
   const auth = FIREBASE_AUTH;
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -49,15 +51,25 @@ const Signup = () => {
       );
 
       if (response.user) {
-        const token = await registerForPushNotificationsAsync();
-        await setDoc(doc(FIRESTORE_DB, "users", response.user.uid), {
+        // Create the profile immediately. The auth listener already fired on
+        // account creation and found nothing, so anything awaited before this
+        // write (a permission prompt, say) widens the window in which the app
+        // has a signed-in user but no profile to render.
+        const userObject = {
           email,
           uid: response.user.uid,
           name,
-          pushToken: token ?? "",
-        });
+          pushToken: "",
+        };
+        await setDoc(doc(FIRESTORE_DB, "users", response.user.uid), userObject);
+        setUserDoc({ id: response.user.uid, ...userObject } as AppUser);
+
         navigate("Loading");
         alert("Check your emails!");
+
+        // Push is a nice-to-have; ask once the user is already inside the app
+        // and let the token sync itself up through the auth context.
+        void registerUserForPushNotifications();
       }
     } catch (error: any) {
       let message = "An unknown error occurred. Please try again.";

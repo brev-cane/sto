@@ -50,6 +50,30 @@ Notifications.setNotificationHandler({
 
 const Stack = createNativeStackNavigator();
 
+/** Deep-link resolution blocks the first render, so it gets a hard ceiling. */
+const INITIAL_URL_TIMEOUT_MS = 3000;
+
+function withLaunchTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+/**
+ * Push payloads are untyped and arrive from the server, so a malformed `screen`
+ * must not take down the launch path.
+ */
+function screenUrlFrom(
+  response: Notifications.NotificationResponse | null,
+): string | null {
+  const screen = response?.notification.request.content.data?.screen;
+  return typeof screen === "string" && screen.length > 0 ? screen : null;
+}
+
 export default Sentry.wrap(function App() {
   const { isDark } = useTheme();
   const [showUpdateBlocker, setShowUpdateBlocker] = useState(false);
@@ -142,25 +166,37 @@ export default Sentry.wrap(function App() {
                 },
               },
               async getInitialURL() {
-                const url = await Linking.getInitialURL();
+                // NavigationContainer renders nothing until this resolves, so
+                // a stalled call here is an indefinite blank launch screen.
+                // Cap it and fall through to normal routing instead.
+                try {
+                  const url = await withLaunchTimeout(
+                    Linking.getInitialURL(),
+                    INITIAL_URL_TIMEOUT_MS,
+                  );
 
-                if (url != null) {
-                  return url;
+                  if (url != null) {
+                    return url;
+                  }
+
+                  const response = await withLaunchTimeout(
+                    Notifications.getLastNotificationResponseAsync(),
+                    INITIAL_URL_TIMEOUT_MS,
+                  );
+                  const screen = screenUrlFrom(response);
+                  console.log("url received 1:", screen);
+
+                  if (screen) {
+                    // Clear the stored response so a stale notification tap
+                    // doesn't redirect every future cold launch.
+                    Notifications.clearLastNotificationResponse();
+                  }
+
+                  return screen;
+                } catch (error) {
+                  console.log("getInitialURL failed:", error);
+                  return null;
                 }
-
-                const response =
-                  await Notifications.getLastNotificationResponseAsync();
-                const screen =
-                  response?.notification.request.content.data.screen;
-                console.log("url received 1:", screen);
-
-                if (screen) {
-                  // Clear the stored response so a stale notification tap
-                  // doesn't redirect every future cold launch.
-                  Notifications.clearLastNotificationResponse();
-                }
-
-                return screen;
               },
               subscribe(listener) {
                 const onReceiveURL = ({ url }: { url: string }) =>
@@ -174,10 +210,9 @@ export default Sentry.wrap(function App() {
                 const subscription =
                   Notifications.addNotificationResponseReceivedListener(
                     (response) => {
-                      const url =
-                        response.notification.request.content.data.screen;
+                      const url = screenUrlFrom(response);
                       console.log("url received 2:", url);
-                      listener(url);
+                      if (url) listener(url);
                     },
                   );
 

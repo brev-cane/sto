@@ -6,11 +6,14 @@ import {
   clearStoredLocation,
   getLocationPermission,
   isLocationSharingOptedOut,
+  isLocationStale,
+  locationUpdatedAtMs,
   requestLocationPermission,
   setLocationSharingOptOut,
   syncLocationToFirestore,
 } from "@/services/locationService";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
+import { formatRelativeTime } from "@/utils/formatHelper";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useAppNavigation } from "@/types/navigation";
@@ -26,6 +29,7 @@ import {
   Camera,
   CheckCircle,
   Copy,
+  LocateFixed,
   LucideIcon,
   Mail,
   MapPin,
@@ -129,6 +133,7 @@ export const UserProfileScreen: React.FC = () => {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
+  const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { navigate } = useAppNavigation();
@@ -159,7 +164,12 @@ export const UserProfileScreen: React.FC = () => {
             ? await requestLocationPermission()
             : false;
         if (granted) {
-          await syncLocationToFirestore(userDoc.id, { force: true });
+          const next = await syncLocationToFirestore(userDoc.id, {
+            force: true,
+          });
+          // Mirror the write locally so the row's summary is right straight
+          // away rather than after the next document read.
+          if (next) setUserDoc({ ...userDoc, location: next });
           setLocationEnabled(true);
         } else {
           setLocationEnabled(false);
@@ -181,12 +191,41 @@ export const UserProfileScreen: React.FC = () => {
       } else {
         await setLocationSharingOptOut(true);
         await clearStoredLocation(userDoc.id);
+        setUserDoc({ ...userDoc, location: null });
         setLocationEnabled(false);
       }
     } catch (error) {
       console.error("Failed to update location sharing:", error);
     } finally {
       setLocationBusy(false);
+    }
+  };
+
+  /**
+   * Re-reads the device position and stores it, bypassing the 10-minute
+   * sync throttle — this one is an explicit request, not a background
+   * refresh, so it must always do something visible.
+   */
+  const handleUpdateLocation = async () => {
+    if (!userDoc?.id || locationRefreshing) return;
+    setLocationRefreshing(true);
+    try {
+      const next = await syncLocationToFirestore(userDoc.id, { force: true });
+      if (next) {
+        setUserDoc({ ...userDoc, location: next });
+        Toast.show({ type: "success", text1: "Location updated" });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Couldn't update location",
+          text2: "Check that location services are on and try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update location:", error);
+      Toast.show({ type: "error", text1: "Couldn't update location" });
+    } finally {
+      setLocationRefreshing(false);
     }
   };
 
@@ -299,6 +338,30 @@ export const UserProfileScreen: React.FC = () => {
       </View>
     );
   }
+
+  // What the backend currently geo-targets this user against. Anything older
+  // than a day it discards outright, so say so rather than showing a place
+  // name that no longer counts for anything.
+  const savedLocation = userDoc.location ?? null;
+  const savedLocationUpdatedAtMs = locationUpdatedAtMs(savedLocation?.updatedAt);
+  const savedLocationSummary = !savedLocation
+    ? "No location saved yet"
+    : [
+        savedLocation.label ??
+          // 5 decimal places is roughly a meter; 3 would round the fix down
+          // to a city block.
+          `${savedLocation.latitude.toFixed(5)}, ${savedLocation.longitude.toFixed(5)}`,
+        typeof savedLocation.accuracyMeters === "number"
+          ? `±${savedLocation.accuracyMeters} m`
+          : null,
+        isLocationStale(savedLocation)
+          ? "out of date"
+          : savedLocationUpdatedAtMs
+            ? formatRelativeTime(savedLocationUpdatedAtMs)
+            : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
   const hasChanges =
     name !== (userDoc.name || "") ||
@@ -490,6 +553,7 @@ export const UserProfileScreen: React.FC = () => {
             icon={MapPin}
             iconTint={iconTints.green}
             title="Location Sharing"
+            description={locationEnabled ? savedLocationSummary : undefined}
             right={
               <Switch
                 value={locationEnabled}
@@ -498,8 +562,25 @@ export const UserProfileScreen: React.FC = () => {
                 {...switchProps}
               />
             }
-            isLast
+            isLast={!locationEnabled}
           />
+          {/* Only offered while sharing is on: with it off there is nothing
+              to refresh, and the toggle above is the way back. */}
+          {locationEnabled && (
+            <SettingsRow
+              icon={LocateFixed}
+              iconTint={iconTints.blue}
+              title="Update to Current Location"
+              description="Re-check where you are so alerts stay relevant"
+              onPress={handleUpdateLocation}
+              right={
+                locationRefreshing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : undefined
+              }
+              isLast
+            />
+          )}
         </View>
         <Text style={styles.sectionFooter}>
           The app uses your phone&apos;s location to reduce the number of

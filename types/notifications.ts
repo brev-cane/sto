@@ -53,6 +53,19 @@ export interface UserLocation {
   longitude: number;
   /** Firestore Timestamp (serverTimestamp on write) */
   updatedAt?: unknown;
+  /**
+   * Reverse-geocoded place name, resolved best-effort at write time so the
+   * app can show the user where we think they are. Display only — the server
+   * never reads it, and it stays undefined when geocoding fails.
+   */
+  label?: string;
+  /** How the location got here. Only "device" is written today. */
+  source?: "device" | "manual";
+  /**
+   * Radius of uncertainty in meters as reported by the OS. Shown to the user
+   * so a coarse fix reads as coarse rather than as a wrong address.
+   */
+  accuracyMeters?: number | null;
 }
 
 export function formatRadius(meters: number): string {

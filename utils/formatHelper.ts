@@ -15,3 +15,29 @@ export function formatCount(count: number): string {
   if (count >= 1_000) return compact(count / 1_000, 'k');
   return String(count);
 }
+
+/**
+ * Coarse "how long ago" label for timestamps we show next to data the user
+ * can refresh (saved location, sync state). Deliberately low-resolution —
+ * the exact minute never matters, only whether it's current or old.
+ */
+export function formatRelativeTime(timestampMs: number): string {
+  const elapsed = Date.now() - timestampMs;
+  // Clock skew between the device and the server can put a fresh write a few
+  // seconds in the future; "just now" is truer than a negative age.
+  if (elapsed < 60_000) return 'just now';
+
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks} week${weeks === 1 ? '' : 's'} ago`;
+
+  return 'over a month ago';
+}

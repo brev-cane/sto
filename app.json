@@ -50,7 +50,7 @@
         "expo-video",
         {
           "supportsBackgroundPlayback": false,
-          "supportsPictureInPicture": false
+          "supportsPictureInPicture": true
         }
       ],
       "expo-web-browser",
@@ -65,8 +65,11 @@
       [
         "expo-notifications",
         {
+          "icon": "./local/assets/images/dark-icon.png",
+          "color": "#ffffff",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
+
         }
       ],
       [

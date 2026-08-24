@@ -22,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Animatable from "react-native-animatable";
 import PushPermissionComponent from "@/components/ui/pushPermission";
 import LocationPermissionCard from "@/components/ui/locationPermission";
+import SavedLocationCard from "@/components/ui/savedLocationCard";
 import SyncBanner from "@/components/ui/syncBanner";
 import { timeSync } from "@/services/timeSync";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
@@ -219,6 +220,7 @@ function Home() {
 
           <PushPermissionComponent />
           <LocationPermissionCard />
+          <SavedLocationCard />
           <InstructionsCard />
 
           {/* Test takeover */}

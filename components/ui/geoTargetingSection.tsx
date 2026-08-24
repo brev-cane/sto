@@ -29,6 +29,7 @@ import {
   getCurrentCoords,
   getLocationPermission,
   requestLocationPermission,
+  reverseGeocodeLabel,
 } from "@/services/locationService";
 import { setLocationPickHandler } from "@/services/locationPickHandoff";
 import { formatCount } from "@/utils/formatHelper";
@@ -86,7 +87,7 @@ export default function GeoTargetingSection({
       if (!granted) {
         Alert.alert(
           "Location Permission Needed",
-          "Enable location for this app in Settings to use your current position."
+          "Enable location for this app in Settings to use your current position.",
         );
         return;
       }
@@ -95,7 +96,18 @@ export default function GeoTargetingSection({
         Alert.alert("Error", "Couldn't read your current location. Try again.");
         return;
       }
-      onCenterChange({ ...coords, label: "My current location" });
+      // Name the place rather than labelling it "My current location": this
+      // label is what the chip and summary read back, and it's stored on the
+      // sent notification as the audit record of where a send was aimed.
+      const label = await reverseGeocodeLabel(coords);
+
+      // Explicit fields, not a spread: getCurrentCoords also carries the fix's
+      // accuracy radius, which has no place in a send's geo filter.
+      onCenterChange({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        label: label ?? "My current location",
+      });
     } finally {
       setLocating(false);
     }
@@ -136,7 +148,9 @@ export default function GeoTargetingSection({
             >
               <Target
                 size={18}
-                color={mode === "within" ? colors.onAccent : colors.textSecondary}
+                color={
+                  mode === "within" ? colors.onAccent : colors.textSecondary
+                }
               />
               <Text
                 style={[
@@ -159,7 +173,9 @@ export default function GeoTargetingSection({
             >
               <CircleOff
                 size={18}
-                color={mode === "outside" ? colors.onAccent : colors.textSecondary}
+                color={
+                  mode === "outside" ? colors.onAccent : colors.textSecondary
+                }
               />
               <Text
                 style={[
@@ -215,9 +231,14 @@ export default function GeoTargetingSection({
 
           {center && (
             <View style={styles.centerChip}>
-              <Text style={styles.centerChipText} numberOfLines={1}>
-                📍 {center.label || "Selected location"} (
-                {center.latitude.toFixed(5)}, {center.longitude.toFixed(5)})
+              {/* The place name, not the coordinates — an admin checking they
+                  aimed a send at the right stadium can read one and not the
+                  other. Coordinates are the fallback for the rare point that
+                  won't reverse-geocode. */}
+              <Text style={styles.centerChipText} numberOfLines={2}>
+                📍{" "}
+                {center.label ||
+                  `${center.latitude.toFixed(5)}, ${center.longitude.toFixed(5)}`}
               </Text>
               <TouchableOpacity onPress={() => onCenterChange(null)}>
                 <Text style={styles.removeButton}>✕</Text>

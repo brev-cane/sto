@@ -116,7 +116,7 @@ export const darkColors: ThemeColors = {
   border: palette.darkBorder,
   separator: palette.darkBorder,
 
-  primary: palette.royalBlueBright,
+  primary: palette.royalBlue,
   primaryMuted: 'rgba(77, 124, 201, 0.16)',
   accent: palette.billsRedBright,
   error: palette.errorBright,

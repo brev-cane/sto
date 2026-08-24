@@ -7,7 +7,7 @@ const instructions = [
   {
     id: 1,
     Icon: PlayCircle,
-    text: "Use the “Try Here!” button to see how the app works.",
+    text: "Use the “Try It Now” button to see how the app works.",
   },
   {
     id: 2,
@@ -25,14 +25,24 @@ const InstructionsCard: React.FC = () => {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>Using Stadium Takeover</Text>
-      {instructions.map(({ id, Icon, text }) => (
-        <View key={id} style={styles.row}>
-          <Icon size={22} color={colors.primary} />
-          <Text style={styles.text}>{text}</Text>
-        </View>
-      ))}
+    <View>
+      <Text style={styles.sectionHeader}>How it works</Text>
+      <View style={styles.card}>
+        {instructions.map(({ id, Icon, text }, index) => (
+          <View
+            key={id}
+            style={[
+              styles.row,
+              index === instructions.length - 1 && styles.rowLast,
+            ]}
+          >
+            <View style={styles.iconTile}>
+              <Icon size={17} color={colors.primary} />
+            </View>
+            <Text style={styles.text}>{text}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 };
@@ -41,33 +51,46 @@ export default InstructionsCard;
 
 const makeStyles = ({ colors, typography }: Theme) =>
   StyleSheet.create({
+    sectionHeader: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 6,
+      marginLeft: 16,
+    },
     card: {
       backgroundColor: colors.surface,
       borderRadius: 12,
-      padding: 20,
-      shadowColor: colors.shadow,
-      shadowOpacity: 0.05,
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 6,
-      elevation: 3,
-      marginVertical: 16,
-      borderWidth: 1,
-      borderColor: colors.primary,
-    },
-    title: {
-      ...typography.title,
-      marginBottom: 16,
-      color: colors.text,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      marginBottom: 22,
+      overflow: "hidden",
     },
     row: {
       flexDirection: "row",
-      marginBottom: 12,
       alignItems: "center",
+      paddingLeft: 14,
+      paddingRight: 12,
+      paddingVertical: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    rowLast: {
+      borderBottomWidth: 0,
+    },
+    iconTile: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+      marginRight: 12,
     },
     text: {
-      ...typography.body,
+      ...typography.bodySmall,
       flex: 1,
-      marginLeft: 10,
       color: colors.textSecondary,
     },
   });

@@ -35,7 +35,13 @@ export const GEO_RADIUS_DEFAULT_M = 500;
 export interface ReachHistogram {
   bucketSizeMeters: number;
   buckets: number[];
-  /** Users who opted into all alerts — included in every geo send */
+  /**
+   * Users who opted into all alerts, counted here because they bypass the
+   * location filter entirely — only applies to "outside"-mode sends. On
+   * "within" (radius) sends this is always 0: opt-in no longer bypasses
+   * location, so those users need a fresh location inside the radius like
+   * everyone else.
+   */
   optIn: number;
   noLocation?: number;
   stale?: number;
@@ -47,6 +53,19 @@ export interface UserLocation {
   longitude: number;
   /** Firestore Timestamp (serverTimestamp on write) */
   updatedAt?: unknown;
+  /**
+   * Reverse-geocoded place name, resolved best-effort at write time so the
+   * app can show the user where we think they are. Display only — the server
+   * never reads it, and it stays undefined when geocoding fails.
+   */
+  label?: string;
+  /** How the location got here. Only "device" is written today. */
+  source?: "device" | "manual";
+  /**
+   * Radius of uncertainty in meters as reported by the OS. Shown to the user
+   * so a coarse fix reads as coarse rather than as a wrong address.
+   */
+  accuracyMeters?: number | null;
 }
 
 export function formatRadius(meters: number): string {

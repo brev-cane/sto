@@ -1,14 +1,24 @@
 import React, { useState } from "react";
 import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-export default function PasswordInput({ password, setPassword }) {
+
+interface PasswordInputProps {
+  password: string;
+  setPassword: (value: string) => void;
+}
+
+export default function PasswordInput({
+  password,
+  setPassword,
+}: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   return (
     <View style={styles.passwordContainer}>
+      <Lock size={18} color={colors.textMuted} />
       <TextInput
         secureTextEntry={!showPassword}
         value={password}
@@ -19,40 +29,36 @@ export default function PasswordInput({ password, setPassword }) {
         onChangeText={setPassword}
       />
       <TouchableOpacity
-        style={styles.iconContainer}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         onPress={() => setShowPassword((prev) => !prev)}
       >
         {showPassword ? (
-          <Ionicons name="eye-off-outline" size={24} color={colors.primary} />
+          <EyeOff size={20} color={colors.textMuted} />
         ) : (
-          <Ionicons name="eye-outline" size={24} color={colors.primary} />
+          <Eye size={20} color={colors.textMuted} />
         )}
       </TouchableOpacity>
     </View>
   );
 }
 
-const makeStyles = ({ colors }: Theme) =>
+const makeStyles = ({ colors, typography }: Theme) =>
   StyleSheet.create({
     passwordContainer: {
       flexDirection: "row",
       alignItems: "center",
+      gap: 10,
+      height: 52,
+      backgroundColor: colors.inputBackground,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      marginBottom: 16,
-      backgroundColor: colors.inputBackground,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      marginBottom: 12,
     },
     input: {
+      ...typography.body,
       flex: 1,
-      paddingVertical: 10,
       color: colors.text,
-      minHeight: 48,
-    },
-    iconContainer: {
-      padding: 12,
-      borderLeftWidth: 1,
-      borderLeftColor: colors.border,
     },
   });

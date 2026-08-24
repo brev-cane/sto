@@ -12,6 +12,7 @@ import Slider from "@react-native-community/slider";
 import {
   CircleOff,
   LocateFixed,
+  RefreshCw,
   Search,
   Target,
 } from "lucide-react-native";
@@ -28,9 +29,11 @@ import {
   getCurrentCoords,
   getLocationPermission,
   requestLocationPermission,
+  reverseGeocodeLabel,
 } from "@/services/locationService";
 import { setLocationPickHandler } from "@/services/locationPickHandoff";
-import { useNavigation } from "@react-navigation/native";
+import { formatCount } from "@/utils/formatHelper";
+import { useAppNavigation } from "@/types/navigation";
 
 interface GeoTargetingSectionProps {
   enabled: boolean;
@@ -43,6 +46,9 @@ interface GeoTargetingSectionProps {
   onCenterChange: (center: GeoCenter | null) => void;
   estimatedReach?: number | null;
   reachLoading?: boolean;
+  /** Busts the server-side user cache and re-estimates reach (locations are
+   * cached for up to 24h — refresh before a send when freshness matters). */
+  onRefreshReach?: () => void;
 }
 
 /**
@@ -62,8 +68,9 @@ export default function GeoTargetingSection({
   onCenterChange,
   estimatedReach = null,
   reachLoading = false,
+  onRefreshReach,
 }: GeoTargetingSectionProps) {
-  const navigation = useNavigation<any>();
+  const navigation = useAppNavigation();
   const [locating, setLocating] = useState(false);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -80,7 +87,7 @@ export default function GeoTargetingSection({
       if (!granted) {
         Alert.alert(
           "Location Permission Needed",
-          "Enable location for this app in Settings to use your current position."
+          "Enable location for this app in Settings to use your current position.",
         );
         return;
       }
@@ -89,7 +96,18 @@ export default function GeoTargetingSection({
         Alert.alert("Error", "Couldn't read your current location. Try again.");
         return;
       }
-      onCenterChange({ ...coords, label: "My current location" });
+      // Name the place rather than labelling it "My current location": this
+      // label is what the chip and summary read back, and it's stored on the
+      // sent notification as the audit record of where a send was aimed.
+      const label = await reverseGeocodeLabel(coords);
+
+      // Explicit fields, not a spread: getCurrentCoords also carries the fix's
+      // accuracy radius, which has no place in a send's geo filter.
+      onCenterChange({
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        label: label ?? "My current location",
+      });
     } finally {
       setLocating(false);
     }
@@ -130,7 +148,9 @@ export default function GeoTargetingSection({
             >
               <Target
                 size={18}
-                color={mode === "within" ? colors.onAccent : colors.textSecondary}
+                color={
+                  mode === "within" ? colors.onAccent : colors.textSecondary
+                }
               />
               <Text
                 style={[
@@ -153,7 +173,9 @@ export default function GeoTargetingSection({
             >
               <CircleOff
                 size={18}
-                color={mode === "outside" ? colors.onAccent : colors.textSecondary}
+                color={
+                  mode === "outside" ? colors.onAccent : colors.textSecondary
+                }
               />
               <Text
                 style={[
@@ -209,9 +231,14 @@ export default function GeoTargetingSection({
 
           {center && (
             <View style={styles.centerChip}>
-              <Text style={styles.centerChipText} numberOfLines={1}>
-                📍 {center.label || "Selected location"} (
-                {center.latitude.toFixed(5)}, {center.longitude.toFixed(5)})
+              {/* The place name, not the coordinates — an admin checking they
+                  aimed a send at the right stadium can read one and not the
+                  other. Coordinates are the fallback for the rare point that
+                  won't reverse-geocode. */}
+              <Text style={styles.centerChipText} numberOfLines={2}>
+                📍{" "}
+                {center.label ||
+                  `${center.latitude.toFixed(5)}, ${center.longitude.toFixed(5)}`}
               </Text>
               <TouchableOpacity onPress={() => onCenterChange(null)}>
                 <Text style={styles.removeButton}>✕</Text>
@@ -236,16 +263,27 @@ export default function GeoTargetingSection({
                 <Text style={[styles.summaryStrong, { color: modeColor }]}>
                   {mode.toUpperCase()} {formatRadius(radiusMeters)}
                 </Text>{" "}
-                of {center.label || "the selected location"} — plus everyone
-                who opted in to all alerts.
+                of {center.label || "the selected location"}
               </Text>
               <Text style={styles.reachText}>
                 {reachLoading
                   ? "Estimating reach…"
                   : estimatedReach !== null
-                    ? `Estimated reach: ~${estimatedReach} users`
+                    ? `Estimated reach: ~${formatCount(estimatedReach)} users`
                     : ""}
               </Text>
+              {onRefreshReach && (
+                <TouchableOpacity
+                  style={styles.refreshReachButton}
+                  onPress={onRefreshReach}
+                  disabled={reachLoading}
+                >
+                  <RefreshCw size={12} color={colors.primary} />
+                  <Text style={styles.refreshReachText}>
+                    Refresh user locations
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View
@@ -374,5 +412,16 @@ const makeStyles = ({ colors, typography }: Theme) =>
       ...typography.label,
       color: colors.textSecondary,
       marginTop: 6,
+    },
+    refreshReachButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      marginTop: 8,
+      alignSelf: "flex-start",
+    },
+    refreshReachText: {
+      ...typography.label,
+      color: colors.primary,
     },
   });

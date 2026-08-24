@@ -1,24 +1,48 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
   Alert,
   TouchableOpacity,
-  Switch,
   TextInput,
-  ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useAuth } from "@/contexts/authContext";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
-import { User, Video } from "lucide-react-native";
+import {
+  ChevronDown,
+  Clock,
+  FolderCog,
+  RefreshCw,
+  GalleryHorizontal,
+  ImagePlus,
+  Send,
+  Upload,
+  Users,
+  Video,
+  X,
+} from "lucide-react-native";
 import SearchableDropdown from "@/components/ui/searchableDropDown";
 import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
-import { functions, FIREBASE_AUTH } from "@/FirebaseConfig";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { functions, FIREBASE_AUTH, FIRESTORE_DB } from "@/FirebaseConfig";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import VideoUploadSheet from "@/components/ui/videoUploadSheet";
+import { formatCount, formatRelativeTime } from "@/utils/formatHelper";
+import ManageMediaSheet from "@/components/ui/manageMediaSheet";
+import BannerUploadSheet from "@/components/ui/bannerUploadSheet";
+import ManageBannersSheet from "@/components/ui/manageBannersSheet";
 import {
   GEO_RADIUS_DEFAULT_M,
   GeoCenter,
@@ -26,30 +50,39 @@ import {
   ReachHistogram,
 } from "@/types/notifications";
 
-const videoOptions = [
-  { file: "1.mp4", name: "Hey Ey Ey Ey" },
-  { file: "2.mp4", name: "Third Down" },
-  { file: "3.mp4", name: "Shout" },
-  { file: "4.mp4", name: "Where else" },
-  { file: "5.mp4", name: "Mr Brightside" },
-  { file: "7.mp4", name: "Be Good Do Good" },
-  { file: "10.mp4", name: "Shout Corey" },
-  { file: "14.mp4", name: "Shout it Out" },
-  { file: "19.mp4", name: "99 Red Balloons" },
-  { file: "20.mp4", name: "Give Me a Break" },
-];
+type VideoOption = {
+  file: string;
+  name: string;
+  thumbnailURL?: string;
+  mediaType: "video" | "audio";
+  /** Playable on old app builds that still bundle this video */
+  legacy: boolean;
+  createdAtMs: number;
+};
+
+/**
+ * Guards against a second auto-refresh inside one launch: the decision below
+ * is made against a server timestamp that only updates once the rebuild
+ * finishes, so two quick mounts could otherwise both see stale data and both
+ * kick off a scan. Module scope, not a ref — a ref resets when the admin
+ * navigates away and back, which is precisely the case this exists to stop.
+ */
+let autoRefreshedThisLaunch = false;
+
+/** Mirrors NOTIFIABLE_CACHE_TTL_MS in stoFunctions/functions/index.js */
+const LOCATIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export default function AdminScreen() {
   const [selectedVideos, setSelectedVideos] = useState<string[]>([]);
-  // const [video, setVideo] = useState("");
+  const [videoOptions, setVideoOptions] = useState<VideoOption[]>([]);
+  const uploadSheetRef = useRef<TrueSheet>(null);
+  const manageSheetRef = useRef<TrueSheet>(null);
+  const bannerUploadSheetRef = useRef<TrueSheet>(null);
+  const manageBannersSheetRef = useRef<TrueSheet>(null);
   const [delay, setDelay] = useState(30);
   const [loading, setLoading] = useState(false);
   const [tokensCount, setTokensCount] = useState(0);
   const { userDoc } = useAuth(); // Add 'user' from auth context
-  const [isEnabled, setIsEnabled] = useState(__DEV__ ? true : false);
-  const [customUsers, setCustomUsers] = useState(false);
-  const [customUsersToken, setCustomUsersToken] = useState<string[]>([]);
-  const [token, setToken] = useState(""); // This is now a user ID, not a token
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const [title, setTitle] = useState("Stadium Takeover");
   const [geoEnabled, setGeoEnabled] = useState(false);
@@ -57,36 +90,59 @@ export default function AdminScreen() {
   const [radiusMeters, setRadiusMeters] = useState(GEO_RADIUS_DEFAULT_M);
   const [geoCenter, setGeoCenter] = useState<GeoCenter | null>(null);
   const [reachHistogram, setReachHistogram] = useState<ReachHistogram | null>(
-    null
+    null,
   );
   const [reachLoading, setReachLoading] = useState(false);
+  const [refreshingAudience, setRefreshingAudience] = useState(false);
+  // When the cached user locations were last rebuilt; null until the first
+  // stats call comes back, or if the cache has never been built.
+  const [locationsFetchedAtMs, setLocationsFetchedAtMs] = useState<
+    number | null
+  >(null);
+  // Read from state rather than calling Date.now() while rendering, and
+  // ticked once a minute so the age stays honest on a screen left open.
+  const [now, setNow] = useState(() => Date.now());
+  // Bumped by refreshAudience so the reach-preview effect re-runs against the
+  // freshly rebuilt server-side cache
+  const [reachNonce, setReachNonce] = useState(0);
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const toggleSwitch = () => setIsEnabled((previousState) => !previousState);
-  const toggleSwitch2 = () => setCustomUsers((previousState) => !previousState);
 
-  const countUsers = async () => {
+  // Stats are cached server-side for 24h; forceRefresh recounts and also
+  // rebuilds the notifiable-user cache used by reach previews and sends.
+  /**
+   * Returns when the cached user locations were last built: a number, or
+   * null if they've never been cached. `undefined` means the call itself
+   * didn't complete, which is distinct from "no cache" — callers must not
+   * read it as a reason to rebuild.
+   */
+  const countUsers = async (
+    forceRefresh = false,
+  ): Promise<number | null | undefined> => {
     try {
       // Check if user is authenticated first
       const currentUser = FIREBASE_AUTH.currentUser;
       if (!currentUser) {
         console.log("User not authenticated yet");
-        return;
+        return undefined;
       }
 
-      console.log("Fetching user count as:", currentUser.uid);
-
-      const getUserCount = httpsCallable(
-        functions,
-        "getUsersWithPushTokensCount"
+      const getUserStats = httpsCallable(functions, "getUserStats");
+      const result = await getUserStats(
+        forceRefresh ? { forceRefresh: true } : {},
       );
-      const result = await getUserCount();
       const data = result.data as any;
 
       if (data.success) {
-        setTokensCount(data.count);
-        console.log("User count fetched:", data.count);
+        setTokensCount(data.pushEnabledUsers);
+        const fetchedAtMs =
+          typeof data.locationsFetchedAtMs === "number"
+            ? data.locationsFetchedAtMs
+            : null;
+        setLocationsFetchedAtMs(fetchedAtMs);
+        return fetchedAtMs;
       }
+      return undefined;
     } catch (error: any) {
       console.error("Error counting users:", error);
       console.error("Error code:", error.code);
@@ -97,8 +153,77 @@ export default function AdminScreen() {
       } else if (error.code === "functions/permission-denied") {
         Alert.alert("Permission Denied", "Admin access required");
       }
+      return undefined;
     }
   };
+
+  // Manual cache bust: fresh audience count + fresh user locations, then
+  // re-estimate reach against the rebuilt cache.
+  const refreshAudience = async () => {
+    if (refreshingAudience) return;
+    setRefreshingAudience(true);
+    try {
+      await countUsers(true);
+      setReachNonce((n) => n + 1);
+    } finally {
+      setRefreshingAudience(false);
+    }
+  };
+
+  /**
+   * Runs when an admin opens the screen. Always reads the cached stats — one
+   * cheap document read — and rebuilds only if the cached locations have
+   * aged past the TTL, which works out to at most one automatic rebuild a
+   * day however often the app is opened.
+   *
+   * The decision is made against the server's timestamp rather than a local
+   * "last refreshed" marker, so it stays right across devices: if another
+   * admin rebuilt two hours ago, opening the app here doesn't scan again.
+   * A failed stats call returns undefined and is left alone — that's a
+   * broken request, not evidence the cache is stale.
+   */
+  const openAudience = async (mayAutoRefresh: boolean) => {
+    const fetchedAtMs = await countUsers();
+    if (!mayAutoRefresh || fetchedAtMs === undefined) return;
+
+    const expired =
+      fetchedAtMs === null ||
+      Date.now() - fetchedAtMs >= LOCATIONS_CACHE_TTL_MS;
+    // Past the TTL the next preview or send would rebuild anyway; doing it
+    // now means the numbers on screen are already current when the admin
+    // starts composing.
+    if (expired) await refreshAudience();
+  };
+
+  const loadVideoOptions = useCallback(async () => {
+    try {
+      const snapshot = await getDocs(
+        query(
+          collection(FIRESTORE_DB, "videos"),
+          where("status", "==", "ready"),
+          where("active", "==", true),
+        ),
+      );
+      const options = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data() as any;
+          return {
+            file: docSnap.id,
+            name:
+              (data.mediaType === "audio" ? "♪ " : "") +
+              (data.name ?? docSnap.id),
+            thumbnailURL: data.thumbnailURL,
+            mediaType: data.mediaType ?? "video",
+            legacy: !!data.legacyFileName,
+            createdAtMs: data.createdAt?.toMillis?.() ?? 0,
+          };
+        })
+        .sort((a, b) => b.createdAtMs - a.createdAtMs);
+      setVideoOptions(options);
+    } catch (error) {
+      console.log("Failed to load video catalog:", error);
+    }
+  }, []);
 
   useEffect(() => {
     // Only fetch count when user is authenticated and loaded. Keyed on ids
@@ -106,16 +231,27 @@ export default function AdminScreen() {
     if (user && userDoc) {
       console.log("User authenticated:", user.uid);
       console.log("User role:", userDoc.role);
-      countUsers();
+      const mayAutoRefresh = !autoRefreshedThisLaunch;
+      autoRefreshedThisLaunch = true;
+      // Deferred a tick, like the reach-preview effect below: refreshAudience
+      // raises the spinner synchronously, and starting that inside the effect
+      // body would cascade a second render off the first.
+      const timer = setTimeout(() => {
+        void openAudience(mayAutoRefresh);
+      }, 0);
+      loadVideoOptions();
+      return () => clearTimeout(timer);
     } else {
       console.log("Waiting for auth...", { user: !!user, userDoc: !!userDoc });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid, userDoc?.id]);
 
-  // Reach preview: one invocation per chosen location — the returned
-  // distance histogram lets radius/mode changes recompute the estimate
-  // locally without calling the function again
+  // Reach preview: one invocation per chosen location + mode. Radius still
+  // doesn't affect the histogram (the 100m-bucketed distances cover every
+  // radius), but mode does now — opted-in-without-location users only
+  // bypass the location filter on "outside" sends, so we must refetch when
+  // the admin flips WITHIN/OUTSIDE rather than reusing the old histogram.
   useEffect(() => {
     const active = !!(geoEnabled && geoCenter);
     const timer = setTimeout(
@@ -129,14 +265,12 @@ export default function AdminScreen() {
         try {
           const getUserCount = httpsCallable(
             functions,
-            "getUsersWithPushTokensCount"
+            "getUsersWithPushTokensCount",
           );
           const result = await getUserCount({
             geoFilter: {
               enabled: true,
-              // mode/radius don't affect the histogram; fixed values keep
-              // this effect keyed on the center only
-              mode: "within",
+              mode: geoMode,
               radiusMeters: GEO_RADIUS_DEFAULT_M,
               center: {
                 latitude: geoCenter.latitude,
@@ -146,7 +280,7 @@ export default function AdminScreen() {
           });
           const data = result.data as any;
           setReachHistogram(
-            data.success && data.histogram ? data.histogram : null
+            data.success && data.histogram ? data.histogram : null,
           );
         } catch (error) {
           console.log("Failed to estimate reach:", error);
@@ -155,18 +289,37 @@ export default function AdminScreen() {
           setReachLoading(false);
         }
       },
-      active ? 500 : 0
+      active ? 500 : 0,
     );
 
     return () => clearTimeout(timer);
-  }, [geoEnabled, geoCenter]);
+  }, [geoEnabled, geoCenter, geoMode, reachNonce]);
+
+  // How old the cached locations are, in the admin's terms. Past the 24h TTL
+  // the next preview or send rebuilds the cache anyway, so say that rather
+  // than showing an age that's about to stop being true.
+  const locationsAgeMs =
+    locationsFetchedAtMs === null ? null : now - locationsFetchedAtMs;
+  const locationsStale =
+    locationsAgeMs !== null && locationsAgeMs >= LOCATIONS_CACHE_TTL_MS;
+  const locationsAgeText =
+    locationsFetchedAtMs === null
+      ? "User locations not cached yet"
+      : locationsStale
+        ? "User locations expired — next send rebuilds them"
+        : `User locations updated ${formatRelativeTime(locationsFetchedAtMs)}`;
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const estimatedReach = useMemo(() => {
     if (!reachHistogram?.buckets?.length) return null;
     const { bucketSizeMeters, buckets, optIn } = reachHistogram;
     const withinBucketCount = Math.min(
       Math.floor(radiusMeters / bucketSizeMeters),
-      buckets.length
+      buckets.length,
     );
     const within = buckets
       .slice(0, withinBucketCount)
@@ -184,24 +337,44 @@ export default function AdminScreen() {
     if (geoEnabled && !geoCenter) {
       Alert.alert(
         "Error",
-        "Choose a trigger location for geo-targeting, or turn geo-targeting off"
+        "Choose a trigger location for geo-targeting, or turn geo-targeting off",
       );
       return;
     }
 
+    // Videos without a bundled counterpart can't play on app versions that
+    // predate cloud-delivered videos — make the admin acknowledge that.
+    const newOnly = selectedVideos.filter((id) => {
+      const option = videoOptions.find((opt) => opt.file === id);
+      return option ? !option.legacy : false;
+    });
+    if (newOnly.length > 0) {
+      Alert.alert(
+        "Heads up",
+        "Some selected videos only play on the latest app version. Users on older versions will see an error instead.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Send Anyway", onPress: () => doSend() },
+        ],
+      );
+      return;
+    }
+
+    doSend();
+  };
+
+  const doSend = async () => {
     try {
       setLoading(true);
 
       const sendNotification = httpsCallable(
         functions,
-        "sendStadiumTakeoverNotification"
+        "sendStadiumTakeoverNotification",
       );
       const params = {
         title: title,
-        videoFile: selectedVideos.join(","),
+        videoIds: selectedVideos.join(","),
         delaySeconds: delay,
-        adminOnly: isEnabled,
-        customTokens: customUsers ? customUsersToken : null,
         geoFilter:
           geoEnabled && geoCenter
             ? {
@@ -240,206 +413,257 @@ export default function AdminScreen() {
   };
 
   return (
-    <KeyboardAwareScrollView
-      keyboardShouldPersistTaps="always"
-      contentContainerStyle={{ flexGrow: 1, backgroundColor: colors.background }}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>📢 Stadium Takeover</Text>
+    <>
+      <KeyboardAwareScrollView
+        keyboardShouldPersistTaps="always"
+        contentContainerStyle={{
+          flexGrow: 1,
+          backgroundColor: colors.background,
+        }}
+      >
+        <View style={styles.container}>
+          {/* Header */}
+          <Text style={styles.title}>📢 Stadium Takeover</Text>
+          <Text style={styles.subtitle}>
+            Compose and send a takeover alert to fans
+          </Text>
 
-        {/* User Count */}
-        <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Users</Text>
-            <Text style={styles.infoSubtitle}>
-              Total users who have enabled {"\n"} push notifications
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <User color={colors.primary} />
-            <Text style={styles.infoCount}>{tokensCount}</Text>
-          </View>
-        </View>
-
-        {/* Notification Title */}
-        <Text style={styles.label}>Notification Title</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            placeholder="Stadium Takeover"
-            placeholderTextColor={colors.placeholder}
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-          />
-        </View>
-
-        {/* Video Picker */}
-        <Text style={styles.label}>Select Video(s)</Text>
-        <View style={styles.videoPickerContainer}>
-          <Video color={colors.primary} />
-          <SearchableDropdown
-            options={videoOptions}
-            placeholder={"-- Choose a Video --"}
-            onSelect={(item) => {
-              setSelectedVideos([...selectedVideos, item.file]);
-              setTitle(`Stadium Takeover - ${item.name}`);
-            }}
-          />
-        </View>
-
-        {/* Selected Videos List */}
-        <View style={styles.userIdList}>
-          {selectedVideos.map((v, index) => {
-            const videoName =
-              videoOptions.find((opt) => opt.file === v)?.name || v;
-            return (
-              <View key={index} style={styles.userIdChip}>
-                <Text style={styles.userIdText}>
-                  {index + 1}. {videoName}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedVideos(
-                      selectedVideos.filter((_, i) => i !== index)
-                    );
-                  }}
-                >
-                  <Text style={styles.removeButton}>✕</Text>
-                </TouchableOpacity>
+          {/* Audience */}
+          <View style={styles.section}>
+            <View style={[styles.row, styles.rowLast]}>
+              <View style={styles.iconTile}>
+                <Users size={17} color={colors.primary} />
               </View>
-            );
-          })}
-        </View>
-
-        {/* Delay Slider */}
-        <Text style={styles.label}>Delay: {delay} seconds</Text>
-        <Slider
-          style={{ width: "100%", height: 40 }}
-          minimumValue={10}
-          maximumValue={180}
-          step={5}
-          value={delay}
-          onValueChange={setDelay}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-        />
-
-        {/* Geo-Targeting */}
-        <GeoTargetingSection
-          enabled={geoEnabled}
-          onEnabledChange={setGeoEnabled}
-          mode={geoMode}
-          onModeChange={setGeoMode}
-          radiusMeters={radiusMeters}
-          onRadiusChange={setRadiusMeters}
-          center={geoCenter}
-          onCenterChange={setGeoCenter}
-          estimatedReach={estimatedReach}
-          reachLoading={reachLoading}
-        />
-
-        {/* Admin Only Toggle */}
-        {/* <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Admin Only</Text>
-            <Text style={styles.infoSubtitle}>
-              Send notifications to yourself only
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={isEnabled ? colors.onPrimary : colors.surfaceVariant}
-            onValueChange={toggleSwitch}
-            value={isEnabled}
-          />
-        </View> */}
-
-        {/* Custom Users Toggle */}
-        <View style={styles.infoRow}>
-          <View>
-            <Text style={styles.infoTitle}>Custom Users only</Text>
-            <Text style={styles.infoSubtitle}>
-              Send notifications to selected users only
-            </Text>
-          </View>
-          <Switch
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor={customUsers ? colors.onPrimary : colors.surfaceVariant}
-            ios_backgroundColor={colors.border}
-            onValueChange={toggleSwitch2}
-            value={customUsers}
-          />
-        </View>
-
-        {/* Custom Users Input */}
-        {customUsers && (
-          <>
-            <Text style={styles.title}>{customUsersToken.length} users</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                placeholder="Enter User ID"
-                placeholderTextColor={colors.placeholder}
-                style={styles.input}
-                value={token}
-                onChangeText={setToken}
-                autoCapitalize="none"
-              />
+              <View style={styles.rowBody}>
+                <Text style={styles.rowTitle}>Reachable users</Text>
+                <Text style={styles.rowDescription}>
+                  Have push notifications enabled
+                </Text>
+                <Text
+                  style={[
+                    styles.rowDescription,
+                    locationsStale && styles.rowDescriptionStale,
+                  ]}
+                >
+                  {locationsAgeText}
+                </Text>
+              </View>
+              <Text style={styles.audienceCount}>
+                {formatCount(tokensCount)}
+              </Text>
               <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => {
-                  if (token.trim()) {
-                    setCustomUsersToken([...customUsersToken, token.trim()]);
-                    setToken("");
-                  }
-                }}
+                style={styles.refreshButton}
+                onPress={refreshAudience}
+                disabled={refreshingAudience}
               >
-                <Text style={styles.addButtonText}>Add</Text>
+                {refreshingAudience ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <RefreshCw size={16} color={colors.primary} />
+                )}
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal>
-              {customUsersToken.length > 0 && (
-                <View style={styles.userIdList}>
-                  {customUsersToken.map((userId, index) => (
-                    <View key={index} style={styles.userIdChip}>
-                      <Text
-                        ellipsizeMode="tail"
-                        numberOfLines={1}
-                        style={[styles.userIdText, { maxWidth: 100 }]}
-                      >
-                        {userId}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setCustomUsersToken(
-                            customUsersToken.filter((_, i) => i !== index)
-                          );
-                        }}
-                      >
-                        <Text style={styles.removeButton}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </ScrollView>
-          </>
-        )}
+          </View>
 
-        {/* Send Button */}
-        <View style={{ marginTop: 20 }}>
+          {/* Notification */}
+          <Text style={styles.sectionHeader}>Notification</Text>
+          <View style={styles.section}>
+            <View style={[styles.row, styles.rowLast]}>
+              <View style={styles.rowBody}>
+                <Text style={styles.fieldLabel}>Title</Text>
+                <TextInput
+                  placeholder="Stadium Takeover"
+                  placeholderTextColor={colors.placeholder}
+                  style={styles.input}
+                  value={title}
+                  onChangeText={setTitle}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Media */}
+          <Text style={styles.sectionHeader}>Media</Text>
+          <View style={styles.section}>
+            <View style={styles.row}>
+              <View style={styles.iconTile}>
+                <Video size={17} color={colors.primary} />
+              </View>
+              <View style={styles.dropdownWrapper}>
+                <SearchableDropdown
+                  options={videoOptions}
+                  placeholder={"Choose a video…"}
+                  onSelect={(item) => {
+                    setSelectedVideos([...selectedVideos, item.file]);
+                    setTitle(`Stadium Takeover - ${item.name}`);
+                  }}
+                />
+              </View>
+              <ChevronDown size={16} color={colors.textMuted} />
+            </View>
+
+            {/* Selected media list */}
+            {selectedVideos.length === 0 ? (
+              <View style={styles.row}>
+                <Text style={styles.emptyText}>No media selected yet</Text>
+              </View>
+            ) : (
+              selectedVideos.map((v, index) => {
+                const option = videoOptions.find((opt) => opt.file === v);
+                const videoName = option?.name || v;
+                const newOnly = option ? !option.legacy : false;
+                return (
+                  <View key={index} style={styles.row}>
+                    <View style={styles.orderBadge}>
+                      <Text style={styles.orderBadgeText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.rowBody}>
+                      <Text style={styles.rowTitle} numberOfLines={1}>
+                        {videoName}
+                      </Text>
+                      {newOnly && (
+                        <Text style={styles.newOnlyText}>
+                          Latest app version only
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => {
+                        setSelectedVideos(
+                          selectedVideos.filter((_, i) => i !== index),
+                        );
+                      }}
+                    >
+                      <X size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+
+            {/* Media actions */}
+            <View style={styles.mediaActionsRow}>
+              <TouchableOpacity
+                style={styles.mediaAction}
+                onPress={() => uploadSheetRef.current?.present()}
+              >
+                <Upload size={16} color={colors.primary} />
+                <Text style={styles.mediaActionText}>Upload media</Text>
+              </TouchableOpacity>
+              <View style={styles.mediaActionDivider} />
+              <TouchableOpacity
+                style={styles.mediaAction}
+                onPress={() => manageSheetRef.current?.present()}
+              >
+                <FolderCog size={16} color={colors.primary} />
+                <Text style={styles.mediaActionText}>Manage media</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Carousel banners */}
+          <Text style={styles.sectionHeader}>Carousel Banners</Text>
+          <View style={styles.section}>
+            <View style={styles.mediaActionsRow}>
+              <TouchableOpacity
+                style={styles.mediaAction}
+                onPress={() => bannerUploadSheetRef.current?.present()}
+              >
+                <ImagePlus size={16} color={colors.primary} />
+                <Text style={styles.mediaActionText}>Upload banner</Text>
+              </TouchableOpacity>
+              <View style={styles.mediaActionDivider} />
+              <TouchableOpacity
+                style={styles.mediaAction}
+                onPress={() => manageBannersSheetRef.current?.present()}
+              >
+                <GalleryHorizontal size={16} color={colors.primary} />
+                <Text style={styles.mediaActionText}>Manage banners</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Delivery */}
+          <Text style={styles.sectionHeader}>Delivery</Text>
+          <View style={styles.section}>
+            <View style={styles.row}>
+              <View style={styles.iconTile}>
+                <Clock size={17} color={colors.primary} />
+              </View>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowTitle}>Delay</Text>
+                <Text style={styles.rowDescription}>
+                  Countdown before the takeover starts
+                </Text>
+              </View>
+              <Text style={styles.delayValue}>{delay}s</Text>
+            </View>
+            <View style={styles.sliderWrapper}>
+              <Slider
+                style={{ width: "100%", height: 40 }}
+                minimumValue={10}
+                maximumValue={180}
+                step={5}
+                value={delay}
+                onValueChange={setDelay}
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.border}
+                thumbTintColor={colors.primary}
+              />
+              <View style={styles.sliderScale}>
+                <Text style={styles.sliderScaleText}>10s</Text>
+                <Text style={styles.sliderScaleText}>180s</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Geo-Targeting */}
+          <Text style={styles.sectionHeader}>Audience Filter</Text>
+          <View style={[styles.section, styles.geoSection]}>
+            <GeoTargetingSection
+              enabled={geoEnabled}
+              onEnabledChange={setGeoEnabled}
+              mode={geoMode}
+              onModeChange={setGeoMode}
+              radiusMeters={radiusMeters}
+              onRadiusChange={setRadiusMeters}
+              center={geoCenter}
+              onCenterChange={setGeoCenter}
+              estimatedReach={estimatedReach}
+              reachLoading={reachLoading}
+              onRefreshReach={refreshAudience}
+            />
+          </View>
+
+          {/* Send Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.sendButton, loading && styles.sendButtonDisabled]}
             onPress={handleSend}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? "Sending..." : "Send Notification"}
+            {loading ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Send size={18} color={colors.onPrimary} />
+            )}
+            <Text style={styles.sendButtonText}>
+              {loading ? "Sending…" : "Send Notification"}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
-    </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
+      <VideoUploadSheet ref={uploadSheetRef} onUploaded={loadVideoOptions} />
+      <ManageMediaSheet ref={manageSheetRef} onChanged={loadVideoOptions} />
+      <BannerUploadSheet
+        ref={bannerUploadSheetRef}
+        videoOptions={videoOptions}
+      />
+      <ManageBannersSheet
+        ref={manageBannersSheetRef}
+        videoOptions={videoOptions}
+      />
+    </>
   );
 }
 
@@ -453,108 +677,173 @@ const makeStyles = ({ colors, typography }: Theme) =>
     title: {
       ...typography.h2,
       color: colors.text,
-      marginBottom: 20,
     },
-    infoRow: {
-      flexDirection: "row",
-      padding: 10,
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    infoTitle: {
-      ...typography.title,
-      color: colors.text,
-    },
-    infoSubtitle: {
+    subtitle: {
       ...typography.bodySmall,
       color: colors.textSecondary,
+      marginTop: 2,
+      marginBottom: 20,
     },
-    infoCount: {
-      ...typography.title,
-      color: colors.text,
-      marginLeft: 5,
+    sectionHeader: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 6,
+      marginLeft: 16,
     },
-    label: {
-      ...typography.subtitle,
-      color: colors.text,
-      marginTop: 15,
-    },
-    videoPickerContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      borderWidth: 1,
-      borderRadius: 8,
-      borderColor: colors.primary,
-      padding: 10,
-    },
-    inputRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: colors.inputBackground,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      marginBottom: 16,
-      borderWidth: 1,
+    section: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
+      marginBottom: 22,
+      overflow: "hidden",
+    },
+    geoSection: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      minHeight: 48,
+      paddingLeft: 14,
+      paddingRight: 12,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    rowLast: {
+      borderBottomWidth: 0,
+    },
+    iconTile: {
+      width: 30,
+      height: 30,
+      borderRadius: 7,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+      marginRight: 12,
+    },
+    rowBody: {
+      flex: 1,
+      justifyContent: "center",
+      paddingRight: 8,
+    },
+    rowTitle: {
+      ...typography.body,
+      color: colors.text,
+    },
+    rowDescription: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
+    rowDescriptionStale: {
+      color: colors.warning,
+    },
+    audienceCount: {
+      ...typography.h3,
+      color: colors.primary,
+    },
+    refreshButton: {
+      marginLeft: 10,
+      padding: 4,
+    },
+    fieldLabel: {
+      ...typography.label,
+      color: colors.textSecondary,
+      marginTop: 2,
     },
     input: {
       ...typography.body,
-      flex: 1,
-      paddingVertical: 12,
       color: colors.text,
+      paddingVertical: 6,
+      paddingHorizontal: 0,
     },
-    addButton: {
-      backgroundColor: colors.primary,
-      padding: 12,
-      margin: 5,
-      borderRadius: 8,
+    dropdownWrapper: {
+      flex: 1,
+      marginLeft: -12, // cancel SearchableDropdown's inner padding
     },
-    addButtonText: {
-      ...typography.label,
-      color: colors.onPrimary,
+    emptyText: {
+      ...typography.bodySmall,
+      color: colors.textMuted,
+      fontStyle: "italic",
     },
-    button: {
-      backgroundColor: "transparent",
-      borderWidth: 1,
-      borderColor: colors.primary,
-      textAlign: "center",
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      paddingVertical: 16,
-      borderRadius: 10,
+    orderBadge: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
       alignItems: "center",
-      marginBottom: 12,
+      justifyContent: "center",
+      backgroundColor: colors.primaryMuted,
+      marginRight: 12,
     },
-    buttonDisabled: {
-      opacity: 0.5,
-    },
-    buttonText: {
-      ...typography.button,
+    orderBadgeText: {
+      ...typography.label,
       color: colors.primary,
     },
-    userIdList: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      marginVertical: 10,
+    newOnlyText: {
+      ...typography.caption,
+      color: colors.warning,
+      marginTop: 1,
     },
-    userIdChip: {
+    mediaActionsRow: {
+      flexDirection: "row",
+      alignItems: "stretch",
+    },
+    mediaAction: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      marginRight: 8,
-      marginBottom: 8,
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: 12,
     },
-    userIdText: {
-      ...typography.bodySmall,
-      color: colors.onPrimary,
-      marginRight: 6,
+    mediaActionDivider: {
+      width: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
     },
-    removeButton: {
+    mediaActionText: {
+      ...typography.label,
+      color: colors.primary,
+    },
+    delayValue: {
       ...typography.title,
+      color: colors.primary,
+      fontVariant: ["tabular-nums"],
+    },
+    sliderWrapper: {
+      paddingHorizontal: 14,
+      paddingTop: 4,
+      paddingBottom: 10,
+    },
+    sliderScale: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginTop: -4,
+    },
+    sliderScaleText: {
+      ...typography.caption,
+      color: colors.textMuted,
+    },
+    sendButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 15,
+      borderRadius: 12,
+      marginTop: 2,
+      marginBottom: 12,
+    },
+    sendButtonDisabled: {
+      opacity: 0.6,
+    },
+    sendButtonText: {
+      ...typography.button,
       color: colors.onPrimary,
     },
   });

@@ -45,6 +45,7 @@ export default function VideoScreen() {
     currentIndex,
     downloadProgress,
     player,
+    isAudioEntry,
     startSession,
     resync,
     setVideoScreenFocused,
@@ -186,11 +187,21 @@ export default function VideoScreen() {
           alignItems: "center",
         }}
       >
+        {/*
+          Leaving the app mid-takeover hands playback to the system PiP window
+          instead of suspending it. `isFocused` matters: native-stack keeps
+          this screen mounted under other routes, and only one view may claim
+          auto-PiP — otherwise it competes with the mini-player's VideoView.
+        */}
         <VideoView
           style={styles.video}
           nativeControls={false}
           player={player}
           contentFit="contain"
+          allowsPictureInPicture={isFocused && !isAudioEntry}
+          startsPictureInPictureAutomatically={
+            isFocused && !isAudioEntry && phase === "playing"
+          }
         />
         {entries?.[currentIndex]?.mediaType === "audio" && (
           <View style={styles.audioArt}>

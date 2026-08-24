@@ -80,6 +80,8 @@ interface TakeoverPlayerContextType {
   currentIndex: number;
   downloadProgress: VideoDownloadProgress | null;
   player: VideoPlayer;
+  /** True while the playing entry is audio-only (no video track to show in PiP) */
+  isAudioEntry: boolean;
   /** Starts a takeover session. No-op when the same playAt session is already live. */
   startSession: (params: TakeoverParams | undefined) => void;
   /** Permanently ends the session (mini-player close button, playlist end). */
@@ -122,17 +124,38 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
   // Wall-clock deadline for the late-join priming window; null when not armed.
   const lateJoinDeadlineRef = useRef<number | null>(null);
 
-  const currentUri = entries?.[currentIndex]?.uri ?? null;
+  const currentEntry = entries?.[currentIndex] ?? null;
+  const currentUri = currentEntry?.uri ?? null;
+  const isAudioEntry = currentEntry?.mediaType === "audio";
   const player = useVideoPlayer(
-    currentUri ? { uri: currentUri } : null,
+    currentUri
+      ? {
+          uri: currentUri,
+          // Populates the lock-screen / notification card that
+          // `showNowPlayingNotification` puts up for audio entries.
+          metadata: {
+            title: currentEntry?.name,
+            artist: "Stadium Takeover",
+            artwork: currentEntry?.thumbnailURL,
+          },
+        }
+      : null,
     (player) => {
       if (player) {
         player.loop = false;
-        // A takeover is a watch-together moment on screen, not persistent
-        // audio, so the app ships without the `audio` UIBackgroundMode
-        // (App Store Guideline 2.5.4). Backgrounding therefore suspends
-        // playback; the AppState "active" listener below resyncs on return.
-        player.staysActiveInBackground = false;
+        // A takeover must survive the user leaving the app, but the two media
+        // types get there differently: video entries auto-enter Picture in
+        // Picture (see the VideoView props on the Video screen and the
+        // mini-player), while audio-only entries have no video track to show
+        // and instead keep playing in the background with now-playing
+        // controls. Video stays false on purpose — iOS only skips the
+        // background pause while the view is actually in PiP, so enabling it
+        // would leave invisible audio playing whenever PiP fails to start.
+        //
+        // The source string carries the entry's metadata, so a new entry
+        // always rebuilds the player and re-runs this with the right values.
+        player.staysActiveInBackground = isAudioEntry;
+        player.showNowPlayingNotification = isAudioEntry;
       }
     }
   );
@@ -525,6 +548,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
         currentIndex,
         downloadProgress,
         player,
+        isAudioEntry,
         startSession,
         endSession,
         resync,

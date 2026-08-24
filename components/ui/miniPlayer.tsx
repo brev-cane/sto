@@ -144,11 +144,16 @@ export default function MiniPlayer() {
                 </View>
               )
             ) : (
+              // This branch only renders for a playing video entry while the
+              // full screen is unfocused, so it is the one view eligible for
+              // auto-PiP — no extra gating needed on the props themselves.
               <VideoView
                 player={player}
                 nativeControls={false}
                 pointerEvents="none"
                 style={styles.fill}
+                allowsPictureInPicture
+                startsPictureInPictureAutomatically
               />
             )
           ) : phase === "countdown" ? (

@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Switch,
 } from "react-native";
 import * as Sentry from "@sentry/react-native";
 import Slider from "@react-native-community/slider";
@@ -22,6 +23,7 @@ import { Theme, useTheme, useThemedStyles } from "@/theme";
 import {
   ChevronDown,
   Clock,
+  FlaskConical,
   FolderCog,
   RefreshCw,
   GalleryHorizontal,
@@ -85,6 +87,10 @@ export default function AdminScreen() {
   const { userDoc } = useAuth(); // Add 'user' from auth context
   const user = FIREBASE_AUTH.currentUser; // Get current authenticated user
   const [title, setTitle] = useState("Stadium Takeover");
+  // Deliberately off in every build, __DEV__ included: a default-on test flag
+  // is invisible at a glance, and the cost of getting it wrong is a real
+  // takeover fired at every user.
+  const [adminOnly, setAdminOnly] = useState(false);
   const [geoEnabled, setGeoEnabled] = useState(false);
   const [geoMode, setGeoMode] = useState<GeoMode>("within");
   const [radiusMeters, setRadiusMeters] = useState(GEO_RADIUS_DEFAULT_M);
@@ -334,7 +340,7 @@ export default function AdminScreen() {
       return;
     }
 
-    if (geoEnabled && !geoCenter) {
+    if (!adminOnly && geoEnabled && !geoCenter) {
       Alert.alert(
         "Error",
         "Choose a trigger location for geo-targeting, or turn geo-targeting off",
@@ -375,8 +381,11 @@ export default function AdminScreen() {
         title: title,
         videoIds: selectedVideos.join(","),
         delaySeconds: delay,
+        adminOnly,
+        // A test send goes to this device alone, so never hand the server a
+        // filter that implies a wider audience.
         geoFilter:
-          geoEnabled && geoCenter
+          !adminOnly && geoEnabled && geoCenter
             ? {
                 enabled: true,
                 mode: geoMode,
@@ -404,6 +413,9 @@ export default function AdminScreen() {
         Alert.alert("Error", "You don't have permission to send notifications");
       } else if (err.code === "functions/resource-exhausted") {
         Alert.alert("Cooldown Active", err.message);
+      } else if (err.code === "functions/failed-precondition") {
+        // Covers the admin-only send finding no push token on this account.
+        Alert.alert("Can't send", err.message);
       } else {
         Alert.alert("⚠️ Error", err.message || "Failed to send notifications");
       }
@@ -462,6 +474,31 @@ export default function AdminScreen() {
                   <RefreshCw size={16} color={colors.primary} />
                 )}
               </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Testing — send the real thing to this device only */}
+          <Text style={styles.sectionHeader}>Testing</Text>
+          <View style={styles.section}>
+            <View style={[styles.row, styles.rowLast]}>
+              <View style={styles.iconTile}>
+                <FlaskConical size={17} color={colors.primary} />
+              </View>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowTitle}>Admin Only</Text>
+                <Text style={styles.rowDescription}>
+                  Send to your device only — nobody else receives it
+                </Text>
+              </View>
+              <Switch
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={
+                  adminOnly ? colors.onPrimary : colors.surfaceVariant
+                }
+                ios_backgroundColor={colors.border}
+                onValueChange={setAdminOnly}
+                value={adminOnly}
+              />
             </View>
           </View>
 
@@ -618,23 +655,28 @@ export default function AdminScreen() {
             </View>
           </View>
 
-          {/* Geo-Targeting */}
-          <Text style={styles.sectionHeader}>Audience Filter</Text>
-          <View style={[styles.section, styles.geoSection]}>
-            <GeoTargetingSection
-              enabled={geoEnabled}
-              onEnabledChange={setGeoEnabled}
-              mode={geoMode}
-              onModeChange={setGeoMode}
-              radiusMeters={radiusMeters}
-              onRadiusChange={setRadiusMeters}
-              center={geoCenter}
-              onCenterChange={setGeoCenter}
-              estimatedReach={estimatedReach}
-              reachLoading={reachLoading}
-              onRefreshReach={refreshAudience}
-            />
-          </View>
+          {/* Geo-Targeting — inert during an admin-only send, and a live
+              radius next to a self-send invites misreading who gets hit. */}
+          {!adminOnly && (
+            <>
+              <Text style={styles.sectionHeader}>Audience Filter</Text>
+              <View style={[styles.section, styles.geoSection]}>
+                <GeoTargetingSection
+                  enabled={geoEnabled}
+                  onEnabledChange={setGeoEnabled}
+                  mode={geoMode}
+                  onModeChange={setGeoMode}
+                  radiusMeters={radiusMeters}
+                  onRadiusChange={setRadiusMeters}
+                  center={geoCenter}
+                  onCenterChange={setGeoCenter}
+                  estimatedReach={estimatedReach}
+                  reachLoading={reachLoading}
+                  onRefreshReach={refreshAudience}
+                />
+              </View>
+            </>
+          )}
 
           {/* Send Button */}
           <TouchableOpacity
@@ -648,7 +690,11 @@ export default function AdminScreen() {
               <Send size={18} color={colors.onPrimary} />
             )}
             <Text style={styles.sendButtonText}>
-              {loading ? "Sending…" : "Send Notification"}
+              {loading
+                ? "Sending…"
+                : adminOnly
+                  ? "Send Test to Myself"
+                  : "Send Notification"}
             </Text>
           </TouchableOpacity>
         </View>

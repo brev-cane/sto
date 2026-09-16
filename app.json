@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stadium Takeover",
     "slug": "stadium-takeover",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/android.png",
     "scheme": "stadiumtakeover",
@@ -65,7 +65,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./local/assets/images/dark-icon.png",
+          "icon": "./assets/images/dark-icon.png",
           "color": "#ffffff",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true

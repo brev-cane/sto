@@ -4,10 +4,11 @@ import { SAMPLE_PARKING_LOTS, SAMPLE_GAMES } from '@/dummyData/parking';
 import { ParkingLot, Stadium, Game } from '@/types/parking';
 import { Theme, useTheme, useThemedStyles } from '@/theme';
 import { MapPin, Car, DollarSign, Navigation as NavIcon, Calendar, Trophy, Clock, ChevronLeft } from 'lucide-react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
+import { useAppNavigation } from '@/types/navigation';
 
 const StadiumDetailScreen = () => {
-    const navigation = useNavigation<any>();
+    const navigation = useAppNavigation();
     const route = useRoute();
     const { stadium } = route.params as { stadium: Stadium };
     const [activeTab, setActiveTab] = useState<'parking' | 'games'>('parking');

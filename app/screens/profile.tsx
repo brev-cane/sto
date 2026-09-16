@@ -6,14 +6,17 @@ import {
   clearStoredLocation,
   getLocationPermission,
   isLocationSharingOptedOut,
+  isLocationStale,
+  locationUpdatedAtMs,
   requestLocationPermission,
   setLocationSharingOptOut,
   syncLocationToFirestore,
 } from "@/services/locationService";
 import { Theme, useTheme, useThemedStyles } from "@/theme";
+import { formatRelativeTime } from "@/utils/formatHelper";
 import { registerForPushNotificationsAsync } from "@/utils/notificationHelper";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
-import { useNavigation } from "@react-navigation/native";
+import { useAppNavigation } from "@/types/navigation";
 import * as Clipboard from "expo-clipboard";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -26,6 +29,7 @@ import {
   Camera,
   CheckCircle,
   Copy,
+  LocateFixed,
   LucideIcon,
   Mail,
   MapPin,
@@ -97,13 +101,13 @@ const SettingsRow: React.FC<SettingsRowProps> = ({
         <Icon size={17} color="#FFFFFF" strokeWidth={2.2} />
       </View>
       <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, destructive && styles.rowTitleDestructive]}>
+        <Text
+          style={[styles.rowTitle, destructive && styles.rowTitleDestructive]}
+        >
           {title}
         </Text>
         {description ? (
-          <Text style={styles.rowDescription} numberOfLines={2}>
-            {description}
-          </Text>
+          <Text style={styles.rowDescription}>{description}</Text>
         ) : null}
       </View>
       {right ? <View style={styles.rowRight}>{right}</View> : null}
@@ -123,17 +127,18 @@ export const UserProfileScreen: React.FC = () => {
   const [name, setName] = useState(userDoc?.name || "");
   const [username, setUsername] = useState(userDoc?.username || "");
   const [pushEnabled, setPushEnabled] = useState(
-    userDoc?.pushToken ? true : false
+    userDoc?.pushToken ? true : false,
   );
   const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
+  const [locationRefreshing, setLocationRefreshing] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { navigate } = useNavigation();
+  const { navigate } = useAppNavigation();
   const [receiveAll, setReceiveAll] = useState(
-    userDoc?.receiveAllNotifications === true
+    userDoc?.receiveAllNotifications === true,
   );
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -159,7 +164,12 @@ export const UserProfileScreen: React.FC = () => {
             ? await requestLocationPermission()
             : false;
         if (granted) {
-          await syncLocationToFirestore(userDoc.id, { force: true });
+          const next = await syncLocationToFirestore(userDoc.id, {
+            force: true,
+          });
+          // Mirror the write locally so the row's summary is right straight
+          // away rather than after the next document read.
+          if (next) setUserDoc({ ...userDoc, location: next });
           setLocationEnabled(true);
         } else {
           setLocationEnabled(false);
@@ -175,18 +185,47 @@ export const UserProfileScreen: React.FC = () => {
                     ? Linking.openURL("app-settings:")
                     : Linking.openSettings(),
               },
-            ]
+            ],
           );
         }
       } else {
         await setLocationSharingOptOut(true);
         await clearStoredLocation(userDoc.id);
+        setUserDoc({ ...userDoc, location: null });
         setLocationEnabled(false);
       }
     } catch (error) {
       console.error("Failed to update location sharing:", error);
     } finally {
       setLocationBusy(false);
+    }
+  };
+
+  /**
+   * Re-reads the device position and stores it, bypassing the 10-minute
+   * sync throttle — this one is an explicit request, not a background
+   * refresh, so it must always do something visible.
+   */
+  const handleUpdateLocation = async () => {
+    if (!userDoc?.id || locationRefreshing) return;
+    setLocationRefreshing(true);
+    try {
+      const next = await syncLocationToFirestore(userDoc.id, { force: true });
+      if (next) {
+        setUserDoc({ ...userDoc, location: next });
+        Toast.show({ type: "success", text1: "Location updated" });
+      } else {
+        Toast.show({
+          type: "error",
+          text1: "Couldn't update location",
+          text2: "Check that location services are on and try again.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to update location:", error);
+      Toast.show({ type: "error", text1: "Couldn't update location" });
+    } finally {
+      setLocationRefreshing(false);
     }
   };
 
@@ -234,19 +273,19 @@ export const UserProfileScreen: React.FC = () => {
               }
               await dbService.collection("users").delete(user.uid);
               await deleteUser(user);
-              navigate("Loading" as never);
+              navigate("Loading");
             } catch (error: any) {
               console.error("Failed to delete account:", error);
               Alert.alert(
                 "Error",
-                error?.message ?? "Failed to delete account. Please try again."
+                error?.message ?? "Failed to delete account. Please try again.",
               );
             } finally {
               setDeleting(false);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -266,7 +305,7 @@ export const UserProfileScreen: React.FC = () => {
       const blob = await response.blob();
       const storageRef = ref(
         FIREBASE_STORAGE,
-        `profilePictures/${firebaseUser.uid}.jpg`
+        `profilePictures/${firebaseUser.uid}.jpg`,
       );
       await uploadBytes(storageRef, blob, { contentType: "image/jpeg" });
       const photoURL = await getDownloadURL(storageRef);
@@ -299,6 +338,30 @@ export const UserProfileScreen: React.FC = () => {
       </View>
     );
   }
+
+  // What the backend currently geo-targets this user against. Anything older
+  // than a day it discards outright, so say so rather than showing a place
+  // name that no longer counts for anything.
+  const savedLocation = userDoc.location ?? null;
+  const savedLocationUpdatedAtMs = locationUpdatedAtMs(savedLocation?.updatedAt);
+  const savedLocationSummary = !savedLocation
+    ? "No location saved yet"
+    : [
+        savedLocation.label ??
+          // 5 decimal places is roughly a meter; 3 would round the fix down
+          // to a city block.
+          `${savedLocation.latitude.toFixed(5)}, ${savedLocation.longitude.toFixed(5)}`,
+        typeof savedLocation.accuracyMeters === "number"
+          ? `±${savedLocation.accuracyMeters} m`
+          : null,
+        isLocationStale(savedLocation)
+          ? "out of date"
+          : savedLocationUpdatedAtMs
+            ? formatRelativeTime(savedLocationUpdatedAtMs)
+            : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
   const hasChanges =
     name !== (userDoc.name || "") ||
@@ -355,10 +418,8 @@ export const UserProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <BackButton />
+      <BackButton title="My Profile" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>My Profile</Text>
-
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <TouchableOpacity
@@ -492,7 +553,7 @@ export const UserProfileScreen: React.FC = () => {
             icon={MapPin}
             iconTint={iconTints.green}
             title="Location Sharing"
-            description="Used to send you alerts targeted near (or away from) the stadium"
+            description={locationEnabled ? savedLocationSummary : undefined}
             right={
               <Switch
                 value={locationEnabled}
@@ -501,9 +562,35 @@ export const UserProfileScreen: React.FC = () => {
                 {...switchProps}
               />
             }
-            isLast
+            isLast={!locationEnabled}
           />
+          {/* Only offered while sharing is on: with it off there is nothing
+              to refresh, and the toggle above is the way back. */}
+          {locationEnabled && (
+            <SettingsRow
+              icon={LocateFixed}
+              iconTint={iconTints.blue}
+              title="Update to Current Location"
+              description="Re-check where you are so alerts stay relevant"
+              onPress={handleUpdateLocation}
+              right={
+                locationRefreshing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : undefined
+              }
+              isLast
+            />
+          )}
         </View>
+        <Text style={styles.sectionFooter}>
+          The app uses your phone&apos;s location to reduce the number of
+          unnecessary alerts. For example, if you&apos;re at Highmark
+          Stadium, there&apos;s no need to receive the &quot;Shout
+          song&quot; or &quot;Mr Brightside&quot; alert, but if
+          you&apos;re enjoying the game from elsewhere, you may enjoy
+          those! You&apos;ll also receive fewer &quot;event-type&quot;
+          and testing alerts. We highly encourage this setting.
+        </Text>
 
         {/* Push token */}
         <Text style={styles.sectionHeader}>Push Token</Text>
@@ -683,6 +770,14 @@ const makeStyles = ({ colors, typography }: Theme) =>
       letterSpacing: 0.5,
       marginBottom: 6,
       marginLeft: 16,
+    },
+    sectionFooter: {
+      ...typography.caption,
+      color: colors.textSecondary,
+      marginTop: -14,
+      marginBottom: 22,
+      marginHorizontal: 16,
+      lineHeight: 17,
     },
     section: {
       backgroundColor: colors.surface,

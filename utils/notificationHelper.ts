@@ -71,6 +71,11 @@ export async function registerForPushNotificationsAsync() {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
+    // Declining is a supported outcome, not an error. Return no token and let
+    // callers carry on without push (App Store Guideline 4.5.4).
+    if (finalStatus !== "granted") {
+      return undefined;
+    }
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
@@ -83,9 +88,12 @@ export async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      console.log(token);
     } catch (e) {
-      token = `${e}`;
+      // Never hand back the error text: it used to be stored verbatim as the
+      // user's pushToken, which is truthy and so read as "push is enabled"
+      // everywhere downstream.
+      console.log("Failed to get Expo push token:", e);
+      token = undefined;
     }
   } else {
     alert("Must use physical device for Push Notifications");

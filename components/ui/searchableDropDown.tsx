@@ -14,6 +14,7 @@ import { Theme, useTheme, useThemedStyles } from "@/theme";
 interface ItemType {
   file: string;
   name: string;
+  thumbnailURL?: string;
   // add any other fields you need
 }
 
@@ -76,6 +77,13 @@ const SearchableDropdown: React.FC<Props> = ({
                   style={[styles.option]}
                   onPress={() => handleSelect(item)}
                 >
+                  {item.thumbnailURL ? (
+                    <Image
+                      source={{ uri: item.thumbnailURL }}
+                      contentFit="cover"
+                      style={styles.thumbnail}
+                    />
+                  ) : null}
                   <Text style={styles.optionText}>{item.name}</Text>
                 </TouchableOpacity>
               )}
@@ -128,6 +136,12 @@ const makeStyles = ({ colors, typography }: Theme) =>
     optionText: {
       ...typography.body,
       color: colors.text,
+    },
+    thumbnail: {
+      width: 48,
+      height: 32,
+      borderRadius: 4,
+      backgroundColor: colors.border,
     },
   });
 

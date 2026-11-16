@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { AppState } from "react-native";
+import { flush as flushTelemetry, mark } from "@/services/takeoverTelemetry";
 import { timeSync } from "@/services/timeSync";
 import { videoSync } from "@/services/videoSync";
 import { MediaType, VideoDownloadProgress } from "@/types/videos";
@@ -21,6 +22,8 @@ export type TakeoverParams = {
   sentAt?: string;
   delaySeconds?: string;
   playAt?: string;
+  /** notificationLogs id, for delivery telemetry (absent on old pushes) */
+  sendId?: string;
 };
 
 export type PlaylistEntry = {
@@ -123,6 +126,10 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
   const playAtMsRef = useRef<number | null>(null);
   // Wall-clock deadline for the late-join priming window; null when not armed.
   const lateJoinDeadlineRef = useRef<number | null>(null);
+  // Telemetry for the running session (see services/takeoverTelemetry)
+  const sendIdRef = useRef<string | null>(null);
+  const maxDriftRef = useRef(0);
+  const seekCountRef = useRef(0);
 
   const currentEntry = entries?.[currentIndex] ?? null;
   const currentUri = currentEntry?.uri ?? null;
@@ -179,7 +186,22 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const endSession = useCallback(() => {
+  /** Reports how the running session ended, with its drift stats. */
+  const finishTelemetry = useCallback((endReason: string) => {
+    const sendId = sendIdRef.current;
+    if (!sendId) return;
+    sendIdRef.current = null;
+    mark(sendId, {
+      endedAt: Date.now(),
+      endReason,
+      maxDriftSec: Math.round(maxDriftRef.current * 100) / 100,
+      seekCount: seekCountRef.current,
+    });
+    void flushTelemetry(sendId);
+  }, []);
+
+  const endWith = useCallback((reason: string) => {
+    finishTelemetry(reason);
     stopPlayback();
     abortRef.current?.abort();
     abortRef.current = null;
@@ -194,7 +216,11 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     setEntries(null);
     setCurrentIndex(0);
     setDownloadProgress(null);
-  }, [stopPlayback]);
+  }, [stopPlayback, finishTelemetry]);
+
+  // Public close (mini-player button) — also used as an onPress handler, so
+  // it must ignore its argument.
+  const endSession = useCallback(() => endWith("userClosed"), [endWith]);
 
   const startSession = useCallback((params: TakeoverParams | undefined) => {
     const playAt = params?.playAt;
@@ -216,6 +242,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     }
 
     // Tear down whatever was running before
+    finishTelemetry("replaced");
     stopPlayback();
     abortRef.current?.abort();
     const runId = ++runIdRef.current;
@@ -242,6 +269,16 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     playAtMsRef.current = parseInt(playAt, 10);
     setSessionParams(params);
     setPhase("resolving");
+
+    const sendId = params.sendId ?? null;
+    sendIdRef.current = sendId;
+    maxDriftRef.current = 0;
+    seekCountRef.current = 0;
+    mark(sendId, {
+      sessionStartAt: Date.now(),
+      playAt: playAtMsRef.current,
+      playlistLength: playlistIds.length,
+    });
 
     const isStale = () => runIdRef.current !== runId;
 
@@ -300,17 +337,28 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
         // 3. Download the target with progress, then let the countdown take over
         if (!resolved[targetIndex].uri) {
           setPhase("downloading");
+          const downloadStart = Date.now();
+          let downloadBytes: number | null = null;
           const uri = await videoSync.ensureVideo(
             resolved[targetIndex].id,
             (p) => {
+              downloadBytes = p.totalBytes;
               if (!isStale()) setDownloadProgress(p);
             },
             abort.signal
           );
           if (isStale()) return;
+          mark(sendId, {
+            cacheHit: false,
+            downloadMs: Date.now() - downloadStart,
+            downloadBytes,
+          });
           resolved[targetIndex] = { ...resolved[targetIndex], uri };
           setEntries([...resolved]);
+        } else {
+          mark(sendId, { cacheHit: true });
         }
+        mark(sendId, { readyAt: Date.now() });
 
         for (const [i, entry] of resolved.entries()) {
           if (i === targetIndex || entry.uri) continue;
@@ -334,6 +382,11 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       } catch (err: any) {
         if (isStale() || err?.name === "AbortError") return;
         console.log("Video preparation failed:", err);
+        mark(sendId, {
+          outcome: "error",
+          errorMsg: String(err?.message ?? err).slice(0, 200),
+        });
+        void flushTelemetry(sendId);
         setError(
           err?.message === "Invalid or missing video file(s)."
             ? err.message
@@ -342,7 +395,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
         setPhase("error");
       }
     })();
-  }, [stopPlayback]);
+  }, [stopPlayback, finishTelemetry]);
 
   /**
    * The sync authority: recomputes where playback should be from the server
@@ -359,7 +412,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     const location = locateInPlaylist(elapsedSec, currentEntries);
     if (!location) {
       // The playlist is over — nothing left to stay in sync with.
-      endSession();
+      endWith("completed");
       return;
     }
 
@@ -368,7 +421,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       // or the app was suspended past a boundary).
       if (!currentEntries[location.index].uri) {
         // Without a local file there is nothing to play in sync, so leave.
-        endSession();
+        endWith("missingFile");
         return;
       }
       pendingSeekRef.current = location.offsetSec;
@@ -380,11 +433,14 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
     // would thrash; the next tick catches up once it is ready.
     const p = playerRef.current;
     if (!p || p.status !== "readyToPlay") return;
-    if (Math.abs(p.currentTime - location.offsetSec) > DRIFT_TOLERANCE_SEC) {
+    const drift = Math.abs(p.currentTime - location.offsetSec);
+    if (drift > maxDriftRef.current) maxDriftRef.current = drift;
+    if (drift > DRIFT_TOLERANCE_SEC) {
+      seekCountRef.current++;
       p.currentTime = location.offsetSec;
     }
     if (!p.playing) p.play();
-  }, [endSession]);
+  }, [endWith]);
 
   // Once we're in the playing phase, every (re)created player — initial start,
   // playlist advance, late-join into a later video — starts playback here,
@@ -406,7 +462,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       // Background prefetch may not have finished (or failed); without a
       // local file there is nothing to play in sync, so leave.
       if (!nextEntry.uri) {
-        endSession();
+        endWith("missingFile");
         return;
       }
 
@@ -419,7 +475,7 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
 
       setCurrentIndex(nextIndex);
     } else {
-      endSession();
+      endWith("completed");
     }
   });
 
@@ -431,7 +487,20 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
 
     const targetTimestamp = playAtMsRef.current;
 
-    const startPlayback = (index: number, offsetSec: number) => {
+    const reportOutcome = (fields: Record<string, unknown>) => {
+      mark(sendIdRef.current, fields);
+      void flushTelemetry(sendIdRef.current);
+    };
+
+    const startPlayback = (index: number, offsetSec: number, lateJoin: boolean) => {
+      reportOutcome({
+        outcome: lateJoin ? "lateJoin" : "onTime",
+        playStartedAt: Date.now(),
+        // How far past playAt playback actually began (grace period included)
+        lateBySec:
+          Math.round(((timeSync.getSyncedTime() - targetTimestamp) / 1000) * 100) / 100,
+        startIndex: index,
+      });
       pendingSeekRef.current = offsetSec;
       setCountdown(0);
       setCurrentIndex(index);
@@ -458,12 +527,13 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       const freshElapsedSec = (timeSync.getSyncedTime() - targetTimestamp) / 1000;
       const freshLocation = locateInPlaylist(freshElapsedSec, entries);
       if (!freshLocation) {
+        reportOutcome({ outcome: "missed" });
         setPhase("missed");
         return;
       }
       if (entries[freshLocation.index].uri) {
         lateJoinDeadlineRef.current = null;
-        startPlayback(freshLocation.index, freshLocation.offsetSec);
+        startPlayback(freshLocation.index, freshLocation.offsetSec, true);
       }
     };
 
@@ -479,12 +549,13 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       const elapsedSec = (now - targetTimestamp) / 1000;
       if (elapsedSec <= 5) {
         // Grace period: start from the beginning
-        if (entries[0].uri) startPlayback(0, 0);
+        if (entries[0].uri) startPlayback(0, 0, false);
         return;
       }
 
       const location = locateInPlaylist(elapsedSec, entries);
       if (!location) {
+        reportOutcome({ outcome: "missed" });
         setPhase("missed");
         return;
       }
@@ -533,9 +604,9 @@ export function TakeoverPlayerProvider({ children }: { children: ReactNode }) {
       !isVideoScreenFocused &&
       sessionParams
     ) {
-      endSession();
+      endWith(phase);
     }
-  }, [phase, isVideoScreenFocused, sessionParams, endSession]);
+  }, [phase, isVideoScreenFocused, sessionParams, endWith]);
 
   return (
     <TakeoverPlayerContext.Provider

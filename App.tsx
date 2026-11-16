@@ -25,6 +25,10 @@ import MiniPlayer from "./components/ui/miniPlayer";
 import UpdateNow from "./components/ui/UpdateNow";
 import { AuthProvider } from "./contexts/authContext";
 import { TakeoverPlayerProvider } from "./contexts/takeoverPlayerContext";
+import {
+  recordForegroundReceive,
+  recordTap,
+} from "./services/takeoverTelemetry";
 import { timeSync } from "./services/timeSync";
 import { navigationDarkTheme, navigationLightTheme, useTheme } from "./theme";
 import { navigationRef } from "./types/navigation";
@@ -83,13 +87,14 @@ export default Sentry.wrap(function App() {
 
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
+        recordForegroundReceive(notification);
         Vibration.vibrate(UNIQUE_VIBRATION_PATTERN);
       },
     );
 
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(response);
+        recordTap(response);
       });
 
     return () => {
@@ -186,7 +191,8 @@ export default Sentry.wrap(function App() {
                   const screen = screenUrlFrom(response);
                   console.log("url received 1:", screen);
 
-                  if (screen) {
+                  if (response && screen) {
+                    recordTap(response, true);
                     // Clear the stored response so a stale notification tap
                     // doesn't redirect every future cold launch.
                     Notifications.clearLastNotificationResponse();

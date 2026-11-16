@@ -15,6 +15,7 @@ export type RootStackParamList = {
         sentAt?: string;
         delaySeconds?: string;
         playAt?: string;
+        sendId?: string;
       }
     | undefined;
   Login: undefined;

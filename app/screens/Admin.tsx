@@ -39,6 +39,7 @@ import GeoTargetingSection from "@/components/ui/geoTargetingSection";
 import { httpsCallable } from "firebase/functions";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { functions, FIREBASE_AUTH, FIRESTORE_DB } from "@/FirebaseConfig";
+import { timeSync } from "@/services/timeSync";
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
 import VideoUploadSheet from "@/components/ui/videoUploadSheet";
 import { formatCount, formatRelativeTime } from "@/utils/formatHelper";
@@ -382,6 +383,8 @@ export default function AdminScreen() {
         videoIds: selectedVideos.join(","),
         delaySeconds: delay,
         adminOnly,
+        // Server-clock tap time, for the send's delay timeline
+        requestedAt: Math.round(timeSync.getSyncedTime()),
         // A test send goes to this device alone, so never hand the server a
         // filter that implies a wider audience.
         geoFilter:

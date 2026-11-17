@@ -38,7 +38,13 @@ import { Theme, useTheme, useThemedStyles } from "@/theme";
  * location affordance next to that pre-prompt is exactly what App Store
  * Guideline 5.1.1(iv) forbids.
  */
-export default function SavedLocationCard() {
+export default function SavedLocationCard({
+  refreshOnMount = false,
+}: {
+  /** Take a fresh fix on mount even when the stored one isn't stale yet —
+   * the admin geo section wants the sender's own location current. */
+  refreshOnMount?: boolean;
+} = {}) {
   const { userDoc, setUserDoc } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -116,7 +122,11 @@ export default function SavedLocationCard() {
         // Opening the app is the moment a stale location matters most — it's
         // usually game day. Heal it in the background so the common case
         // shows a current location rather than a warning to act on.
-        if (on && staleRef.current && !autoRefreshedRef.current) {
+        if (
+          on &&
+          (staleRef.current || refreshOnMount) &&
+          !autoRefreshedRef.current
+        ) {
           autoRefreshedRef.current = true;
           void refreshLocation({ silent: true });
         }
@@ -137,7 +147,7 @@ export default function SavedLocationCard() {
       active = false;
       subscription.remove();
     };
-  }, [refreshLocation]);
+  }, [refreshLocation, refreshOnMount]);
 
   if (!userDoc || !sharingOn) return null;
 

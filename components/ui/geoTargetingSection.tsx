@@ -30,7 +30,10 @@ import {
   getLocationPermission,
   requestLocationPermission,
   reverseGeocodeLabel,
+  syncLocationToFirestore,
 } from "@/services/locationService";
+import { useAuth } from "@/contexts/authContext";
+import SavedLocationCard from "@/components/ui/savedLocationCard";
 import { setLocationPickHandler } from "@/services/locationPickHandoff";
 import { formatCount } from "@/utils/formatHelper";
 import { useAppNavigation } from "@/types/navigation";
@@ -72,6 +75,7 @@ export default function GeoTargetingSection({
 }: GeoTargetingSectionProps) {
   const navigation = useAppNavigation();
   const [locating, setLocating] = useState(false);
+  const { userDoc, setUserDoc } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -108,6 +112,17 @@ export default function GeoTargetingSection({
         longitude: coords.longitude,
         label: label ?? "My current location",
       });
+
+      // The admin is standing here too — store it as their own location so
+      // they're targeted/counted like any user. Fire-and-forget: the center
+      // is already set, a failed save shouldn't block the send.
+      if (userDoc) {
+        void syncLocationToFirestore(userDoc.id, { force: true }).then(
+          (next) => {
+            if (next) setUserDoc({ ...userDoc, location: next });
+          },
+        );
+      }
     } finally {
       setLocating(false);
     }
@@ -134,6 +149,9 @@ export default function GeoTargetingSection({
 
       {enabled && (
         <View>
+          {/* Admin's own stored location, same card users see on Home */}
+          <SavedLocationCard refreshOnMount />
+
           {/* WITHIN / OUTSIDE segmented control */}
           <View style={styles.segmentRow}>
             <TouchableOpacity
